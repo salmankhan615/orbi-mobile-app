@@ -1,0 +1,46 @@
+import { StyleSheet, View } from 'react-native';
+import { tokens } from '@/theme';
+import { Text } from './Text';
+
+export type BadgeTone = 'success' | 'warning' | 'danger' | 'neutral' | 'primary';
+
+export interface BadgeProps {
+  label: string;
+  tone?: BadgeTone;
+}
+
+const TONE_COLORS: Record<
+  BadgeTone,
+  { bg: keyof typeof tokens.colors; fg: keyof typeof tokens.colors }
+> = {
+  success: { bg: 'successMuted', fg: 'success' },
+  warning: { bg: 'warningMuted', fg: 'warning' },
+  danger: { bg: 'dangerMuted', fg: 'danger' },
+  neutral: { bg: 'surfaceAlt', fg: 'textSecondary' },
+  primary: { bg: 'primaryMuted', fg: 'primary' },
+};
+
+export function Badge({ label, tone = 'neutral' }: BadgeProps) {
+  const { bg, fg } = TONE_COLORS[tone];
+
+  return (
+    <View style={[styles.badge, { backgroundColor: tokens.colors[bg] }]}>
+      <Text variant="caption" color={fg} style={styles.label}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  badge: {
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: 3,
+    borderRadius: tokens.radius.full,
+    alignSelf: 'flex-start',
+  },
+  label: {
+    fontFamily: tokens.fontFamily.medium,
+    fontSize: tokens.fontSize.xs,
+  },
+});
