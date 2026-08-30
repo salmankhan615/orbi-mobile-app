@@ -5,6 +5,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
 import { useSessions } from '@/queries/useSessions';
+import { useCalendar } from '@/queries/useCalendars';
 import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
 import type { RootStackScreenProps } from '@/navigation/types';
 
@@ -20,7 +21,10 @@ function formatDayTitle(iso: string) {
 }
 
 export function DayAgendaScreen({ route, navigation }: Props) {
-  const { data: sessions } = useSessions();
+  const calendarId = route.params.calendarId;
+  const { data: sessions } = useSessions(calendarId);
+  const { data: calendar } = useCalendar(calendarId ?? 'all');
+
   const daySessions = (sessions ?? [])
     .filter((session) => session.date === route.params.date)
     .slice()
@@ -30,7 +34,14 @@ export function DayAgendaScreen({ route, navigation }: Props) {
     <Screen edges={['top', 'bottom']} style={styles.screen}>
       <View style={styles.header}>
         <IconButton name="arrow-back" onPress={() => navigation.goBack()} />
-        <Text variant="title">{formatDayTitle(route.params.date)}</Text>
+        <View style={styles.headerCopy}>
+          <Text variant="title">{formatDayTitle(route.params.date)}</Text>
+          {calendar && calendarId && calendarId !== 'all' ? (
+            <Text variant="caption" color="textMuted">
+              {calendar.name}
+            </Text>
+          ) : null}
+        </View>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -72,6 +83,13 @@ export function DayAgendaScreen({ route, navigation }: Props) {
             </Pressable>
           </View>
         ))}
+
+        {daySessions.length === 0 && (
+          <Text variant="bodySmall" color="textMuted" style={styles.empty}>
+            No sessions this day
+            {calendar && calendarId && calendarId !== 'all' ? ` in ${calendar.name}` : ''}.
+          </Text>
+        )}
       </ScrollView>
     </Screen>
   );
@@ -85,6 +103,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: tokens.spacing.lg,
     paddingTop: tokens.spacing.sm,
+    gap: tokens.spacing.sm,
+  },
+  headerCopy: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
   },
   headerSpacer: {
     width: 40,
@@ -140,5 +164,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: tokens.spacing.xs,
+  },
+  empty: {
+    textAlign: 'center',
+    paddingTop: tokens.spacing.xl,
   },
 });

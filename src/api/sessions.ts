@@ -9,6 +9,7 @@ export interface SessionAttachment {
 
 export interface Session {
   id: string;
+  calendarId: string;
   title: string;
   date: string; // ISO date, e.g. '2026-08-04'
   startTime: string;
@@ -29,6 +30,7 @@ export interface Session {
 const sessions: Session[] = [
   {
     id: 'sess-sage50-1',
+    calendarId: 'sage50',
     title: 'Sage 50 Session 1',
     date: '2026-08-04',
     startTime: '10:00 AM',
@@ -45,6 +47,7 @@ const sessions: Session[] = [
   },
   {
     id: 'sess-tk-taxation-1',
+    calendarId: 'acca',
     title: 'TK Taxation',
     date: '2026-08-04',
     startTime: '12:30 PM',
@@ -60,6 +63,7 @@ const sessions: Session[] = [
   },
   {
     id: 'sess-quickbooks-1',
+    calendarId: 'quickbooks',
     title: 'QuickBooks Session 1',
     date: '2026-08-04',
     startTime: '03:00 PM',
@@ -75,6 +79,7 @@ const sessions: Session[] = [
   },
   {
     id: 'sess-vat-orientation-1',
+    calendarId: 'training',
     title: 'VAT & Business Orientation',
     date: '2026-08-05',
     startTime: '02:00 PM',
@@ -95,7 +100,13 @@ function mockDelay<T>(value: T, ms = 400): Promise<T> {
 }
 
 export const sessionsApi = {
-  list: (): Promise<Session[]> => mockDelay(sessions),
+  list: (calendarId?: string): Promise<Session[]> => {
+    const items =
+      !calendarId || calendarId === 'all'
+        ? sessions
+        : sessions.filter((session) => session.calendarId === calendarId);
+    return mockDelay(items);
+  },
   getById: (id: string): Promise<Session | undefined> =>
     mockDelay(sessions.find((s) => s.id === id)),
 };

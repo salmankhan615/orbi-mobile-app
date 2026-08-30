@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { tokens } from '@/theme';
@@ -8,8 +8,10 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { useSessions } from '@/queries/useSessions';
+import { useCalendars } from '@/queries/useCalendars';
 import { useClosedDays } from '@/queries/useStaff';
 import type { Session } from '@/api/sessions';
+import { CalendarPicker } from '@/features/calendar/components/CalendarPicker';
 import { MonthGrid } from '@/features/calendar/components/MonthGrid';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
 import { MONTH_NAMES, toISODate } from '@/utils/date';
@@ -29,16 +31,28 @@ function formatSessionDate(iso: string) {
   });
 }
 
+function firstDateWithSessions(sessions: Session[]) {
+  const dates = [...new Set(sessions.map((session) => session.date))].sort();
+  return dates[0] ?? toISODate(new Date());
+}
+
 export function CalendarScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { data: sessions } = useSessions();
+  const { data: calendars } = useCalendars();
+  const [selectedCalendarId, setSelectedCalendarId] = useState('all');
+  const { data: sessions } = useSessions(selectedCalendarId);
   const { data: closedDays = [] } = useClosedDays();
   const isStaff = useIsStaff();
   const canClose = useHasPermission('close_calendar');
   const [viewMode, setViewMode] = useState<ViewMode>('Month');
   const [cursor, setCursor] = useState(() => new Date(2026, 7, 1));
-  const [selectedDate, setSelectedDate] = useState(sessions?.[0]?.date ?? toISODate(new Date()));
+  const [selectedDate, setSelectedDate] = useState(
+    () => sessions?.[0]?.date ?? toISODate(new Date()),
+  );
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  const selectedCalendar =
+    calendars?.find((calendar) => calendar.id === selectedCalendarId) ?? calendars?.[0];
 
   const sessionsByDate = useMemo(() => {
     const map = new Map<string, Session[]>();
@@ -57,6 +71,15 @@ export function CalendarScreen({ navigation }: Props) {
     return dates.map((date) => ({ date, sessions: sessionsByDate.get(date) ?? [] }));
   }, [sessionsByDate]);
 
+  useEffect(() => {
+    if (!sessions) return;
+    setSelectedDate((current) =>
+      sessions.some((session) => session.date === current)
+        ? current
+        : firstDateWithSessions(sessions),
+    );
+  }, [selectedCalendarId, sessions]);
+
   function changeMonth(delta: number) {
     setCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
   }
@@ -72,6 +95,11 @@ export function CalendarScreen({ navigation }: Props) {
     if ((sessionsByDate.get(iso) ?? []).length > 0) {
       setSheetOpen(true);
     }
+  }
+
+  function handleCalendarChange(calendarId: string) {
+    setSelectedCalendarId(calendarId);
+    setSheetOpen(false);
   }
 
   return (
@@ -93,16 +121,31 @@ export function CalendarScreen({ navigation }: Props) {
         )}
       </View>
 
+      {calendars && calendars.length > 0 ? (
+        <CalendarPicker
+          calendars={calendars}
+          selectedId={selectedCalendarId}
+          onSelect={handleCalendarChange}
+        />
+      ) : null}
+
       <View style={styles.controls}>
         <View style={styles.monthNav}>
           <IconButton name="chevron-back" onPress={() => changeMonth(-1)} />
-          <Text variant="title">
-            {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
-          </Text>
+          <View style={styles.monthCopy}>
+            <Text variant="title">
+              {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
+            </Text>
+            {selectedCalendar && selectedCalendarId !== 'all' ? (
+              <Text variant="caption" color="textMuted">
+                {selectedCalendar.name}
+              </Text>
+            ) : null}
+          </View>
           <IconButton name="chevron-forward" onPress={() => changeMonth(1)} />
         </View>
         <ScalePressable onPress={goToday} haptic={false} style={styles.todayBtn}>
-          <Text variant="caption" color="success" style={styles.todayLabel}>
+          <Text variant="caption" color="secondary" style={styles.todayLabel}>
             Today
           </Text>
         </ScalePressable>
@@ -130,7 +173,11 @@ export function CalendarScreen({ navigation }: Props) {
         })}
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {viewMode !== 'List' && (
           <>
             <View style={styles.monthCard}>
@@ -160,13 +207,19 @@ export function CalendarScreen({ navigation }: Props) {
             {sessionsForSelectedDate.length === 0 && (
               <Text variant="bodySmall" color="textMuted" style={styles.empty}>
                 No sessions this day
+                {selectedCalendarId !== 'all' ? ` in ${selectedCalendar?.name}` : ''}
               </Text>
             )}
 
             {sessionsForSelectedDate.length > 0 && (
               <Button
                 label="View Full Day  →"
-                onPress={() => navigation.navigate('DayAgenda', { date: selectedDate })}
+                onPress={() =>
+                  navigation.navigate('DayAgenda', {
+                    date: selectedDate,
+                    calendarId: selectedCalendarId,
+                  })
+                }
                 style={styles.viewFullDay}
               />
             )}
@@ -191,6 +244,12 @@ export function CalendarScreen({ navigation }: Props) {
               ))}
             </View>
           ))}
+
+        {viewMode === 'List' && groupedForList.length === 0 && (
+          <Text variant="bodySmall" color="textMuted" style={styles.empty}>
+            No sessions in this calendar yet.
+          </Text>
+        )}
       </ScrollView>
 
       <Modal
@@ -229,7 +288,10 @@ export function CalendarScreen({ navigation }: Props) {
               icon="calendar-outline"
               onPress={() => {
                 setSheetOpen(false);
-                navigation.navigate('DayAgenda', { date: selectedDate });
+                navigation.navigate('DayAgenda', {
+                  date: selectedDate,
+                  calendarId: selectedCalendarId,
+                });
               }}
             />
           </View>
@@ -248,7 +310,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: tokens.spacing.lg,
+    marginBottom: tokens.spacing.md,
   },
   controls: {
     flexDirection: 'row',
@@ -260,12 +322,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing.xs,
+    flex: 1,
+  },
+  monthCopy: {
+    alignItems: 'center',
+    gap: 2,
   },
   todayBtn: {
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.xs,
     borderRadius: tokens.radius.full,
-    backgroundColor: tokens.colors.successMuted,
+    backgroundColor: tokens.colors.secondaryMuted,
   },
   todayLabel: {
     fontFamily: tokens.fontFamily.semibold,
@@ -289,6 +356,9 @@ const styles = StyleSheet.create({
   segmentLabel: {
     fontFamily: tokens.fontFamily.semibold,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
     paddingBottom: tokens.spacing.xxxl,
   },
@@ -296,6 +366,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.surfaceAlt,
     borderRadius: tokens.radius.xl,
     padding: tokens.spacing.lg,
+    paddingBottom: tokens.spacing.xl,
   },
   sessionsHeader: {
     marginTop: tokens.spacing.xl,
@@ -330,6 +401,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.screen,
     paddingTop: tokens.spacing.sm,
     maxHeight: '70%',
+    flexShrink: 1,
   },
   sheetHandle: {
     alignSelf: 'center',
@@ -346,6 +418,8 @@ const styles = StyleSheet.create({
     marginBottom: tokens.spacing.md,
   },
   sheetList: {
+    flexGrow: 1,
+    flexShrink: 1,
     marginBottom: tokens.spacing.md,
   },
 });

@@ -10,7 +10,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   CourseDetail: { courseId: string };
   LessonPlayer: { courseId: string; lessonId: string };
-  DayAgenda: { date: string };
+  DayAgenda: { date: string; calendarId?: string };
   SessionDetails: { sessionId: string };
   ChatThread: { conversationId: string };
   Notifications: undefined;

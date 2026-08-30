@@ -97,7 +97,8 @@ const styles = StyleSheet.create({
   dayCell: {
     width: `${100 / 7}%`,
     alignItems: 'center',
-    marginBottom: tokens.spacing.sm,
+    marginBottom: tokens.spacing.md,
+    minHeight: CELL_SIZE + 12,
   },
   dayCircle: {
     width: CELL_SIZE,
@@ -117,13 +118,16 @@ const styles = StyleSheet.create({
   },
   dotsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 3,
-    height: 6,
-    marginTop: 2,
+    minHeight: 6,
+    marginTop: tokens.spacing.xs,
+    paddingBottom: 1,
   },
   dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
 });

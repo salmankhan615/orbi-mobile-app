@@ -3,13 +3,14 @@ import { sessionsApi } from '@/api/sessions';
 
 export const sessionsKeys = {
   all: ['sessions'] as const,
+  list: (calendarId?: string) => ['sessions', calendarId ?? 'all'] as const,
   detail: (id: string) => ['sessions', id] as const,
 };
 
-export function useSessions() {
+export function useSessions(calendarId?: string) {
   return useQuery({
-    queryKey: sessionsKeys.all,
-    queryFn: sessionsApi.list,
+    queryKey: sessionsKeys.list(calendarId),
+    queryFn: () => sessionsApi.list(calendarId),
   });
 }
 

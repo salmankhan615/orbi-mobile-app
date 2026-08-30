@@ -40,7 +40,7 @@ export function SessionListItem({
   const { day, month } = formatDateParts(session.date);
 
   return (
-    <FadeInView delay={staggerDelay(index)}>
+    <FadeInView delay={staggerDelay(index)} style={styles.wrapper}>
       <ScalePressable onPress={onPress} style={styles.card}>
         {!hideDate && (
           <>
@@ -65,30 +65,35 @@ export function SessionListItem({
         </View>
 
         <View style={styles.body}>
-          <Text variant="bodySmall" style={styles.title} numberOfLines={1}>
+          <Text variant="bodySmall" style={styles.title} numberOfLines={2}>
             {session.title}
           </Text>
-          <Text variant="caption" color="textMuted">
+          <Text variant="caption" color="textMuted" numberOfLines={1}>
             {session.startTime} – {session.endTime}
           </Text>
-          <Text variant="caption" color="textMuted">
+          <Text variant="caption" color="textMuted" numberOfLines={1}>
             {session.code}
           </Text>
         </View>
 
-        <Badge label="Upcoming" tone="success" />
-        {showChevron && (
-          <Ionicons name="chevron-forward" size={16} color={tokens.colors.textMuted} />
-        )}
+        <View style={styles.trailing}>
+          <Badge label="Upcoming" tone="success" />
+          {showChevron ? (
+            <Ionicons name="chevron-forward" size={16} color={tokens.colors.textMuted} />
+          ) : null}
+        </View>
       </ScalePressable>
     </FadeInView>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    width: '100%',
+  },
   card: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
@@ -101,6 +106,7 @@ const styles = StyleSheet.create({
   dateCol: {
     width: 40,
     alignItems: 'center',
+    paddingTop: 2,
   },
   month: {
     fontFamily: tokens.fontFamily.semibold,
@@ -121,12 +127,21 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   body: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
+    paddingTop: 2,
   },
   title: {
     fontFamily: tokens.fontFamily.semibold,
+  },
+  trailing: {
+    alignItems: 'flex-end',
+    gap: tokens.spacing.xs,
+    flexShrink: 0,
+    paddingTop: 2,
   },
 });
