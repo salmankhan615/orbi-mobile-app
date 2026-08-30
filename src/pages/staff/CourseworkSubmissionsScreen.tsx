@@ -1,4 +1,5 @@
 import { StackScreen } from '@/components/custom/StackScreen';
+import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { Text } from '@/components/ui/Text';
 import { useSubmissions } from '@/queries/useStaff';
@@ -23,18 +24,22 @@ export function CourseworkSubmissionsScreen({ route }: Props) {
 
   return (
     <StackScreen title="Submissions">
-      {(data ?? []).map((item) => (
-        <EntityRow
-          key={item.id}
-          icon="cloud-upload-outline"
-          title={item.studentName}
-          subtitle={`Submitted ${item.submittedAt}`}
-          badge={{
-            label: item.grade ?? item.status,
-            tone: item.status === 'graded' ? 'success' : 'warning',
-          }}
-        />
-      ))}
+      {(data ?? []).length === 0 ? (
+        <EmptyState icon="cloud-upload-outline" message="No submissions yet." />
+      ) : (
+        (data ?? []).map((item) => (
+          <EntityRow
+            key={item.id}
+            icon="cloud-upload-outline"
+            title={item.studentName}
+            subtitle={`Submitted ${item.submittedAt}`}
+            badge={{
+              label: item.grade ?? item.status,
+              tone: item.status === 'graded' ? 'success' : 'warning',
+            }}
+          />
+        ))
+      )}
     </StackScreen>
   );
 }

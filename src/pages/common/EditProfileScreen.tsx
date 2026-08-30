@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { tokens } from '@/theme';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
@@ -8,6 +9,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useToastStore } from '@/store/useToastStore';
 
 export function EditProfileScreen() {
+  const navigation = useNavigation();
   const user = useAuthStore((state) => state.user);
   const updateUser = useAuthStore((state) => state.updateUser);
   const showToast = useToastStore((state) => state.show);
@@ -16,7 +18,7 @@ export function EditProfileScreen() {
   const [phone, setPhone] = useState(user?.phone ?? '');
 
   return (
-    <StackScreen title="Edit Profile">
+    <StackScreen title="Edit Profile" keyboardAvoiding>
       <TextField label="First name" value={firstName} onChangeText={setFirstName} />
       <TextField label="Last name" value={lastName} onChangeText={setLastName} />
       <TextField
@@ -31,6 +33,7 @@ export function EditProfileScreen() {
         onPress={() => {
           updateUser({ firstName, lastName, phone });
           showToast('Profile updated', 'success');
+          navigation.goBack();
         }}
         style={styles.save}
       />

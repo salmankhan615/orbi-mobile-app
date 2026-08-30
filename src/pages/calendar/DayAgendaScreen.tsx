@@ -1,9 +1,10 @@
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
+import { ScalePressable } from '@/components/custom/ScalePressable';
 import { useSessions } from '@/queries/useSessions';
 import { useCalendar } from '@/queries/useCalendars';
 import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
@@ -45,7 +46,7 @@ export function DayAgendaScreen({ route, navigation }: Props) {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.timeline}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.timeline}>
         {daySessions.map((session, index) => (
           <View key={session.id} style={styles.timelineRow}>
             <View style={styles.timeCol}>
@@ -64,7 +65,7 @@ export function DayAgendaScreen({ route, navigation }: Props) {
               {index < daySessions.length - 1 && <View style={styles.line} />}
             </View>
 
-            <Pressable
+            <ScalePressable
               style={styles.card}
               onPress={() => navigation.navigate('SessionDetails', { sessionId: session.id })}
             >
@@ -80,7 +81,7 @@ export function DayAgendaScreen({ route, navigation }: Props) {
                 </Text>
                 <Badge label="Upcoming" tone="success" />
               </View>
-            </Pressable>
+            </ScalePressable>
           </View>
         ))}
 
@@ -96,7 +97,12 @@ export function DayAgendaScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: {},
+  screen: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -147,6 +153,7 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.lg,
     borderWidth: StyleSheet.hairlineWidth,

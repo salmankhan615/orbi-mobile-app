@@ -7,12 +7,16 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
 import { useConversations } from '@/queries/useChat';
 import { ConversationListItem } from '@/features/chat/components/ConversationListItem';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { useToastStore } from '@/store/useToastStore';
 import { chatApi } from '@/api/chat';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Chat'>;
 
 export function ChatListScreen({ navigation }: Props) {
+  const tabPadding = useTabBarPadding();
+  const showToast = useToastStore((state) => state.show);
   const { data: conversations } = useConversations();
   const [query, setQuery] = useState('');
 
@@ -34,7 +38,18 @@ export function ChatListScreen({ navigation }: Props) {
             Instructors and support
           </Text>
         </View>
-        <IconButton name="create-outline" background="surface" />
+        <IconButton
+          name="create-outline"
+          background="surface"
+          onPress={() => {
+            const first = conversations?.[0];
+            if (first) {
+              navigation.navigate('ChatThread', { conversationId: first.id });
+            } else {
+              showToast('No conversations available yet', 'neutral');
+            }
+          }}
+        />
       </View>
 
       <View style={styles.searchBar}>
@@ -50,9 +65,10 @@ export function ChatListScreen({ navigation }: Props) {
       </View>
 
       <FlatList
+        style={styles.listFlex}
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: tabPadding }]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -79,6 +95,7 @@ export function ChatListScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
     paddingHorizontal: tokens.spacing.screen,
     paddingTop: tokens.spacing.sm,
   },
@@ -109,9 +126,10 @@ const styles = StyleSheet.create({
     color: tokens.colors.textPrimary,
     padding: 0,
   },
-  list: {
-    paddingBottom: tokens.spacing.xxxl,
+  listFlex: {
+    flex: 1,
   },
+  list: {},
   empty: {
     alignItems: 'center',
     paddingTop: tokens.spacing.xxxl,

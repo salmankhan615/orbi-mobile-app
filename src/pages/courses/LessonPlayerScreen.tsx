@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { setStatusBarStyle } from 'expo-status-bar';
@@ -99,6 +99,16 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
     }
   }
 
+  function showLessonMenu() {
+    Alert.alert(lesson.title, undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Back to course',
+        onPress: () => navigation.navigate('CourseDetail', { courseId: course!.id }),
+      },
+    ]);
+  }
+
   return (
     <View style={styles.screen}>
       <View style={[styles.playerChrome, { paddingTop: insets.top }]}>
@@ -122,7 +132,12 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
               {lesson.title}
             </Text>
           </View>
-          <IconButton name="ellipsis-horizontal" color="onPrimary" background="glassTint" />
+          <IconButton
+            name="ellipsis-horizontal"
+            color="onPrimary"
+            background="glassTint"
+            onPress={showLessonMenu}
+          />
         </View>
 
         <View style={styles.videoWrap}>

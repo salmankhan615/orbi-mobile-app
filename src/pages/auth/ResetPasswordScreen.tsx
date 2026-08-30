@@ -18,7 +18,7 @@ export function ResetPasswordScreen({ route, navigation }: Props) {
   const showToast = useToastStore((state) => state.show);
 
   return (
-    <StackScreen title="Reset password">
+    <StackScreen title="Reset password" keyboardAvoiding>
       <Text variant="body" color="textSecondary" style={styles.copy}>
         Choose a new password for {route.params.email}.
       </Text>
@@ -41,7 +41,7 @@ export function ResetPasswordScreen({ route, navigation }: Props) {
         disabled={!password || password !== confirm || reset.isPending}
         onPress={() =>
           reset.mutate(
-            { token: 'mock-token', password },
+            { token: route.params.email, password },
             {
               onSuccess: () => {
                 showToast('Password updated. Sign in to continue.', 'success');

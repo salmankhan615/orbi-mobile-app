@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Screen } from '@/components/custom/Screen';
+import { EmptyState } from '@/components/custom/EmptyState';
 import { BellButton } from '@/components/custom/BellButton';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { AnnouncementBanner } from '@/features/announcements/components/AnnouncementBanner';
@@ -11,6 +12,7 @@ import { useCourses } from '@/queries/useCourses';
 import { useSessions } from '@/queries/useSessions';
 import { useAnnouncements } from '@/queries/useAnnouncements';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { CourseSummaryCard } from '@/features/courses/components/CourseSummaryCard';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
 import type { MainTabScreenProps } from '@/navigation/types';
@@ -18,6 +20,7 @@ import type { MainTabScreenProps } from '@/navigation/types';
 type Props = MainTabScreenProps<'Home'>;
 
 export function HomeScreen({ navigation }: Props) {
+  const tabPadding = useTabBarPadding();
   const user = useAuthStore((state) => state.user);
   const { data: courses } = useCourses();
   const { data: sessions } = useSessions();
@@ -33,7 +36,12 @@ export function HomeScreen({ navigation }: Props) {
 
   return (
     <Screen style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.greetingRow}>
           <View style={styles.greetingCopy}>
             <Text variant="largeTitle">Hi, {firstName} 👋</Text>
@@ -63,9 +71,13 @@ export function HomeScreen({ navigation }: Props) {
             style={styles.searchInput}
             returnKeyType="search"
           />
-          <View style={styles.filterBtn}>
+          <ScalePressable
+            onPress={() => navigation.navigate('Courses')}
+            haptic={false}
+            style={styles.filterBtn}
+          >
             <Ionicons name="options-outline" size={18} color={tokens.colors.primary} />
-          </View>
+          </ScalePressable>
         </View>
 
         <View style={styles.shortcuts}>
@@ -114,6 +126,9 @@ export function HomeScreen({ navigation }: Props) {
             />
           ))}
         </ScrollView>
+        {filteredCourses.length === 0 ? (
+          <EmptyState icon="book-outline" message="No courses match your search." />
+        ) : null}
 
         <ScalePressable onPress={() => navigation.navigate('Calendar')} style={styles.banner}>
           <View style={styles.bannerIcon}>
@@ -152,6 +167,12 @@ export function HomeScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('SessionDetails', { sessionId: session.id })}
           />
         ))}
+        {upcomingSessions.length === 0 ? (
+          <EmptyState
+            icon="calendar-outline"
+            message="No upcoming sessions. Book a class to get started."
+          />
+        ) : null}
       </ScrollView>
     </Screen>
   );
@@ -178,12 +199,15 @@ function Shortcut({
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
     paddingHorizontal: tokens.spacing.screen,
     backgroundColor: tokens.colors.surface,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
     paddingTop: tokens.spacing.md,
-    paddingBottom: tokens.spacing.xxxl,
   },
   greetingRow: {
     flexDirection: 'row',

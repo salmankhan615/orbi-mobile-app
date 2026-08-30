@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
@@ -12,10 +12,31 @@ interface StackScreenProps {
   right?: ReactNode;
   footer?: ReactNode;
   scroll?: boolean;
+  keyboardAvoiding?: boolean;
 }
 
-export function StackScreen({ title, children, right, footer, scroll = true }: StackScreenProps) {
+export function StackScreen({
+  title,
+  children,
+  right,
+  footer,
+  scroll = true,
+  keyboardAvoiding = false,
+}: StackScreenProps) {
   const navigation = useNavigation();
+
+  const body = scroll ? (
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      {children}
+    </ScrollView>
+  ) : (
+    <View style={styles.body}>{children}</View>
+  );
 
   return (
     <Screen edges={['top', 'bottom']} style={styles.screen}>
@@ -26,12 +47,15 @@ export function StackScreen({ title, children, right, footer, scroll = true }: S
         </Text>
         {right ?? <View style={styles.headerSpacer} />}
       </View>
-      {scroll ? (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {children}
-        </ScrollView>
+      {keyboardAvoiding ? (
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          {body}
+        </KeyboardAvoidingView>
       ) : (
-        <View style={styles.body}>{children}</View>
+        body
       )}
       {footer}
     </Screen>
@@ -39,7 +63,12 @@ export function StackScreen({ title, children, right, footer, scroll = true }: S
 }
 
 const styles = StyleSheet.create({
-  screen: {},
+  screen: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -52,6 +81,9 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 36,
+  },
+  scroll: {
+    flex: 1,
   },
   content: {
     paddingHorizontal: tokens.spacing.screen,

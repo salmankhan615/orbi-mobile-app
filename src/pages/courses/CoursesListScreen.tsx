@@ -7,6 +7,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { useCourses } from '@/queries/useCourses';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { CourseCard } from '@/features/courses/components/CourseCard';
 import type { Course, CourseStatus } from '@/api/courses';
 import type { MainTabScreenProps } from '@/navigation/types';
@@ -22,6 +23,7 @@ const FILTERS: { key: FilterTab; label: string }[] = [
 ];
 
 export function CoursesListScreen({ navigation }: Props) {
+  const tabPadding = useTabBarPadding();
   const { data: courses } = useCourses();
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [query, setQuery] = useState('');
@@ -38,16 +40,25 @@ export function CoursesListScreen({ navigation }: Props) {
   return (
     <Screen style={styles.screen} background="surface">
       <FlatList
+        style={styles.listFlex}
         data={filtered}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: tabPadding }]}
         ListHeaderComponent={
           <View>
             <View style={styles.header}>
-              <IconButton name="menu" background="surfaceAlt" />
+              <IconButton
+                name="menu"
+                background="surfaceAlt"
+                onPress={() => navigation.navigate('Profile')}
+              />
               <Text variant="heading">My Courses</Text>
-              <IconButton name="notifications-outline" background="surfaceAlt" />
+              <IconButton
+                name="notifications-outline"
+                background="surfaceAlt"
+                onPress={() => navigation.navigate('Notifications')}
+              />
             </View>
 
             <View style={styles.searchBar}>
@@ -120,8 +131,12 @@ export function CoursesListScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
     paddingHorizontal: tokens.spacing.screen,
     paddingTop: tokens.spacing.sm,
+  },
+  listFlex: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -165,9 +180,7 @@ const styles = StyleSheet.create({
   filterChipLabel: {
     fontFamily: tokens.fontFamily.semibold,
   },
-  list: {
-    paddingBottom: tokens.spacing.xxxl,
-  },
+  list: {},
   empty: {
     alignItems: 'center',
     paddingTop: tokens.spacing.xxxl,

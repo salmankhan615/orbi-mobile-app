@@ -17,7 +17,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   const showToast = useToastStore((state) => state.show);
 
   return (
-    <StackScreen title="Forgot password">
+    <StackScreen title="Forgot password" keyboardAvoiding>
       <Text variant="body" color="textSecondary" style={styles.copy}>
         Enter the email on your KBM account. We will send a reset link — same 7-day session rules as
         the web app once you sign back in.

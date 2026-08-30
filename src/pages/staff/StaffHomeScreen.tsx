@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Screen } from '@/components/custom/Screen';
+import { EmptyState } from '@/components/custom/EmptyState';
 import { BellButton } from '@/components/custom/BellButton';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { AnnouncementBanner } from '@/features/announcements/components/AnnouncementBanner';
@@ -12,11 +13,13 @@ import { useStaffBookings } from '@/queries/useBookings';
 import { useAgreements } from '@/queries/useStaff';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useHasPermission } from '@/hooks/useHasPermission';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Home'>;
 
 export function StaffHomeScreen({ navigation }: Props) {
+  const tabPadding = useTabBarPadding();
   const user = useAuthStore((state) => state.user);
   const { data: announcements } = useAnnouncements('staff');
   const { data: bookings } = useStaffBookings();
@@ -35,7 +38,11 @@ export function StaffHomeScreen({ navigation }: Props) {
 
   return (
     <Screen style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.greetingRow}>
           <View style={styles.greetingCopy}>
             <Text variant="largeTitle">Hi, {user?.firstName ?? 'there'} 👋</Text>
@@ -132,6 +139,9 @@ export function StaffHomeScreen({ navigation }: Props) {
                 onPress={() => navigation.navigate('StaffBookingDetail', { bookingId: booking.id })}
               />
             ))}
+            {(bookings ?? []).length === 0 ? (
+              <EmptyState icon="clipboard-outline" message="No bookings to show." />
+            ) : null}
           </>
         ) : (
           <Text variant="bodySmall" color="textMuted">
@@ -164,11 +174,14 @@ function Shortcut({
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
     paddingHorizontal: tokens.spacing.screen,
+  },
+  scroll: {
+    flex: 1,
   },
   content: {
     paddingTop: tokens.spacing.md,
-    paddingBottom: tokens.spacing.xxxl,
   },
   greetingRow: {
     flexDirection: 'row',

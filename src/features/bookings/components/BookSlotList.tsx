@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { StackScreen } from '@/components/custom/StackScreen';
+import { EmptyState } from '@/components/custom/EmptyState';
 import { useBookableSlots, useBookSlot } from '@/queries/useBookings';
 import { useAuthStore, displayName } from '@/store/useAuthStore';
 import { useToastStore } from '@/store/useToastStore';
@@ -41,29 +42,33 @@ export function BookSlotList({ kind, title }: BookSlotListProps) {
 
   return (
     <StackScreen title={title}>
-      {(slots ?? []).map((slot) => (
-        <View key={slot.id} style={styles.card}>
-          <View style={styles.top}>
-            <Text variant="bodySmall" style={styles.title}>
-              {slot.title}
+      {(slots ?? []).length === 0 ? (
+        <EmptyState icon="calendar-outline" message="No bookable slots available right now." />
+      ) : (
+        (slots ?? []).map((slot) => (
+          <View key={slot.id} style={styles.card}>
+            <View style={styles.top}>
+              <Text variant="bodySmall" style={styles.title}>
+                {slot.title}
+              </Text>
+              <Badge label={slot.mode} tone="primary" />
+            </View>
+            <Text variant="caption" color="textSecondary">
+              {slot.date} · {slot.startTime}–{slot.endTime}
             </Text>
-            <Badge label={slot.mode} tone="primary" />
+            <Text variant="caption" color="textMuted">
+              {slot.instructor} · {slot.seatsLeft} seats left
+            </Text>
+            <Button
+              label="Book"
+              variant="accent"
+              onPress={() => handleBook(slot.id, slot.title)}
+              disabled={slot.seatsLeft === 0 || book.isPending}
+              style={styles.cta}
+            />
           </View>
-          <Text variant="caption" color="textSecondary">
-            {slot.date} · {slot.startTime}–{slot.endTime}
-          </Text>
-          <Text variant="caption" color="textMuted">
-            {slot.instructor} · {slot.seatsLeft} seats left
-          </Text>
-          <Button
-            label="Book"
-            variant="accent"
-            onPress={() => handleBook(slot.id, slot.title)}
-            disabled={slot.seatsLeft === 0 || book.isPending}
-            style={styles.cta}
-          />
-        </View>
-      ))}
+        ))
+      )}
     </StackScreen>
   );
 }

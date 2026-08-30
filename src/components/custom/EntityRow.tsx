@@ -23,8 +23,8 @@ export function EntityRow({
   icon = 'ellipse',
   onPress,
 }: EntityRowProps) {
-  return (
-    <ScalePressable onPress={onPress} style={styles.row}>
+  const content = (
+    <>
       <View style={styles.iconChip}>
         <Ionicons name={icon} size={18} color={tokens.colors.secondary} />
       </View>
@@ -44,7 +44,19 @@ export function EntityRow({
         ) : null}
       </View>
       {badge ? <Badge label={badge.label} tone={badge.tone} /> : null}
-      <Ionicons name="chevron-forward" size={16} color={tokens.colors.textMuted} />
+      {onPress ? (
+        <Ionicons name="chevron-forward" size={16} color={tokens.colors.textMuted} />
+      ) : null}
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.row}>{content}</View>;
+  }
+
+  return (
+    <ScalePressable onPress={onPress} style={styles.row}>
+      {content}
     </ScalePressable>
   );
 }
@@ -72,6 +84,7 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
   },
   title: {

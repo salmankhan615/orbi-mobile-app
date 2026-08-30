@@ -49,9 +49,11 @@ export function MyBookingsScreen() {
             title={booking.title}
             subtitle={`${booking.date} · ${booking.startTime}–${booking.endTime}`}
             badge={{ label: booking.status, tone: STATUS_TONE[booking.status] }}
-            onPress={() => {
-              if (booking.status === 'confirmed') handleCancel(booking.id, booking.title);
-            }}
+            onPress={
+              booking.status === 'confirmed'
+                ? () => handleCancel(booking.id, booking.title)
+                : undefined
+            }
           />
         ))
       )}

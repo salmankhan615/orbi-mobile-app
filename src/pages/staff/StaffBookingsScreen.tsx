@@ -1,48 +1,65 @@
+import { ScrollView, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { Screen } from '@/components/custom/Screen';
+import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useStaffBookings } from '@/queries/useBookings';
 import { useHasPermission } from '@/hooks/useHasPermission';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import type { MainTabScreenProps } from '@/navigation/types';
-import { StyleSheet } from 'react-native';
 import { tokens } from '@/theme';
 
 type Props = MainTabScreenProps<'Bookings'>;
 
 export function StaffBookingsScreen({ navigation }: Props) {
+  const tabPadding = useTabBarPadding();
   const allowed = useHasPermission('view_bookings');
   const { data } = useStaffBookings();
+  const bookings = data ?? [];
 
   return (
     <Screen style={styles.screen}>
-      <PageHeader title="Bookings" subtitle="Mark attendance or cancel a class booking." />
-      {!allowed ? (
-        <Text variant="body" color="textMuted">
-          You do not have permission to view bookings.
-        </Text>
-      ) : (
-        (data ?? []).map((booking) => (
-          <EntityRow
-            key={booking.id}
-            icon="clipboard-outline"
-            title={booking.title}
-            subtitle={`${booking.studentName} · ${booking.date} ${booking.startTime}`}
-            badge={{
-              label: booking.attendance ?? booking.status,
-              tone: booking.status === 'cancelled' ? 'danger' : 'success',
-            }}
-            onPress={() => navigation.navigate('StaffBookingDetail', { bookingId: booking.id })}
-          />
-        ))
-      )}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <PageHeader title="Bookings" subtitle="Mark attendance or cancel a class booking." />
+        {!allowed ? (
+          <Text variant="body" color="textMuted">
+            You do not have permission to view bookings.
+          </Text>
+        ) : bookings.length === 0 ? (
+          <EmptyState icon="clipboard-outline" message="No bookings yet." />
+        ) : (
+          bookings.map((booking) => (
+            <EntityRow
+              key={booking.id}
+              icon="clipboard-outline"
+              title={booking.title}
+              subtitle={`${booking.studentName} · ${booking.date} ${booking.startTime}`}
+              badge={{
+                label: booking.attendance ?? booking.status,
+                tone: booking.status === 'cancelled' ? 'danger' : 'success',
+              }}
+              onPress={() => navigation.navigate('StaffBookingDetail', { bookingId: booking.id })}
+            />
+          ))
+        )}
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
     paddingHorizontal: tokens.spacing.screen,
     paddingTop: tokens.spacing.sm,
   },
+  scroll: {
+    flex: 1,
+  },
+  content: {},
 });

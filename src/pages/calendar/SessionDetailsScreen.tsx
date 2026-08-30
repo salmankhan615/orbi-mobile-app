@@ -71,11 +71,13 @@ function SessionDetailsContent({
     <Screen edges={['top', 'bottom']} style={styles.screen}>
       <View style={styles.header}>
         <IconButton name="arrow-back" onPress={onBack} />
-        <Text variant="title">Session Details</Text>
+        <Text variant="title" style={styles.headerTitle}>
+          Session Details
+        </Text>
         <IconButton name="create-outline" onPress={handleShare} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <FadeInView>
           <View style={styles.titleRow}>
             <Text variant="heading" style={styles.titleText}>
@@ -153,8 +155,11 @@ function SessionDetailsContent({
 }
 
 const styles = StyleSheet.create({
-  screen: {},
+  screen: {
+    flex: 1,
+  },
   loading: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -164,6 +169,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: tokens.spacing.lg,
     paddingTop: tokens.spacing.sm,
+    gap: tokens.spacing.sm,
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+  },
+  scroll: {
+    flex: 1,
   },
   content: {
     paddingHorizontal: tokens.spacing.lg,

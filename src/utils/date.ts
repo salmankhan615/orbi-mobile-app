@@ -64,6 +64,27 @@ export function getWeekRange(date: Date): { start: Date; end: Date } {
   return { start, end };
 }
 
+export function getWeekDays(anchor: Date): MonthDay[] {
+  const { start } = getWeekRange(anchor);
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return {
+      date,
+      iso: toISODate(date),
+      isCurrentMonth: date.getMonth() === anchor.getMonth(),
+    };
+  });
+}
+
+export function formatWeekRange(start: Date, end: Date): string {
+  const sameMonth = start.getMonth() === end.getMonth();
+  if (sameMonth) {
+    return `${MONTH_NAMES[start.getMonth()]} ${start.getDate()}–${end.getDate()}, ${start.getFullYear()}`;
+  }
+  return `${MONTH_NAMES[start.getMonth()]} ${start.getDate()} – ${MONTH_NAMES[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+}
+
 /**
  * Combines an ISO date ('2026-08-04') with a 12-hour clock time
  * ('10:00 AM') into a real Date — used to build calendar events from

@@ -1,5 +1,6 @@
 import { Text } from '@/components/ui/Text';
 import { StackScreen } from '@/components/custom/StackScreen';
+import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { useStaffGroups, useGroupStudents } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
@@ -27,15 +28,19 @@ export function GroupDetailScreen({ route }: Props) {
           Session details are hidden for your role.
         </Text>
       )}
-      {(students ?? []).map((student) => (
-        <EntityRow
-          key={student.id}
-          icon="person-outline"
-          title={student.name}
-          subtitle={student.email}
-          badge={{ label: `${student.progress}%`, tone: 'primary' }}
-        />
-      ))}
+      {(students ?? []).length === 0 ? (
+        <EmptyState icon="person-outline" message="No students in this group yet." />
+      ) : (
+        (students ?? []).map((student) => (
+          <EntityRow
+            key={student.id}
+            icon="person-outline"
+            title={student.name}
+            subtitle={student.email}
+            badge={{ label: `${student.progress}%`, tone: 'primary' }}
+          />
+        ))
+      )}
     </StackScreen>
   );
 }

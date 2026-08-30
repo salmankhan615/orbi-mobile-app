@@ -1,8 +1,9 @@
-import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { StackScreen } from '@/components/custom/StackScreen';
+import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import {
@@ -15,6 +16,7 @@ import {
 } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useToastStore } from '@/store/useToastStore';
+import { toISODate } from '@/utils/date';
 import type { Agreement } from '@/api/staff';
 
 export function InvoicesScreen() {
@@ -31,19 +33,27 @@ export function InvoicesScreen() {
   }
   return (
     <StackScreen title="Invoices">
-      {(data ?? []).map((item) => (
-        <EntityRow
-          key={item.id}
-          icon="receipt-outline"
-          title={item.studentName}
-          subtitle={item.issuedOn}
-          badge={{
-            label: `${item.amountLabel} · ${item.status}`,
-            tone:
-              item.status === 'paid' ? 'success' : item.status === 'overdue' ? 'danger' : 'warning',
-          }}
-        />
-      ))}
+      {(data ?? []).length === 0 ? (
+        <EmptyState icon="receipt-outline" message="No invoices yet." />
+      ) : (
+        (data ?? []).map((item) => (
+          <EntityRow
+            key={item.id}
+            icon="receipt-outline"
+            title={item.studentName}
+            subtitle={item.issuedOn}
+            badge={{
+              label: `${item.amountLabel} · ${item.status}`,
+              tone:
+                item.status === 'paid'
+                  ? 'success'
+                  : item.status === 'overdue'
+                    ? 'danger'
+                    : 'warning',
+            }}
+          />
+        ))
+      )}
     </StackScreen>
   );
 }
@@ -83,24 +93,28 @@ export function AgreementsScreen() {
           </ScalePressable>
         ))}
       </View>
-      {list.map((item) => (
-        <EntityRow
-          key={item.id}
-          icon="document-attach-outline"
-          title={item.title}
-          subtitle={item.studentName}
-          meta={item.submittedOn}
-          badge={{
-            label: item.status,
-            tone:
-              item.status === 'signed'
-                ? 'success'
-                : item.status === 'pending'
-                  ? 'warning'
-                  : 'danger',
-          }}
-        />
-      ))}
+      {list.length === 0 ? (
+        <EmptyState icon="document-attach-outline" message="No agreements match this filter." />
+      ) : (
+        list.map((item) => (
+          <EntityRow
+            key={item.id}
+            icon="document-attach-outline"
+            title={item.title}
+            subtitle={item.studentName}
+            meta={item.submittedOn}
+            badge={{
+              label: item.status,
+              tone:
+                item.status === 'signed'
+                  ? 'success'
+                  : item.status === 'pending'
+                    ? 'warning'
+                    : 'danger',
+            }}
+          />
+        ))
+      )}
     </StackScreen>
   );
 }
@@ -119,17 +133,30 @@ export function BookingShiftsScreen() {
   }
   return (
     <StackScreen title="Booking shifts">
-      {(data ?? []).map((item) => (
-        <EntityRow
-          key={item.id}
-          icon="time-outline"
-          title={item.staffName}
-          subtitle={`${item.date} · ${item.startTime}–${item.endTime}`}
-          meta={item.location}
-        />
-      ))}
+      {(data ?? []).length === 0 ? (
+        <EmptyState icon="time-outline" message="No shifts scheduled." />
+      ) : (
+        (data ?? []).map((item) => (
+          <EntityRow
+            key={item.id}
+            icon="time-outline"
+            title={item.staffName}
+            subtitle={`${item.date} · ${item.startTime}–${item.endTime}`}
+            meta={item.location}
+          />
+        ))
+      )}
     </StackScreen>
   );
+}
+
+function upcomingDates(count: number): string[] {
+  const today = new Date();
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + index);
+    return toISODate(date);
+  });
 }
 
 export function CloseCalendarScreen() {
@@ -138,7 +165,8 @@ export function CloseCalendarScreen() {
   const closeDay = useCloseDay();
   const openDay = useOpenDay();
   const showToast = useToastStore((state) => state.show);
-  const [iso, setIso] = useState('2026-08-11');
+  const dateOptions = upcomingDates(14);
+  const [iso, setIso] = useState(() => dateOptions[0] ?? toISODate(new Date()));
 
   if (!allowed) {
     return (
@@ -156,7 +184,7 @@ export function CloseCalendarScreen() {
         Closed days cannot take new class or training bookings.
       </Text>
       <View style={styles.filters}>
-        {['2026-08-09', '2026-08-10', '2026-08-11', '2026-08-12'].map((day) => (
+        {dateOptions.map((day) => (
           <ScalePressable
             key={day}
             haptic={false}

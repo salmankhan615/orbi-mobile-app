@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -62,12 +62,18 @@ export function CourseDetailScreen({ route, navigation }: Props) {
 
   if (isLoading || !course) {
     return (
-      <View style={styles.loading}>
+      <View style={[styles.loading, { paddingTop: insets.top + tokens.spacing.lg }]}>
         <Text variant="body" color="textMuted">
           Loading…
         </Text>
       </View>
     );
+  }
+
+  function handleShare() {
+    Share.share({
+      message: `${course!.title} — ${course!.progress}% complete on KBM Training & Recruitment.`,
+    });
   }
 
   return (
@@ -85,7 +91,12 @@ export function CourseDetailScreen({ route, navigation }: Props) {
             background="glassTint"
             onPress={() => navigation.goBack()}
           />
-          <IconButton name="share-outline" color="onPrimary" background="glassTint" />
+          <IconButton
+            name="share-outline"
+            color="onPrimary"
+            background="glassTint"
+            onPress={handleShare}
+          />
         </View>
         <Text variant="heading" color="onPrimary" style={styles.heroTitle}>
           {course.title}

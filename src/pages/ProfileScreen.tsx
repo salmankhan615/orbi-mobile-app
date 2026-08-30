@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
 import { MenuRow } from '@/features/profile/components/MenuRow';
 import { useAuthStore, displayName } from '@/store/useAuthStore';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { haptics } from '@/utils/haptics';
 import { useState } from 'react';
 import type { MainTabScreenProps } from '@/navigation/types';
@@ -14,6 +15,7 @@ import type { MainTabScreenProps } from '@/navigation/types';
 type Props = MainTabScreenProps<'Profile'>;
 
 export function ProfileScreen({ navigation }: Props) {
+  const tabPadding = useTabBarPadding();
   const user = useAuthStore((state) => state.user);
   const signOut = useAuthStore((state) => state.signOut);
   const [notificationsOn, setNotificationsOn] = useState(true);
@@ -35,7 +37,11 @@ export function ProfileScreen({ navigation }: Props) {
 
   return (
     <Screen style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
+        showsVerticalScrollIndicator={false}
+      >
         <Text variant="heading" style={styles.pageTitle}>
           Profile
         </Text>
@@ -129,12 +135,14 @@ export function ProfileScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
     paddingHorizontal: tokens.spacing.screen,
     paddingTop: tokens.spacing.sm,
   },
-  content: {
-    paddingBottom: tokens.spacing.xxxl,
+  scroll: {
+    flex: 1,
   },
+  content: {},
   pageTitle: {
     marginBottom: tokens.spacing.xl,
   },

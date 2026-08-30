@@ -1,4 +1,5 @@
 import { StackScreen } from '@/components/custom/StackScreen';
+import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { Text } from '@/components/ui/Text';
 import { useStaffCoursework } from '@/queries/useStaff';
@@ -24,21 +25,25 @@ export function StaffCourseworkScreen({ navigation }: Props) {
 
   return (
     <StackScreen title="Coursework">
-      {(data ?? []).map((item) => (
-        <EntityRow
-          key={item.id}
-          icon="document-text-outline"
-          title={item.title}
-          subtitle={item.courseTitle}
-          meta={`Due ${item.dueDate}`}
-          badge={{ label: item.status, tone: 'primary' }}
-          onPress={
-            canSubs
-              ? () => navigation.navigate('CourseworkSubmissions', { assignmentId: item.id })
-              : undefined
-          }
-        />
-      ))}
+      {(data ?? []).length === 0 ? (
+        <EmptyState icon="document-text-outline" message="No coursework assignments yet." />
+      ) : (
+        (data ?? []).map((item) => (
+          <EntityRow
+            key={item.id}
+            icon="document-text-outline"
+            title={item.title}
+            subtitle={item.courseTitle}
+            meta={`Due ${item.dueDate}`}
+            badge={{ label: item.status, tone: 'primary' }}
+            onPress={
+              canSubs
+                ? () => navigation.navigate('CourseworkSubmissions', { assignmentId: item.id })
+                : undefined
+            }
+          />
+        ))
+      )}
     </StackScreen>
   );
 }

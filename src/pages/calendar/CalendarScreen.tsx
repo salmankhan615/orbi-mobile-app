@@ -13,9 +13,11 @@ import { useClosedDays } from '@/queries/useStaff';
 import type { Session } from '@/api/sessions';
 import { CalendarPicker } from '@/features/calendar/components/CalendarPicker';
 import { MonthGrid } from '@/features/calendar/components/MonthGrid';
+import { WeekGrid } from '@/features/calendar/components/WeekGrid';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
-import { MONTH_NAMES, toISODate } from '@/utils/date';
+import { formatWeekRange, getWeekRange, MONTH_NAMES, toISODate } from '@/utils/date';
 import { useIsStaff, useHasPermission } from '@/hooks/useHasPermission';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Calendar'>;
@@ -38,6 +40,7 @@ function firstDateWithSessions(sessions: Session[]) {
 
 export function CalendarScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const tabPadding = useTabBarPadding();
   const { data: calendars } = useCalendars();
   const [selectedCalendarId, setSelectedCalendarId] = useState('all');
   const { data: sessions } = useSessions(selectedCalendarId);
@@ -45,14 +48,20 @@ export function CalendarScreen({ navigation }: Props) {
   const isStaff = useIsStaff();
   const canClose = useHasPermission('close_calendar');
   const [viewMode, setViewMode] = useState<ViewMode>('Month');
-  const [cursor, setCursor] = useState(() => new Date(2026, 7, 1));
-  const [selectedDate, setSelectedDate] = useState(
-    () => sessions?.[0]?.date ?? toISODate(new Date()),
-  );
+  const [cursor, setCursor] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(() => toISODate(new Date()));
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const selectedCalendar =
     calendars?.find((calendar) => calendar.id === selectedCalendarId) ?? calendars?.[0];
+
+  const periodLabel = useMemo(() => {
+    if (viewMode === 'Week') {
+      const { start, end } = getWeekRange(cursor);
+      return formatWeekRange(start, end);
+    }
+    return `${MONTH_NAMES[cursor.getMonth()]} ${cursor.getFullYear()}`;
+  }, [viewMode, cursor]);
 
   const sessionsByDate = useMemo(() => {
     const map = new Map<string, Session[]>();
@@ -80,13 +89,21 @@ export function CalendarScreen({ navigation }: Props) {
     );
   }, [selectedCalendarId, sessions]);
 
-  function changeMonth(delta: number) {
+  function changePeriod(delta: number) {
+    if (viewMode === 'Week') {
+      setCursor((prev) => {
+        const next = new Date(prev);
+        next.setDate(prev.getDate() + delta * 7);
+        return next;
+      });
+      return;
+    }
     setCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
   }
 
   function goToday() {
-    const today = new Date(2026, 7, 4);
-    setCursor(new Date(today.getFullYear(), today.getMonth(), 1));
+    const today = new Date();
+    setCursor(today);
     setSelectedDate(toISODate(today));
   }
 
@@ -131,10 +148,10 @@ export function CalendarScreen({ navigation }: Props) {
 
       <View style={styles.controls}>
         <View style={styles.monthNav}>
-          <IconButton name="chevron-back" onPress={() => changeMonth(-1)} />
+          <IconButton name="chevron-back" onPress={() => changePeriod(-1)} />
           <View style={styles.monthCopy}>
-            <Text variant="title">
-              {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
+            <Text variant="title" numberOfLines={1} style={styles.periodLabel}>
+              {periodLabel}
             </Text>
             {selectedCalendar && selectedCalendarId !== 'all' ? (
               <Text variant="caption" color="textMuted">
@@ -142,7 +159,7 @@ export function CalendarScreen({ navigation }: Props) {
               </Text>
             ) : null}
           </View>
-          <IconButton name="chevron-forward" onPress={() => changeMonth(1)} />
+          <IconButton name="chevron-forward" onPress={() => changePeriod(1)} />
         </View>
         <ScalePressable onPress={goToday} haptic={false} style={styles.todayBtn}>
           <Text variant="caption" color="secondary" style={styles.todayLabel}>
@@ -175,20 +192,30 @@ export function CalendarScreen({ navigation }: Props) {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
         showsVerticalScrollIndicator={false}
       >
         {viewMode !== 'List' && (
           <>
             <View style={styles.monthCard}>
-              <MonthGrid
-                year={cursor.getFullYear()}
-                month={cursor.getMonth()}
-                selectedDate={selectedDate}
-                sessionsByDate={sessionsByDate}
-                closedDates={closedDays}
-                onSelectDate={handleSelectDate}
-              />
+              {viewMode === 'Month' ? (
+                <MonthGrid
+                  year={cursor.getFullYear()}
+                  month={cursor.getMonth()}
+                  selectedDate={selectedDate}
+                  sessionsByDate={sessionsByDate}
+                  closedDates={closedDays}
+                  onSelectDate={handleSelectDate}
+                />
+              ) : (
+                <WeekGrid
+                  anchor={cursor}
+                  selectedDate={selectedDate}
+                  sessionsByDate={sessionsByDate}
+                  closedDates={closedDays}
+                  onSelectDate={handleSelectDate}
+                />
+              )}
             </View>
 
             <Text variant="title" style={styles.sessionsHeader}>
@@ -303,6 +330,7 @@ export function CalendarScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
     paddingHorizontal: tokens.spacing.screen,
     paddingTop: tokens.spacing.sm,
   },
@@ -325,8 +353,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   monthCopy: {
+    flex: 1,
     alignItems: 'center',
     gap: 2,
+  },
+  periodLabel: {
+    textAlign: 'center',
   },
   todayBtn: {
     paddingHorizontal: tokens.spacing.md,

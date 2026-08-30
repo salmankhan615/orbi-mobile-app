@@ -84,7 +84,7 @@ export function AnnouncementEditorScreen({ route, navigation }: Props) {
   }
 
   return (
-    <StackScreen title={id ? 'Edit announcement' : 'New announcement'}>
+    <StackScreen title={id ? 'Edit announcement' : 'New announcement'} keyboardAvoiding>
       <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Title" />
       <TextField
         label="Body"
