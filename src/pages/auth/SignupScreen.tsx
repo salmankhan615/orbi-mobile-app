@@ -12,12 +12,13 @@ import type { RootStackScreenProps } from '@/navigation/types';
 type Props = RootStackScreenProps<'Signup'>;
 
 export function SignupScreen({ navigation }: Props) {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const signup = useSignup();
 
-  const canSubmit = Boolean(name && email && password) && !signup.isPending;
+  const canSubmit = Boolean(firstName && lastName && email && password) && !signup.isPending;
 
   return (
     <Screen edges={['top', 'bottom']} style={styles.flex}>
@@ -26,15 +27,25 @@ export function SignupScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <AuthHero title="Create your account" subtitle="Join KBM to start learning today." />
+          <AuthHero
+            title="Create your account"
+            subtitle="Join KBM as a student to start learning."
+          />
 
           <View style={styles.card}>
             <TextField
-              label="Full name"
+              label="First name"
               icon="person-outline"
-              placeholder="Jane Doe"
-              value={name}
-              onChangeText={setName}
+              placeholder="Jane"
+              value={firstName}
+              onChangeText={setFirstName}
+            />
+            <TextField
+              label="Last name"
+              icon="person-outline"
+              placeholder="Doe"
+              value={lastName}
+              onChangeText={setLastName}
             />
             <TextField
               label="Email"
@@ -56,7 +67,7 @@ export function SignupScreen({ navigation }: Props) {
 
             <Button
               label={signup.isPending ? 'Creating account…' : 'Sign Up'}
-              onPress={() => signup.mutate({ name, email, password })}
+              onPress={() => signup.mutate({ firstName, lastName, email, password })}
               disabled={!canSubmit}
               style={styles.submit}
             />

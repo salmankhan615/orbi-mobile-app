@@ -3,11 +3,13 @@ import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
-import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
+import { BellButton } from '@/components/custom/BellButton';
 import { ScalePressable } from '@/components/custom/ScalePressable';
+import { AnnouncementBanner } from '@/features/announcements/components/AnnouncementBanner';
 import { useCourses } from '@/queries/useCourses';
 import { useSessions } from '@/queries/useSessions';
+import { useAnnouncements } from '@/queries/useAnnouncements';
 import { useAuthStore } from '@/store/useAuthStore';
 import { CourseSummaryCard } from '@/features/courses/components/CourseSummaryCard';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
@@ -19,13 +21,15 @@ export function HomeScreen({ navigation }: Props) {
   const user = useAuthStore((state) => state.user);
   const { data: courses } = useCourses();
   const { data: sessions } = useSessions();
+  const { data: announcements } = useAnnouncements('students');
   const [query, setQuery] = useState('');
 
-  const firstName = user?.name?.split(' ')[0] ?? 'there';
+  const firstName = user?.firstName ?? 'there';
   const upcomingSessions = (sessions ?? []).slice(0, 2);
   const filteredCourses = (courses ?? []).filter((course) =>
     query.trim() ? course.title.toLowerCase().includes(query.trim().toLowerCase()) : true,
   );
+  const headline = announcements?.find((item) => item.pinned) ?? announcements?.[0];
 
   return (
     <Screen style={styles.screen}>
@@ -37,8 +41,17 @@ export function HomeScreen({ navigation }: Props) {
               Let&apos;s continue your learning journey.
             </Text>
           </View>
-          <IconButton name="notifications-outline" background="surface" />
+          <BellButton />
         </View>
+
+        {headline ? (
+          <AnnouncementBanner
+            announcement={headline}
+            onPress={() =>
+              navigation.navigate('AnnouncementDetail', { announcementId: headline.id })
+            }
+          />
+        ) : null}
 
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color={tokens.colors.textMuted} />
@@ -55,10 +68,33 @@ export function HomeScreen({ navigation }: Props) {
           </View>
         </View>
 
+        <View style={styles.shortcuts}>
+          <Shortcut
+            icon="school-outline"
+            label="Book class"
+            onPress={() => navigation.navigate('BookClass')}
+          />
+          <Shortcut
+            icon="fitness-outline"
+            label="Book training"
+            onPress={() => navigation.navigate('BookTraining')}
+          />
+          <Shortcut
+            icon="clipboard-outline"
+            label="Bookings"
+            onPress={() => navigation.navigate('MyBookings')}
+          />
+          <Shortcut
+            icon="document-text-outline"
+            label="Coursework"
+            onPress={() => navigation.navigate('Coursework')}
+          />
+        </View>
+
         <View style={styles.sectionHeader}>
           <Text variant="title">My Courses</Text>
           <ScalePressable onPress={() => navigation.navigate('Courses')} haptic={false}>
-            <Text variant="bodySmall" color="success" style={styles.link}>
+            <Text variant="bodySmall" color="secondary" style={styles.link}>
               See all
             </Text>
           </ScalePressable>
@@ -81,7 +117,7 @@ export function HomeScreen({ navigation }: Props) {
 
         <ScalePressable onPress={() => navigation.navigate('Calendar')} style={styles.banner}>
           <View style={styles.bannerIcon}>
-            <Ionicons name="calendar" size={22} color={tokens.colors.success} />
+            <Ionicons name="calendar" size={22} color={tokens.colors.secondary} />
           </View>
           <View style={styles.bannerBody}>
             <Text variant="bodySmall" style={styles.bannerTitle}>
@@ -102,7 +138,7 @@ export function HomeScreen({ navigation }: Props) {
         <View style={styles.sectionHeader}>
           <Text variant="title">Upcoming Sessions</Text>
           <ScalePressable onPress={() => navigation.navigate('Calendar')} haptic={false}>
-            <Text variant="bodySmall" color="success" style={styles.link}>
+            <Text variant="bodySmall" color="secondary" style={styles.link}>
               See all
             </Text>
           </ScalePressable>
@@ -118,6 +154,25 @@ export function HomeScreen({ navigation }: Props) {
         ))}
       </ScrollView>
     </Screen>
+  );
+}
+
+function Shortcut({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <ScalePressable onPress={onPress} haptic={false} style={styles.shortcut}>
+      <Ionicons name={icon} size={16} color={tokens.colors.secondary} />
+      <Text variant="caption" style={styles.shortcutLabel}>
+        {label}
+      </Text>
+    </ScalePressable>
   );
 }
 
@@ -153,7 +208,7 @@ const styles = StyleSheet.create({
     paddingLeft: tokens.spacing.md,
     paddingRight: tokens.spacing.sm,
     height: 48,
-    marginBottom: tokens.spacing.xl,
+    marginBottom: tokens.spacing.md,
   },
   searchInput: {
     flex: 1,
@@ -169,6 +224,24 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  shortcuts: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.sm,
+    marginBottom: tokens.spacing.xl,
+  },
+  shortcut: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.colors.secondaryMuted,
+  },
+  shortcutLabel: {
+    fontFamily: tokens.fontFamily.semibold,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -187,7 +260,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing.md,
-    backgroundColor: tokens.colors.successMuted,
+    backgroundColor: tokens.colors.tertiaryMuted,
     borderRadius: tokens.radius.xl,
     padding: tokens.spacing.lg,
     marginBottom: tokens.spacing.xl,
@@ -212,7 +285,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: tokens.colors.primary,
-    borderRadius: tokens.radius.full,
+    borderRadius: tokens.radius.xl,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
   },

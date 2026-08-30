@@ -13,7 +13,7 @@ export interface ProgressBarProps {
 export function ProgressBar({
   progress,
   trackColor = 'surfaceAlt',
-  fillColor = 'success',
+  fillColor = 'tertiary',
   height = 6,
 }: ProgressBarProps) {
   const width = useSharedValue(0);

@@ -23,7 +23,7 @@ export function LoginScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <AuthHero title="Welcome back" subtitle="Sign in to continue your learning journey." />
+          <AuthHero title="Welcome back" subtitle="Sign in as a student or staff member." />
 
           <View style={styles.card}>
             <TextField
@@ -44,12 +44,25 @@ export function LoginScreen({ navigation }: Props) {
               onChangeText={setPassword}
             />
 
+            <Text
+              variant="caption"
+              color="secondary"
+              style={styles.forgot}
+              onPress={() => navigation.navigate('ForgotPassword')}
+            >
+              Forgot password?
+            </Text>
+
             <Button
               label={login.isPending ? 'Signing in…' : 'Sign In'}
               onPress={() => login.mutate({ email, password })}
               disabled={login.isPending || !email || !password}
               style={styles.submit}
             />
+
+            <Text variant="caption" color="textMuted" style={styles.hint}>
+              Demo: student@kbm.com · staff@kbm.com
+            </Text>
 
             <View style={styles.footer}>
               <Text variant="bodySmall" color="textSecondary">
@@ -84,8 +97,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.xl,
     marginTop: tokens.spacing.sm,
   },
+  forgot: {
+    alignSelf: 'flex-end',
+    marginBottom: tokens.spacing.md,
+    fontFamily: tokens.fontFamily.semibold,
+  },
   submit: {
     marginTop: tokens.spacing.sm,
+  },
+  hint: {
+    textAlign: 'center',
+    marginTop: tokens.spacing.md,
   },
   footer: {
     flexDirection: 'row',

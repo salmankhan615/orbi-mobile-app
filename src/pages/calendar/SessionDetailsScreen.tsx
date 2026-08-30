@@ -141,7 +141,7 @@ function SessionDetailsContent({
         <Button
           label={addedToCalendar ? 'Added to Calendar ✓' : 'Add to Calendar'}
           icon="calendar-outline"
-          variant="secondary"
+          variant="outline"
           disabled={addedToCalendar}
           loading={isAddingToCalendar}
           onPress={addToCalendar}

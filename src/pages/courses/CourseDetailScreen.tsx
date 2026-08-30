@@ -24,6 +24,8 @@ import type { RootStackScreenProps } from '@/navigation/types';
 type Props = RootStackScreenProps<'CourseDetail'>;
 type Tab = 'Modules' | 'About' | 'Resources' | 'Announcements';
 const TABS: Tab[] = ['Modules', 'About', 'Resources', 'Announcements'];
+const HIDDEN_TABS: Tab[] = ['Resources', 'Announcements'];
+const VISIBLE_TABS = TABS.filter((tab) => !HIDDEN_TABS.includes(tab));
 
 export function CourseDetailScreen({ route, navigation }: Props) {
   const { data: course, isLoading } = useCourse(route.params.courseId);
@@ -142,14 +144,14 @@ export function CourseDetailScreen({ route, navigation }: Props) {
         </View>
 
         <View style={styles.tabRow}>
-          {TABS.map((tab) => {
+          {VISIBLE_TABS.map((tab) => {
             const isActive = tab === activeTab;
             return (
               <ScalePressable key={tab} onPress={() => setActiveTab(tab)} haptic={false}>
                 <View style={[styles.tab, isActive && styles.tabActive]}>
                   <Text
                     variant="bodySmall"
-                    color={isActive ? 'success' : 'textMuted'}
+                    color={isActive ? 'secondary' : 'textMuted'}
                     style={styles.tabLabel}
                   >
                     {tab}
@@ -172,9 +174,19 @@ export function CourseDetailScreen({ route, navigation }: Props) {
             ))}
           </View>
         )}
-        {activeTab !== 'Modules' && (
+        {activeTab === 'About' && (
+          <Text variant="body" color="textSecondary" style={styles.about}>
+            {course.description}
+          </Text>
+        )}
+        {activeTab === 'Resources' && (
           <Text variant="body" color="textMuted" style={styles.emptyTab}>
-            No {activeTab.toLowerCase()} yet.
+            No resources yet.
+          </Text>
+        )}
+        {activeTab === 'Announcements' && (
+          <Text variant="body" color="textMuted" style={styles.emptyTab}>
+            No announcements yet.
           </Text>
         )}
       </ScrollView>
@@ -272,13 +284,17 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     borderBottomWidth: 2,
-    borderBottomColor: tokens.colors.success,
+    borderBottomColor: tokens.colors.secondary,
   },
   tabLabel: {
     fontFamily: tokens.fontFamily.medium,
   },
   modules: {
     marginHorizontal: tokens.spacing.screen,
+  },
+  about: {
+    marginHorizontal: tokens.spacing.screen,
+    marginTop: tokens.spacing.md,
   },
   emptyTab: {
     textAlign: 'center',

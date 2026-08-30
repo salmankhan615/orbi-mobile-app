@@ -1,43 +1,47 @@
-// Reference LMS palette: deep navy primary + forest green accents on soft white.
-// KBM red stays available for brand/danger only — not chrome.
+// Tertiary scheme: deep blue + royal purple + gold.
+// Green stays semantic (complete / attendance). KBM red is logo/danger only.
 export const palette = {
   white: '#FFFFFF',
   black: '#000000',
 
-  navy950: '#061525',
-  navy900: '#0A2540',
-  navy800: '#123356',
-  navy700: '#1A456E',
+  blue950: '#0C1528',
+  blue900: '#15233F',
+  blue800: '#1E3358',
+  blue700: '#2A4470',
+
+  purple50: '#F3F0F8',
+  purple100: '#E6DFF0',
+  purple500: '#6B5B95',
+  purple700: '#4F3F78',
+  purple800: '#3D2F5C',
+
+  gold50: '#FBF6E8',
+  gold100: '#F4E8C4',
+  gold500: '#D4B13A',
+  gold600: '#C4A02A',
+  gold700: '#9A7C18',
 
   green50: '#EAF6EF',
-  green100: '#D4EDDD',
   green500: '#2F9E5C',
   green600: '#1F7A4C',
-  green700: '#16603B',
 
   red50: '#FDECEC',
   red500: '#E11D21',
   red600: '#C8102E',
 
-  gray50: '#F5F7FA',
-  gray100: '#EEF1F6',
-  gray200: '#E3E8EF',
-  gray300: '#CDD5E0',
-  gray400: '#9AA3B2',
+  gray50: '#F4F5F8',
+  gray100: '#EBEDF2',
+  gray200: '#DDE1EA',
+  gray300: '#C5CBD6',
+  gray400: '#8B93A4',
   gray500: '#6B7280',
   gray600: '#4B5563',
 
   teal500: '#0D9488',
   teal700: '#0F766E',
   tealSoft: '#E6F7F5',
-  purple500: '#7C3AED',
-  purple700: '#5B21B6',
-  purpleSoft: '#F3E8FF',
   amber500: '#F59E0B',
   amber700: '#B45309',
-  amberSoft: '#FFF7E6',
-  blue500: '#3B82F6',
-  blueSoft: '#EAF2FE',
 } as const;
 
 export const colors = {
@@ -48,44 +52,52 @@ export const colors = {
   border: palette.gray200,
   borderStrong: palette.gray300,
 
-  textPrimary: palette.navy900,
+  textPrimary: palette.blue900,
   textSecondary: palette.gray600,
   textMuted: palette.gray400,
   textInverse: palette.white,
 
-  primary: palette.navy900,
-  primaryHover: palette.navy800,
+  primary: palette.blue900,
+  primaryHover: palette.blue800,
   primaryMuted: palette.gray100,
   primarySubtle: palette.gray50,
   onPrimary: palette.white,
 
-  // Brand spark (logo / danger) — not primary UI chrome
+  secondary: palette.purple700,
+  secondaryHover: palette.purple800,
+  secondaryMuted: palette.purple50,
+  onSecondary: palette.white,
+
+  tertiary: palette.gold600,
+  tertiaryHover: palette.gold700,
+  tertiaryMuted: palette.gold50,
+  onTertiary: palette.blue900,
+
   accent: palette.red600,
   accentHover: palette.red500,
   accentMuted: palette.red50,
   onAccent: palette.white,
 
-  // Forest green — progress, active tabs, "Upcoming", positive CTAs
   success: palette.green600,
   successMuted: palette.green50,
-  warning: palette.amber500,
-  warningMuted: palette.amberSoft,
+  warning: palette.gold600,
+  warningMuted: palette.gold50,
   danger: palette.red600,
   dangerMuted: palette.red50,
-  info: palette.blue500,
-  infoMuted: palette.blueSoft,
+  info: palette.purple500,
+  infoMuted: palette.purple50,
 
-  categoryNavy: palette.navy800,
+  categoryNavy: palette.blue800,
   categoryTeal: palette.teal500,
   categoryPurple: palette.purple500,
-  categoryAmber: palette.amber500,
+  categoryAmber: palette.gold500,
   categoryRed: palette.red500,
   categoryGreen: palette.green500,
-  categoryBlue: palette.blue500,
+  categoryBlue: palette.blue700,
   categoryTealMuted: palette.tealSoft,
-  categoryPurpleMuted: palette.purpleSoft,
+  categoryPurpleMuted: palette.purple50,
 
-  overlay: 'rgba(10, 37, 64, 0.45)',
+  overlay: 'rgba(21, 35, 63, 0.45)',
   transparent: 'transparent',
   glassTint: 'rgba(255, 255, 255, 0.16)',
   glassBorder: 'rgba(255, 255, 255, 0.28)',

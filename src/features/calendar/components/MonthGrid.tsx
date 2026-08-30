@@ -10,6 +10,7 @@ interface MonthGridProps {
   month: number;
   selectedDate: string;
   sessionsByDate: Map<string, Session[]>;
+  closedDates?: string[];
   onSelectDate: (iso: string) => void;
 }
 
@@ -18,6 +19,7 @@ export function MonthGrid({
   month,
   selectedDate,
   sessionsByDate,
+  closedDates = [],
   onSelectDate,
 }: MonthGridProps) {
   const days = getMonthGrid(year, month);
@@ -35,11 +37,18 @@ export function MonthGrid({
       <View style={styles.grid}>
         {days.map((day) => {
           const isSelected = day.iso === selectedDate;
+          const isClosed = closedDates.includes(day.iso);
           const daySessions = sessionsByDate.get(day.iso) ?? [];
 
           return (
             <Pressable key={day.iso} style={styles.dayCell} onPress={() => onSelectDate(day.iso)}>
-              <View style={[styles.dayCircle, isSelected && styles.dayCircleSelected]}>
+              <View
+                style={[
+                  styles.dayCircle,
+                  isClosed && styles.dayCircleClosed,
+                  isSelected && styles.dayCircleSelected,
+                ]}
+              >
                 <Text
                   variant="bodySmall"
                   color={
@@ -98,7 +107,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayCircleSelected: {
-    backgroundColor: tokens.colors.success,
+    backgroundColor: tokens.colors.secondary,
+  },
+  dayCircleClosed: {
+    backgroundColor: tokens.colors.tertiaryMuted,
   },
   daySelectedLabel: {
     fontFamily: tokens.fontFamily.bold,

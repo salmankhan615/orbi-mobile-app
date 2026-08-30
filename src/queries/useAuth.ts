@@ -7,7 +7,7 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: authApi.login,
-    onSuccess: signIn,
+    onSuccess: ({ user, sessionExpiresAt }) => signIn(user, sessionExpiresAt),
   });
 }
 
@@ -16,6 +16,18 @@ export function useSignup() {
 
   return useMutation({
     mutationFn: authApi.signup,
-    onSuccess: signIn,
+    onSuccess: ({ user, sessionExpiresAt }) => signIn(user, sessionExpiresAt),
+  });
+}
+
+export function useRequestPasswordReset() {
+  return useMutation({
+    mutationFn: authApi.requestPasswordReset,
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: authApi.resetPassword,
   });
 }

@@ -177,7 +177,7 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
           <View style={styles.navRow}>
             <Button
               label="Previous"
-              variant="secondary"
+              variant="outline"
               icon="arrow-back"
               disabled={!prevLesson}
               onPress={() => prevLesson && openLesson(prevLesson.id, prevLesson.status)}
@@ -185,7 +185,7 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
             />
             <Button
               label="Next"
-              variant="secondary"
+              variant="outline"
               icon="arrow-forward"
               disabled={!nextLesson || nextLesson.status === 'locked'}
               onPress={goNext}

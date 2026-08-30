@@ -10,34 +10,35 @@ This is an Expo (React Native) + TypeScript learning/LMS app for KBM Training & 
 
 ## Screens
 
-- **Auth** (`src/pages/auth/`): `LoginScreen`, `SignupScreen`. Shown when
-  `useAuthStore().isAuthenticated` is `false` (see `RootNavigator.tsx`).
-- **Home** (`src/pages/home/HomeScreen.tsx`): dashboard — greeting, horizontal "My Courses"
-  summary cards, a "Stay on track" banner linking to Calendar, and upcoming sessions.
-- **Courses** (`src/pages/courses/`): `CoursesListScreen` (search + status filter chips + full
-  course list), `CourseDetailScreen` (hero header, stats card, progress bar, Modules/About/
-  Resources/Announcements tabs, module accordion, "Continue Learning" CTA), and
-  `LessonPlayerScreen` (expo-video player + lesson meta + course playlist; opened from Continue
-  Learning or a lesson row).
-- **Calendar** (`src/pages/calendar/`): `CalendarScreen` (Month/Week/List toggle, month grid with
-  per-day session dots, sessions list for the selected date), `DayAgendaScreen` (vertical timeline
-  for one date), `SessionDetailsScreen` (session info, attachments, real Join Session / Add to
-  Calendar actions via `src/features/calendar/useSessionActions.ts` — opens the meeting link or a
-  maps link with `Linking`, writes a real event with `expo-calendar`).
-- **Chat** (`src/pages/chat/`): `ChatListScreen` (conversation list) → `ChatThread` (pushed at the
-  root-stack level, like CourseDetail/SessionDetails) with a real send flow
-  (`src/queries/useChat.ts`, `src/api/chat.ts` mock backend with a simulated reply).
-- **Profile** (`src/pages/ProfileScreen.tsx`): avatar, enrolled/in-progress/completed stats
-  (derived from `useCourses()`), a notifications toggle, and an account menu
-  (`src/features/profile/components/MenuRow.tsx`) ending in a confirm-then-sign-out row.
+Roles: `student` | `staff` on `useAuthStore().user`. Tabs swap in `MainTabNavigator.tsx`.
+Staff screens check `user.permissions` (`src/features/auth/permissions.ts`). Signup is student-only.
 
-Navigation is a single root native-stack (`RootNavigator.tsx`) that swaps between the Auth screens
-and `{ MainTabs, CourseDetail, LessonPlayer, DayAgenda, SessionDetails, ChatThread }` based on auth
-state.
-`MainTabs` (`MainTabNavigator.tsx`) is the bottom tab bar (Home, Courses, Calendar, Chat, Profile).
-Detail screens are pushed at the root-stack level — not nested inside a per-tab stack — so they
-cover the tab bar; see `navigation/types.ts` for the `RootStackScreenProps` / `MainTabScreenProps`
-helper types used to type each screen's props.
+- **Auth** (`src/pages/auth/`): `LoginScreen`, `SignupScreen` (first + last name),
+  `ForgotPasswordScreen`, `ResetPasswordScreen`. Sessions last 7 days
+  (`SESSION_DURATION_MS`); `RootNavigator` signs out when the timer elapses.
+  Demo logins: `student@kbm.com`, `staff@kbm.com`.
+- **Student Home** (`src/pages/home/HomeScreen.tsx`): greeting, bell (notifications),
+  announcement banner, book-class/training/bookings/coursework shortcuts, course
+  carousel, stay-on-track, upcoming sessions.
+- **Staff Home** (`src/pages/staff/StaffHomeScreen.tsx`): permission-aware overview.
+- **Courses** (`src/pages/courses/`): list, detail (visible tabs: Modules + About;
+  Resources/Announcements stay in code but are hidden), lesson player.
+- **Calendar / Chat**: unchanged student flows; calendar + opens Book Class, staff
+  with `close_calendar` can close days.
+- **Student extras** (`src/pages/student/`): Book Class, Book Training, My Bookings,
+  Coursework.
+- **Staff extras** (`src/pages/staff/`): bookings + attendance, groups, directory,
+  coursework/submissions, invoices, agreements-by-status, announcements editor,
+  close calendar, booking shifts. Gated by permissions; More tab lists only allowed tools.
+- **Common** (`src/pages/common/`): Notifications, Announcements, Edit Profile,
+  Privacy & Security, Help & Support, About KBM.
+- **Profile** (`src/pages/ProfileScreen.tsx`): identity + role badge, notification
+  toggle, account menu (no enrolled/in-progress/completed stats).
+
+Navigation is a single root native-stack (`RootNavigator.tsx`) that swaps Auth vs
+authenticated stacks. `MainTabs` is student (Home, Courses, Calendar, Chat, Profile)
+or staff (Overview, Bookings, Groups, More, Profile). Detail screens are pushed at
+the root-stack level.
 
 ## Feedback & touch feel
 
@@ -65,10 +66,11 @@ helper types used to type each screen's props.
 - Fonts: Poppins only (geometric LMS feel matching the product reference), loaded via
   `@expo-google-fonts/poppins` and `useFonts()` in `App.tsx`. Family names live in
   `src/theme/typography.ts` — never reference a `Poppins_*` string outside that file.
-- Colors: deep navy primary (`tokens.colors.primary`) + forest green for progress / active
-  tabs / positive states (`tokens.colors.success`). KBM red (`tokens.colors.accent`) is for
-  logo/danger only. Course cards may use `tokens.gradients.category*` media bands via
-  `CATEGORY_GRADIENT` in `categoryStyle.ts`.
+- Colors: tertiary scheme — dark blue primary (`tokens.colors.primary`), purple secondary
+  (`tokens.colors.secondary`, tabs/chips), gold tertiary (`tokens.colors.tertiary`, progress,
+  announcement accents, Book CTAs). Buttons: primary = blue squircle, secondary = purple
+  block, accent = gold pill, outline = blue stroke. KBM red (`tokens.colors.accent`) is for
+  logo/danger only. Course cards may use `tokens.gradients.category*` via `CATEGORY_GRADIENT`.
 
 ## Safe area
 
@@ -86,11 +88,9 @@ mounted-but-blurred screen's `<StatusBar>` can still win.
 
 ## Mock data / backend
 
-There's no real backend yet. `src/api/{auth,courses,sessions}.ts` each export in-memory mock data
-plus a `mockDelay()`-wrapped async function per operation, matching the shape a real API would
-return. `src/queries/*.ts` wraps these with `useQuery`/`useMutation` exactly as it would wrap real
-`apiClient` calls — so swapping mock data for a real endpoint later only touches `api/`, never
-`queries/` or screens. `src/api/client.ts` (the generic `fetch` wrapper) is ready for that swap.
+There's no real backend yet. `src/api/{auth,courses,sessions,announcements,bookings,notifications,staff}.ts`
+each export in-memory mock data plus a `mockDelay()`-wrapped async function. `src/queries/*.ts`
+wraps these with TanStack Query.
 
 ## Folder structure
 

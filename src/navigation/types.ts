@@ -5,12 +5,35 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: { email: string };
   MainTabs: undefined;
   CourseDetail: { courseId: string };
   LessonPlayer: { courseId: string; lessonId: string };
   DayAgenda: { date: string };
   SessionDetails: { sessionId: string };
   ChatThread: { conversationId: string };
+  Notifications: undefined;
+  Announcements: undefined;
+  AnnouncementDetail: { announcementId: string };
+  AnnouncementEditor: { announcementId?: string };
+  BookClass: undefined;
+  BookTraining: undefined;
+  MyBookings: undefined;
+  Coursework: undefined;
+  EditProfile: undefined;
+  PrivacySecurity: undefined;
+  HelpSupport: undefined;
+  AboutKbm: undefined;
+  StaffBookingDetail: { bookingId: string };
+  GroupDetail: { groupId: string };
+  UserDirectory: undefined;
+  StaffCoursework: undefined;
+  CourseworkSubmissions: { assignmentId: string };
+  Invoices: undefined;
+  Agreements: undefined;
+  CloseCalendar: undefined;
+  BookingShifts: undefined;
 };
 
 export type MainTabParamList = {
@@ -18,6 +41,9 @@ export type MainTabParamList = {
   Courses: undefined;
   Calendar: undefined;
   Chat: undefined;
+  Bookings: undefined;
+  Groups: undefined;
+  More: undefined;
   Profile: undefined;
 };
 

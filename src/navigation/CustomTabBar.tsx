@@ -5,13 +5,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { haptics } from '@/utils/haptics';
-import type { MainTabParamList } from './types';
 
-const TAB_ICON: Record<keyof MainTabParamList, keyof typeof Ionicons.glyphMap> = {
+const TAB_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   Home: 'home',
   Courses: 'book',
   Calendar: 'calendar',
   Chat: 'chatbubbles',
+  Bookings: 'clipboard',
+  Groups: 'people',
+  More: 'grid',
   Profile: 'person',
 };
 
@@ -26,7 +28,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
         const { options } = descriptors[route.key];
         const label = (options.title ?? route.name) as string;
         const focused = state.index === index;
-        const name = route.name as keyof MainTabParamList;
+        const icon = TAB_ICON[route.name] ?? 'ellipse';
 
         function handlePress() {
           const event = navigation.emit({
@@ -43,17 +45,13 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
         return (
           <Pressable key={route.key} onPress={handlePress} style={styles.item} hitSlop={6}>
             <Ionicons
-              name={
-                focused
-                  ? TAB_ICON[name]
-                  : (`${TAB_ICON[name]}-outline` as keyof typeof Ionicons.glyphMap)
-              }
+              name={focused ? icon : (`${icon}-outline` as keyof typeof Ionicons.glyphMap)}
               size={22}
-              color={focused ? tokens.colors.success : tokens.colors.textMuted}
+              color={focused ? tokens.colors.secondary : tokens.colors.textMuted}
             />
             <Text
               variant="caption"
-              color={focused ? 'success' : 'textMuted'}
+              color={focused ? 'secondary' : 'textMuted'}
               style={focused ? styles.labelActive : styles.label}
             >
               {label}

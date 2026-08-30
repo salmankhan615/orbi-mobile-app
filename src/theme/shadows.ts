@@ -5,7 +5,7 @@ const shadow = (elevation: number, opacity: number, radius: number, height: numb
   Platform.select({
     android: { elevation },
     default: {
-      shadowColor: palette.navy900,
+      shadowColor: palette.blue900,
       shadowOpacity: opacity,
       shadowRadius: radius,
       shadowOffset: { width: 0, height },

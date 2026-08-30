@@ -8,10 +8,12 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { useSessions } from '@/queries/useSessions';
+import { useClosedDays } from '@/queries/useStaff';
 import type { Session } from '@/api/sessions';
 import { MonthGrid } from '@/features/calendar/components/MonthGrid';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
 import { MONTH_NAMES, toISODate } from '@/utils/date';
+import { useIsStaff, useHasPermission } from '@/hooks/useHasPermission';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Calendar'>;
@@ -30,6 +32,9 @@ function formatSessionDate(iso: string) {
 export function CalendarScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { data: sessions } = useSessions();
+  const { data: closedDays = [] } = useClosedDays();
+  const isStaff = useIsStaff();
+  const canClose = useHasPermission('close_calendar');
   const [viewMode, setViewMode] = useState<ViewMode>('Month');
   const [cursor, setCursor] = useState(() => new Date(2026, 7, 1));
   const [selectedDate, setSelectedDate] = useState(sessions?.[0]?.date ?? toISODate(new Date()));
@@ -73,7 +78,19 @@ export function CalendarScreen({ navigation }: Props) {
     <Screen style={styles.screen} background="surface">
       <View style={styles.header}>
         <Text variant="heading">My Calendar</Text>
-        <IconButton name="add" background="surfaceAlt" />
+        {isStaff && canClose ? (
+          <IconButton
+            name="close-circle-outline"
+            background="surfaceAlt"
+            onPress={() => navigation.navigate('CloseCalendar')}
+          />
+        ) : (
+          <IconButton
+            name="add"
+            background="surfaceAlt"
+            onPress={() => navigation.navigate('BookClass')}
+          />
+        )}
       </View>
 
       <View style={styles.controls}>
@@ -122,6 +139,7 @@ export function CalendarScreen({ navigation }: Props) {
                 month={cursor.getMonth()}
                 selectedDate={selectedDate}
                 sessionsByDate={sessionsByDate}
+                closedDates={closedDays}
                 onSelectDate={handleSelectDate}
               />
             </View>
@@ -266,7 +284,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.full,
   },
   segmentActive: {
-    backgroundColor: tokens.colors.success,
+    backgroundColor: tokens.colors.secondary,
   },
   segmentLabel: {
     fontFamily: tokens.fontFamily.semibold,
