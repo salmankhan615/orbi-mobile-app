@@ -9,6 +9,7 @@ import { Screen } from '@/components/custom/Screen';
 import { FadeInView } from '@/components/custom/FadeInView';
 import { useSession } from '@/queries/useSessions';
 import { useSessionActions } from '@/features/calendar/useSessionActions';
+import { smoothScrollProps } from '@/utils/scroll';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'SessionDetails'>;
@@ -77,7 +78,11 @@ function SessionDetailsContent({
         <IconButton name="create-outline" onPress={handleShare} />
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        {...smoothScrollProps}
+      >
         <FadeInView>
           <View style={styles.titleRow}>
             <Text variant="heading" style={styles.titleText}>

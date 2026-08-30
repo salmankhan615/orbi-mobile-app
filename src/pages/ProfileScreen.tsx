@@ -8,6 +8,7 @@ import { Screen } from '@/components/custom/Screen';
 import { MenuRow } from '@/features/profile/components/MenuRow';
 import { useAuthStore, displayName } from '@/store/useAuthStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { smoothScrollProps } from '@/utils/scroll';
 import { haptics } from '@/utils/haptics';
 import { useState } from 'react';
 import type { MainTabScreenProps } from '@/navigation/types';
@@ -40,7 +41,7 @@ export function ProfileScreen({ navigation }: Props) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
-        showsVerticalScrollIndicator={false}
+        {...smoothScrollProps}
       >
         <Text variant="heading" style={styles.pageTitle}>
           Profile

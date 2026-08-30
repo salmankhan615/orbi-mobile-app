@@ -13,6 +13,7 @@ import { useSessions } from '@/queries/useSessions';
 import { useAnnouncements } from '@/queries/useAnnouncements';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { smoothScrollProps } from '@/utils/scroll';
 import { CourseSummaryCard } from '@/features/courses/components/CourseSummaryCard';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
 import type { MainTabScreenProps } from '@/navigation/types';
@@ -39,8 +40,8 @@ export function HomeScreen({ navigation }: Props) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
-        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        {...smoothScrollProps}
       >
         <View style={styles.greetingRow}>
           <View style={styles.greetingCopy}>
@@ -188,7 +189,7 @@ function Shortcut({
   onPress: () => void;
 }) {
   return (
-    <ScalePressable onPress={onPress} haptic={false} style={styles.shortcut}>
+    <ScalePressable onPress={onPress} hapticStyle="select" style={styles.shortcut}>
       <Ionicons name={icon} size={16} color={tokens.colors.secondary} />
       <Text variant="caption" style={styles.shortcutLabel}>
         {label}

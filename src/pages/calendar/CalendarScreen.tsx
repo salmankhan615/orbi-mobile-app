@@ -18,6 +18,7 @@ import { SessionListItem } from '@/features/calendar/components/SessionListItem'
 import { formatWeekRange, getWeekRange, MONTH_NAMES, toISODate } from '@/utils/date';
 import { useIsStaff, useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { smoothScrollProps } from '@/utils/scroll';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Calendar'>;
@@ -161,7 +162,7 @@ export function CalendarScreen({ navigation }: Props) {
           </View>
           <IconButton name="chevron-forward" onPress={() => changePeriod(1)} />
         </View>
-        <ScalePressable onPress={goToday} haptic={false} style={styles.todayBtn}>
+        <ScalePressable onPress={goToday} hapticStyle="select" style={styles.todayBtn}>
           <Text variant="caption" color="secondary" style={styles.todayLabel}>
             Today
           </Text>
@@ -175,7 +176,7 @@ export function CalendarScreen({ navigation }: Props) {
             <ScalePressable
               key={mode}
               onPress={() => setViewMode(mode)}
-              haptic={false}
+              hapticStyle="select"
               style={isActive ? [styles.segment, styles.segmentActive] : styles.segment}
             >
               <Text
@@ -193,7 +194,7 @@ export function CalendarScreen({ navigation }: Props) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
-        showsVerticalScrollIndicator={false}
+        {...smoothScrollProps}
       >
         {viewMode !== 'List' && (
           <>
@@ -295,7 +296,7 @@ export function CalendarScreen({ navigation }: Props) {
               <Text variant="title">{formatSessionDate(selectedDate)}</Text>
               <IconButton name="close" onPress={() => setSheetOpen(false)} />
             </View>
-            <ScrollView style={styles.sheetList} showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.sheetList} {...smoothScrollProps}>
               {sessionsForSelectedDate.map((session, index) => (
                 <SessionListItem
                   key={session.id}

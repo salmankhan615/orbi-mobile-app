@@ -13,4 +13,10 @@ export const easing = {
   accelerate: Easing.bezier(0.4, 0, 1, 1),
 } as const;
 
+/** Snappy press/release springs used by buttons and pressable cards. */
+export const spring = {
+  press: { damping: 20, stiffness: 420, mass: 0.4 },
+  release: { damping: 22, stiffness: 380, mass: 0.45 },
+} as const;
+
 export type DurationToken = keyof typeof duration;

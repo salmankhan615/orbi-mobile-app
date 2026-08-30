@@ -27,7 +27,7 @@ export function MenuRow({
   return (
     <ScalePressable
       onPress={onPress}
-      haptic={false}
+      hapticStyle="select"
       style={[styles.row, ...(!isLast ? [styles.divider] : [])]}
     >
       <View style={[styles.iconChip, isDanger && styles.iconChipDanger]}>

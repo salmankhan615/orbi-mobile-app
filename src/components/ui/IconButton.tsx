@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, ViewStyle } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { haptics } from '@/utils/haptics';
@@ -12,6 +13,8 @@ export interface IconButtonProps {
   style?: ViewStyle;
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export function IconButton({
   name,
   onPress,
@@ -20,17 +23,31 @@ export function IconButton({
   size = 20,
   style,
 }: IconButtonProps) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  function handlePressIn() {
+    haptics.tap();
+    scale.value = withSpring(0.9, tokens.spring.press);
+  }
+
+  function handlePressOut() {
+    scale.value = withSpring(1, tokens.spring.release);
+  }
+
   return (
-    <Pressable
-      onPress={() => {
-        haptics.tap();
-        onPress?.();
-      }}
+    <AnimatedPressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       hitSlop={8}
-      style={[styles.button, { backgroundColor: tokens.colors[background] }, style]}
+      style={[styles.button, { backgroundColor: tokens.colors[background] }, animatedStyle, style]}
     >
       <Ionicons name={name} size={size} color={tokens.colors[color]} />
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

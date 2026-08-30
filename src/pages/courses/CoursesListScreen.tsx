@@ -8,6 +8,7 @@ import { Screen } from '@/components/custom/Screen';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { useCourses } from '@/queries/useCourses';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { smoothListProps } from '@/utils/scroll';
 import { CourseCard } from '@/features/courses/components/CourseCard';
 import type { Course, CourseStatus } from '@/api/courses';
 import type { MainTabScreenProps } from '@/navigation/types';
@@ -43,8 +44,8 @@ export function CoursesListScreen({ navigation }: Props) {
         style={styles.listFlex}
         data={filtered}
         keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.list, { paddingBottom: tabPadding }]}
+        {...smoothListProps}
         ListHeaderComponent={
           <View>
             <View style={styles.header}>
@@ -90,7 +91,7 @@ export function CoursesListScreen({ navigation }: Props) {
                   <ScalePressable
                     key={item.key}
                     onPress={() => setActiveFilter(item.key)}
-                    haptic={false}
+                    hapticStyle="select"
                   >
                     <View style={[styles.filterChip, isActive && styles.filterChipActive]}>
                       <Text

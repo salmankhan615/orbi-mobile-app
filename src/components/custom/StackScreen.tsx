@@ -5,6 +5,7 @@ import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
+import { smoothScrollProps } from '@/utils/scroll';
 
 interface StackScreenProps {
   title: string;
@@ -29,8 +30,8 @@ export function StackScreen({
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      {...smoothScrollProps}
     >
       {children}
     </ScrollView>

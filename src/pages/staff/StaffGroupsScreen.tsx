@@ -8,6 +8,7 @@ import { EntityRow } from '@/components/custom/EntityRow';
 import { useStaffGroups } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { smoothScrollProps } from '@/utils/scroll';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Groups'>;
@@ -23,7 +24,7 @@ export function StaffGroupsScreen({ navigation }: Props) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
-        showsVerticalScrollIndicator={false}
+        {...smoothScrollProps}
       >
         <PageHeader title="Groups" subtitle="Cohorts, sessions, and students." />
         {!allowed ? (

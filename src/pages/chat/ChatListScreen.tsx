@@ -8,6 +8,7 @@ import { Screen } from '@/components/custom/Screen';
 import { useConversations } from '@/queries/useChat';
 import { ConversationListItem } from '@/features/chat/components/ConversationListItem';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { smoothListProps } from '@/utils/scroll';
 import { useToastStore } from '@/store/useToastStore';
 import { chatApi } from '@/api/chat';
 import type { MainTabScreenProps } from '@/navigation/types';
@@ -69,7 +70,7 @@ export function ChatListScreen({ navigation }: Props) {
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.list, { paddingBottom: tabPadding }]}
-        showsVerticalScrollIndicator={false}
+        {...smoothListProps}
         ListEmptyComponent={
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>

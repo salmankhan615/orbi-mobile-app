@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { MenuRow } from '@/features/profile/components/MenuRow';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { smoothScrollProps } from '@/utils/scroll';
 import type { MainTabScreenProps } from '@/navigation/types';
 import type { StaffPermission } from '@/features/auth/permissions';
 
@@ -85,7 +86,7 @@ export function StaffMoreScreen({ navigation }: Props) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
-        showsVerticalScrollIndicator={false}
+        {...smoothScrollProps}
       >
         <PageHeader title="More" subtitle="Tools available for your role." />
         {visible.length === 0 ? (

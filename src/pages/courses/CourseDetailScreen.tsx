@@ -19,6 +19,7 @@ import { findContinueLesson } from '@/features/courses/lessonHelpers';
 import { useToastStore } from '@/store/useToastStore';
 import { haptics } from '@/utils/haptics';
 import type { Lesson } from '@/api/courses';
+import { smoothScrollProps } from '@/utils/scroll';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'CourseDetail'>;
@@ -113,11 +114,7 @@ export function CourseDetailScreen({ route, navigation }: Props) {
         />
       </LinearGradient>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.body}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.body} {...smoothScrollProps}>
         <View style={styles.stats}>
           <View style={styles.stat}>
             <Ionicons name="albums-outline" size={18} color={tokens.colors.primary} />
@@ -158,7 +155,7 @@ export function CourseDetailScreen({ route, navigation }: Props) {
           {VISIBLE_TABS.map((tab) => {
             const isActive = tab === activeTab;
             return (
-              <ScalePressable key={tab} onPress={() => setActiveTab(tab)} haptic={false}>
+              <ScalePressable key={tab} onPress={() => setActiveTab(tab)} hapticStyle="select">
                 <View style={[styles.tab, isActive && styles.tabActive]}>
                   <Text
                     variant="bodySmall"

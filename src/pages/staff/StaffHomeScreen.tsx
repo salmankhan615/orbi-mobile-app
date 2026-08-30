@@ -14,6 +14,7 @@ import { useAgreements } from '@/queries/useStaff';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { smoothScrollProps } from '@/utils/scroll';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Home'>;
@@ -41,7 +42,7 @@ export function StaffHomeScreen({ navigation }: Props) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
-        showsVerticalScrollIndicator={false}
+        {...smoothScrollProps}
       >
         <View style={styles.greetingRow}>
           <View style={styles.greetingCopy}>
@@ -163,7 +164,7 @@ function Shortcut({
   onPress: () => void;
 }) {
   return (
-    <ScalePressable onPress={onPress} haptic={false} style={styles.shortcut}>
+    <ScalePressable onPress={onPress} hapticStyle="select" style={styles.shortcut}>
       <Ionicons name={icon} size={18} color={tokens.colors.secondary} />
       <Text variant="caption" style={styles.shortcutLabel}>
         {label}

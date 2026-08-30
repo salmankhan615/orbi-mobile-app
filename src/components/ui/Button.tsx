@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, View, ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { haptics } from '@/utils/haptics';
@@ -35,23 +35,16 @@ export function Button({
   }));
 
   function handlePressIn() {
-    'worklet';
-    scale.value = withTiming(0.98, {
-      duration: tokens.duration.fast,
-      easing: tokens.easing.standard,
-    });
+    if (isDisabled) return;
+    haptics.tap();
+    scale.value = withSpring(0.98, tokens.spring.press);
   }
 
   function handlePressOut() {
-    'worklet';
-    scale.value = withTiming(1, {
-      duration: tokens.duration.fast,
-      easing: tokens.easing.standard,
-    });
+    scale.value = withSpring(1, tokens.spring.release);
   }
 
   function handlePress() {
-    haptics.tap();
     onPress?.();
   }
 

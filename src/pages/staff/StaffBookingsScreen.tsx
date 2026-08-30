@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { useStaffBookings } from '@/queries/useBookings';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { smoothScrollProps } from '@/utils/scroll';
 import type { MainTabScreenProps } from '@/navigation/types';
 import { tokens } from '@/theme';
 
@@ -23,7 +24,7 @@ export function StaffBookingsScreen({ navigation }: Props) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
-        showsVerticalScrollIndicator={false}
+        {...smoothScrollProps}
       >
         <PageHeader title="Bookings" subtitle="Mark attendance or cancel a class booking." />
         {!allowed ? (

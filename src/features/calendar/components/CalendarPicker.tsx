@@ -26,7 +26,7 @@ export function CalendarPicker({ calendars, selectedId, onSelect }: CalendarPick
         return (
           <ScalePressable
             key={calendar.id}
-            haptic={false}
+            hapticStyle="select"
             onPress={() => onSelect(calendar.id)}
             style={isActive ? [styles.chip, styles.chipActive] : styles.chip}
           >

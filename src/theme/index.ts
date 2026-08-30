@@ -8,7 +8,7 @@ export { fontFamily, fontSize, fontWeight, lineHeight } from './typography';
 export type { FontSizeToken } from './typography';
 export { shadows } from './shadows';
 export type { ShadowToken } from './shadows';
-export { duration, easing } from './motion';
+export { duration, easing, spring } from './motion';
 export type { DurationToken } from './motion';
 export { gradients } from './gradients';
 export type { GradientToken } from './gradients';

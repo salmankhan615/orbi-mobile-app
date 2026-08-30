@@ -16,6 +16,7 @@ import { useCourse } from '@/queries/useCourses';
 import { findLesson } from '@/features/courses/lessonHelpers';
 import { useToastStore } from '@/store/useToastStore';
 import { haptics } from '@/utils/haptics';
+import { smoothScrollProps } from '@/utils/scroll';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'LessonPlayer'>;
@@ -151,7 +152,7 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
           styles.bodyContent,
           { paddingBottom: Math.max(insets.bottom, tokens.spacing.lg) + tokens.spacing.xxl },
         ]}
-        showsVerticalScrollIndicator={false}
+        {...smoothScrollProps}
       >
         <View style={styles.metaRow}>
           <Badge
@@ -217,7 +218,7 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
           return (
             <ScalePressable
               key={item.id}
-              haptic={false}
+              hapticStyle="select"
               onPress={() => openLesson(item.id, item.status)}
               style={isActive ? [styles.playlistRow, styles.playlistRowActive] : styles.playlistRow}
             >

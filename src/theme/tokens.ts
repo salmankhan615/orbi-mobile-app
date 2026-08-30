@@ -2,7 +2,7 @@ import { colors } from './colors';
 import { fontFamily, fontSize, fontWeight, lineHeight } from './typography';
 import { spacing, radius } from './spacing';
 import { shadows } from './shadows';
-import { duration, easing } from './motion';
+import { duration, easing, spring } from './motion';
 import { gradients } from './gradients';
 
 // Single import surface for every design decision in the app.
@@ -20,6 +20,7 @@ export const tokens = {
   shadows,
   duration,
   easing,
+  spring,
   gradients,
 } as const;
 

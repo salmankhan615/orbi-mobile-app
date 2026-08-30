@@ -8,6 +8,7 @@ import { ScalePressable } from '@/components/custom/ScalePressable';
 import { useSessions } from '@/queries/useSessions';
 import { useCalendar } from '@/queries/useCalendars';
 import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
+import { smoothScrollProps } from '@/utils/scroll';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'DayAgenda'>;
@@ -46,7 +47,11 @@ export function DayAgendaScreen({ route, navigation }: Props) {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.timeline}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.timeline}
+        {...smoothScrollProps}
+      >
         {daySessions.map((session, index) => (
           <View key={session.id} style={styles.timelineRow}>
             <View style={styles.timeCol}>
