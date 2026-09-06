@@ -2,6 +2,7 @@
   "expo": {
     "name": "KBM Training & Recruitment",
     "slug": "kbm-training-recruitment",
+    "owner": "nauman251",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,7 +11,11 @@
       "supportsTablet": true
     },
     "android": {
-      "permissions": ["VIBRATE"],
+      "permissions": [
+        "VIBRATE",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0B",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -31,7 +36,19 @@
           "calendarPermission": "KBM needs calendar access to add your sessions to your calendar."
         }
       ],
-      "expo-video"
-    ]
+      "expo-video",
+      "expo-status-bar"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a456974e-2258-4ca5-bb30-b7331d78559f"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a456974e-2258-4ca5-bb30-b7331d78559f"
+    }
   }
 }

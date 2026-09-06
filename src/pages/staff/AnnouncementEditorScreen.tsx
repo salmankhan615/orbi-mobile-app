@@ -37,6 +37,7 @@ export function AnnouncementEditorScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     if (!existing) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds edit form once the existing announcement loads
     setTitle(existing.title);
     setBody(existing.body);
     setAudience(existing.audience);

@@ -31,10 +31,12 @@ export function IconButton({
 
   function handlePressIn() {
     haptics.tap();
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated SharedValue, not React state
     scale.value = withSpring(0.9, tokens.spring.press);
   }
 
   function handlePressOut() {
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated SharedValue, not React state
     scale.value = withSpring(1, tokens.spring.release);
   }
 

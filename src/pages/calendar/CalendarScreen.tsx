@@ -83,6 +83,7 @@ export function CalendarScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (!sessions) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resyncs selection once sessions load/change, not a render loop
     setSelectedDate((current) =>
       sessions.some((session) => session.date === current)
         ? current

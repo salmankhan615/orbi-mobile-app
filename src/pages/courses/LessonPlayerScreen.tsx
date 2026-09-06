@@ -31,7 +31,6 @@ function LessonVideo({ uri }: { uri: string }) {
     <VideoView
       style={styles.video}
       player={player}
-      allowsFullscreen
       allowsPictureInPicture
       contentFit="contain"
       nativeControls

@@ -40,10 +40,12 @@ export function ScalePressable({
 
   function handlePressIn() {
     fireHaptic();
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated SharedValue, not React state
     scale.value = withSpring(scaleTo, tokens.spring.press);
   }
 
   function handlePressOut() {
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated SharedValue, not React state
     scale.value = withSpring(1, tokens.spring.release);
   }
 

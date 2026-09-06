@@ -42,7 +42,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.border,
     padding: tokens.spacing.lg,
-    marginBottom: tokens.spacing.xl,
   },
   icon: {
     width: 40,

@@ -37,10 +37,12 @@ export function Button({
   function handlePressIn() {
     if (isDisabled) return;
     haptics.tap();
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated SharedValue, not React state
     scale.value = withSpring(0.98, tokens.spring.press);
   }
 
   function handlePressOut() {
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated SharedValue, not React state
     scale.value = withSpring(1, tokens.spring.release);
   }
 

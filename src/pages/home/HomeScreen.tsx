@@ -7,11 +7,12 @@ import { Screen } from '@/components/custom/Screen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { BellButton } from '@/components/custom/BellButton';
 import { ScalePressable } from '@/components/custom/ScalePressable';
-import { AnnouncementBanner } from '@/features/announcements/components/AnnouncementBanner';
+import { AnnouncementModal } from '@/features/announcements/components/AnnouncementModal';
 import { useCourses } from '@/queries/useCourses';
 import { useSessions } from '@/queries/useSessions';
 import { useAnnouncements } from '@/queries/useAnnouncements';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useAnnouncementAckStore } from '@/store/useAnnouncementAckStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothScrollProps } from '@/utils/scroll';
 import { CourseSummaryCard } from '@/features/courses/components/CourseSummaryCard';
@@ -26,6 +27,8 @@ export function HomeScreen({ navigation }: Props) {
   const { data: courses } = useCourses();
   const { data: sessions } = useSessions();
   const { data: announcements } = useAnnouncements('students');
+  const acknowledgedIds = useAnnouncementAckStore((state) => state.acknowledgedIds);
+  const acknowledge = useAnnouncementAckStore((state) => state.acknowledge);
   const [query, setQuery] = useState('');
 
   const firstName = user?.firstName ?? 'there';
@@ -33,7 +36,9 @@ export function HomeScreen({ navigation }: Props) {
   const filteredCourses = (courses ?? []).filter((course) =>
     query.trim() ? course.title.toLowerCase().includes(query.trim().toLowerCase()) : true,
   );
-  const headline = announcements?.find((item) => item.pinned) ?? announcements?.[0];
+  const latestAnnouncement = announcements?.[0];
+  const showAnnouncementModal =
+    !!latestAnnouncement && !acknowledgedIds.includes(latestAnnouncement.id);
 
   return (
     <Screen style={styles.screen}>
@@ -52,15 +57,6 @@ export function HomeScreen({ navigation }: Props) {
           </View>
           <BellButton />
         </View>
-
-        {headline ? (
-          <AnnouncementBanner
-            announcement={headline}
-            onPress={() =>
-              navigation.navigate('AnnouncementDetail', { announcementId: headline.id })
-            }
-          />
-        ) : null}
 
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color={tokens.colors.textMuted} />
@@ -175,6 +171,14 @@ export function HomeScreen({ navigation }: Props) {
           />
         ) : null}
       </ScrollView>
+
+      {latestAnnouncement ? (
+        <AnnouncementModal
+          visible={showAnnouncementModal}
+          announcement={latestAnnouncement}
+          onAcknowledge={() => acknowledge(latestAnnouncement.id)}
+        />
+      ) : null}
     </Screen>
   );
 }
