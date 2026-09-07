@@ -1,38 +1,117 @@
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.example.com';
+import { API_BASE_URL } from '@/api/config';
 
 export class ApiError extends Error {
   status: number;
+  body: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, body?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.body = body;
   }
 }
 
-type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown };
+type RequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
+  body?: unknown;
+  headers?: Record<string, string>;
+  /** Skip auth cookie/token for public endpoints like login. */
+  skipAuth?: boolean;
+};
+
+let sessionCookie: string | null = null;
+let sessionToken: string | null = null;
+
+export function setApiSession(cookie: string | null, token: string | null = null) {
+  sessionCookie = cookie;
+  sessionToken = token;
+}
+
+export function clearApiSession() {
+  sessionCookie = null;
+  sessionToken = null;
+}
+
+export function getApiSession() {
+  return { cookie: sessionCookie, token: sessionToken };
+}
+
+function messageFromBody(body: unknown, fallback: string): string {
+  if (!body || typeof body !== 'object') return fallback;
+  const record = body as Record<string, unknown>;
+  if (typeof record.message === 'string' && record.message.trim()) return record.message;
+  if (typeof record.error === 'string' && record.error.trim()) return record.error;
+  return fallback;
+}
+
+function readSetCookie(response: Response): string | null {
+  const headers = response.headers as Headers & { getSetCookie?: () => string[] };
+  if (typeof headers.getSetCookie === 'function') {
+    const cookies = headers.getSetCookie();
+    if (cookies?.length) {
+      return cookies
+        .map((value) => value.split(';')[0]?.trim())
+        .filter(Boolean)
+        .join('; ');
+    }
+  }
+  const raw = response.headers.get('set-cookie');
+  if (!raw) return null;
+  return raw
+    .split(/,(?=\s*[^;=]+=[^;]+)/)
+    .map((part) => part.split(';')[0]?.trim())
+    .filter(Boolean)
+    .join('; ');
+}
+
+async function parseBody(response: Response): Promise<unknown> {
+  if (response.status === 204) return undefined;
+  const text = await response.text();
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, headers, ...rest } = options;
+  const { body, headers, skipAuth, ...rest } = options;
+  const authHeaders: Record<string, string> = {};
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  if (!skipAuth) {
+    if (sessionCookie) authHeaders.Cookie = sessionCookie;
+    if (sessionToken) authHeaders.Authorization = `Bearer ${sessionToken}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     ...rest,
+    credentials: 'include',
     headers: {
+      Accept: 'application/json',
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...headers,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
+  const setCookie = readSetCookie(response);
+  if (setCookie) {
+    sessionCookie = setCookie;
+  }
+
+  const parsed = await parseBody(response);
+
   if (!response.ok) {
-    throw new ApiError(`Request to ${path} failed`, response.status);
+    throw new ApiError(
+      messageFromBody(parsed, `Request to ${path} failed (${response.status})`),
+      response.status,
+      parsed,
+    );
   }
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
+  return parsed as T;
 }
 
 export const apiClient = {
@@ -42,6 +121,8 @@ export const apiClient = {
     request<T>(path, { ...options, method: 'POST', body }),
   put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, { ...options, method: 'PUT', body }),
+  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    request<T>(path, { ...options, method: 'PATCH', body }),
   delete: <T>(path: string, options?: RequestOptions) =>
     request<T>(path, { ...options, method: 'DELETE' }),
 };

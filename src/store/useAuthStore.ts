@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { clearApiSession, setApiSession } from '@/api/client';
 import type { StaffPermission, UserRole } from '@/features/auth/permissions';
 
 export interface AuthUser {
@@ -20,7 +21,11 @@ interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
   sessionExpiresAt: number | null;
-  signIn: (user: AuthUser, sessionExpiresAt: number) => void;
+  signIn: (
+    user: AuthUser,
+    sessionExpiresAt: number,
+    session?: { cookie?: string | null; token?: string | null },
+  ) => void;
   updateUser: (patch: Partial<AuthUser>) => void;
   signOut: () => void;
 }
@@ -29,8 +34,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
   sessionExpiresAt: null,
-  signIn: (user, sessionExpiresAt) => set({ user, isAuthenticated: true, sessionExpiresAt }),
+  signIn: (user, sessionExpiresAt, session) => {
+    if (session) {
+      setApiSession(session.cookie ?? null, session.token ?? null);
+    }
+    set({ user, isAuthenticated: true, sessionExpiresAt });
+  },
   updateUser: (patch) =>
     set((state) => (state.user ? { user: { ...state.user, ...patch } } : state)),
-  signOut: () => set({ user: null, isAuthenticated: false, sessionExpiresAt: null }),
+  signOut: () => {
+    clearApiSession();
+    set({ user: null, isAuthenticated: false, sessionExpiresAt: null });
+  },
 }));

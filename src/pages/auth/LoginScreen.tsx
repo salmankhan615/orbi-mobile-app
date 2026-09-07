@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { Screen } from '@/components/custom/Screen';
 import { AuthHero } from '@/features/auth/components/AuthHero';
-import { useLogin } from '@/queries/useAuth';
+import { loginErrorMessage, useLogin } from '@/queries/useAuth';
+import { useToastStore } from '@/store/useToastStore';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'Login'>;
@@ -15,6 +16,16 @@ export function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const login = useLogin();
+  const showToast = useToastStore((state) => state.show);
+
+  function handleSignIn() {
+    login.mutate(
+      { email, password },
+      {
+        onError: (error) => showToast(loginErrorMessage(error), 'danger'),
+      },
+    );
+  }
 
   return (
     <Screen edges={['top', 'bottom']} style={styles.flex}>
@@ -32,6 +43,7 @@ export function LoginScreen({ navigation }: Props) {
               placeholder="you@example.com"
               autoCapitalize="none"
               keyboardType="email-address"
+              autoCorrect={false}
               value={email}
               onChangeText={setEmail}
             />
@@ -55,14 +67,10 @@ export function LoginScreen({ navigation }: Props) {
 
             <Button
               label={login.isPending ? 'Signing in…' : 'Sign In'}
-              onPress={() => login.mutate({ email, password })}
+              onPress={handleSignIn}
               disabled={login.isPending || !email || !password}
               style={styles.submit}
             />
-
-            <Text variant="caption" color="textMuted" style={styles.hint}>
-              Demo: student@kbm.com · staff@kbm.com
-            </Text>
 
             <View style={styles.footer}>
               <Text variant="bodySmall" color="textSecondary">
@@ -104,10 +112,6 @@ const styles = StyleSheet.create({
   },
   submit: {
     marginTop: tokens.spacing.sm,
-  },
-  hint: {
-    textAlign: 'center',
-    marginTop: tokens.spacing.md,
   },
   footer: {
     flexDirection: 'row',
