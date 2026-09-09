@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { API_BASE_URL } from '@/api/config';
 
 export class ApiError extends Error {
@@ -22,18 +23,54 @@ type RequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
 let sessionCookie: string | null = null;
 let sessionToken: string | null = null;
 
+/**
+ * CRM auth is cookie-based (`Set-Cookie: token=<jwt>; HttpOnly`).
+ * React Native often cannot read Set-Cookie, and the native cookie jar can
+ * conflict with a manual Cookie header — clear native cookies and always
+ * synthesize `Cookie: token=<jwt>` from the login body token.
+ */
 export function setApiSession(cookie: string | null, token: string | null = null) {
-  sessionCookie = cookie;
   sessionToken = token;
+  if (token) {
+    const tokenCookie = `token=${token}`;
+    if (cookie && cookie.includes('token=')) {
+      sessionCookie = cookie;
+    } else if (cookie) {
+      sessionCookie = `${cookie}; ${tokenCookie}`;
+    } else {
+      sessionCookie = tokenCookie;
+    }
+  } else {
+    sessionCookie = cookie;
+  }
+  void clearNativeCookies();
 }
 
 export function clearApiSession() {
   sessionCookie = null;
   sessionToken = null;
+  void clearNativeCookies();
 }
 
 export function getApiSession() {
   return { cookie: sessionCookie, token: sessionToken };
+}
+
+/** Drop native jar cookies so our explicit Cookie header is the only auth. */
+function clearNativeCookies(): Promise<void> {
+  if (Platform.OS === 'web') return Promise.resolve();
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const networking = require('react-native/Libraries/Network/RCTNetworking').default as {
+      clearCookies?: (cb: (cleared: boolean) => void) => void;
+    };
+    if (typeof networking?.clearCookies !== 'function') return Promise.resolve();
+    return new Promise((resolve) => {
+      networking.clearCookies?.(() => resolve());
+    });
+  } catch {
+    return Promise.resolve();
+  }
 }
 
 function messageFromBody(body: unknown, fallback: string): string {
@@ -80,16 +117,19 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const authHeaders: Record<string, string> = {};
 
   if (!skipAuth) {
-    if (sessionCookie) authHeaders.Cookie = sessionCookie;
-    if (sessionToken) authHeaders.Authorization = `Bearer ${sessionToken}`;
+    // Ensure jar cannot override / duplicate Cookie on Android.
+    await clearNativeCookies();
+    const cookie = sessionCookie ?? (sessionToken ? `token=${sessionToken}` : null);
+    if (cookie) authHeaders.Cookie = cookie;
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...rest,
-    credentials: 'include',
+    // omit — we send Cookie ourselves; include makes the native jar fight us.
+    credentials: 'omit',
     headers: {
       Accept: 'application/json',
-      'Content-Type': 'application/json',
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       ...authHeaders,
       ...headers,
     },
@@ -98,7 +138,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const setCookie = readSetCookie(response);
   if (setCookie) {
-    sessionCookie = setCookie;
+    // Prefer server cookie when visible; keep JWT cookie fallback.
+    setApiSession(setCookie, sessionToken);
   }
 
   const parsed = await parseBody(response);

@@ -21,12 +21,45 @@ export interface DirectoryUser {
   status: 'active' | 'invited';
 }
 
+export interface CourseworkFile {
+  url: string;
+  filename: string;
+  type: 'IMAGE' | 'VIDEO' | 'FILE' | string;
+}
+
+export interface CourseworkFeedback {
+  id: string;
+  text: string;
+  authorRole?: string;
+  createdAt?: string;
+}
+
 export interface CourseworkItem {
   id: string;
   title: string;
   courseTitle: string;
   dueDate: string;
   status: 'open' | 'submitted' | 'graded';
+  /** CRM student coursework fields */
+  kind?: 'assignment' | 'resource' | 'other';
+  groupName?: string;
+  score?: number;
+  maxScore?: number;
+  instructions?: string;
+  /** Raw ISO due date for overdue checks */
+  dueDateIso?: string;
+  attachments?: CourseworkFile[];
+  submission?: {
+    id?: string;
+    status?: string;
+    score?: number;
+    submittedAt?: string;
+    gradedAt?: string;
+    gradedByName?: string;
+    isLate?: boolean;
+    files?: CourseworkFile[];
+    comments?: CourseworkFeedback[];
+  };
 }
 
 export interface CourseworkSubmission {

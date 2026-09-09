@@ -22,6 +22,18 @@ export function useAnnouncement(id: string) {
   });
 }
 
+export function useAcknowledgeAnnouncement() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => announcementsApi.acknowledge(id),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: announcementKeys.all });
+      client.invalidateQueries({ queryKey: ['notifications'] });
+      client.invalidateQueries({ queryKey: ['bootstrap'] });
+    },
+  });
+}
+
 export function useCreateAnnouncement() {
   const client = useQueryClient();
   return useMutation({

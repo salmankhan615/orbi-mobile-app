@@ -25,7 +25,7 @@ const FILTERS: { key: FilterTab; label: string }[] = [
 
 export function CoursesListScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
-  const { data: courses } = useCourses();
+  const { data: courses, allocateError, missingCompanyId } = useCourses();
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [query, setQuery] = useState('');
 
@@ -114,7 +114,11 @@ export function CoursesListScreen({ navigation }: Props) {
               <Ionicons name="book-outline" size={28} color={tokens.colors.textMuted} />
             </View>
             <Text variant="bodySmall" color="textMuted">
-              No courses match your filters
+              {missingCompanyId
+                ? 'Missing company id — sign out and sign in again.'
+                : allocateError
+                  ? allocateError
+                  : 'No courses match your filters'}
             </Text>
           </View>
         }

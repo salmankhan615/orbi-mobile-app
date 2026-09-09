@@ -8,6 +8,8 @@ export interface AuthUser {
   lastName: string;
   email: string;
   phone?: string;
+  /** CRM company id — required for get-allocate-course. */
+  companyId?: string;
   role: UserRole;
   permissions: StaffPermission[];
 }
@@ -41,7 +43,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user, isAuthenticated: true, sessionExpiresAt });
   },
   updateUser: (patch) =>
-    set((state) => (state.user ? { user: { ...state.user, ...patch } } : state)),
+    set((state) => {
+      if (!state.user) return state;
+      const next = { ...state.user, ...patch };
+      // Never wipe a known companyId with an undefined/empty patch value.
+      if (!patch.companyId?.trim()) {
+        next.companyId = state.user.companyId;
+      }
+      return { user: next };
+    }),
   signOut: () => {
     clearApiSession();
     set({ user: null, isAuthenticated: false, sessionExpiresAt: null });

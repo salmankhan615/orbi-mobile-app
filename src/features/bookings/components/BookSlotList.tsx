@@ -21,7 +21,7 @@ export function BookSlotList({ kind, title }: BookSlotListProps) {
   const user = useAuthStore((state) => state.user);
   const showToast = useToastStore((state) => state.show);
 
-  function handleBook(slotId: string, slotTitle: string) {
+  function handleBook(slotId: string, slotTitle: string, seat?: number) {
     if (!user) return;
     Alert.alert('Confirm booking', `Book ${slotTitle}?`, [
       { text: 'Cancel', style: 'cancel' },
@@ -29,7 +29,7 @@ export function BookSlotList({ kind, title }: BookSlotListProps) {
         text: 'Book',
         onPress: () => {
           book.mutate(
-            { slotId, student: { id: user.id, name: displayName(user) } },
+            { slotId, student: { id: user.id, name: displayName(user) }, seat },
             {
               onSuccess: () => showToast('Booking confirmed', 'success'),
               onError: () => showToast('Could not book this slot', 'danger'),
@@ -62,7 +62,7 @@ export function BookSlotList({ kind, title }: BookSlotListProps) {
             <Button
               label="Book"
               variant="accent"
-              onPress={() => handleBook(slot.id, slot.title)}
+              onPress={() => handleBook(slot.id, slot.title, slot.seat)}
               disabled={slot.seatsLeft === 0 || book.isPending}
               style={styles.cta}
             />

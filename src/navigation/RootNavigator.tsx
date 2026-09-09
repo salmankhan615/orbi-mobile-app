@@ -7,6 +7,7 @@ import { ForgotPasswordScreen } from '@/pages/auth/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '@/pages/auth/ResetPasswordScreen';
 import { CourseDetailScreen } from '@/pages/courses/CourseDetailScreen';
 import { LessonPlayerScreen } from '@/pages/courses/LessonPlayerScreen';
+import { DashboardScreen } from '@/pages/home/DashboardScreen';
 import { DayAgendaScreen } from '@/pages/calendar/DayAgendaScreen';
 import { SessionDetailsScreen } from '@/pages/calendar/SessionDetailsScreen';
 import { ChatThreadScreen } from '@/pages/chat/ChatThreadScreen';
@@ -18,6 +19,8 @@ import { BookClassScreen } from '@/pages/student/BookClassScreen';
 import { BookTrainingScreen } from '@/pages/student/BookTrainingScreen';
 import { MyBookingsScreen } from '@/pages/student/MyBookingsScreen';
 import { StudentCourseworkScreen } from '@/pages/student/StudentCourseworkScreen';
+import { CourseworkDetailScreen } from '@/pages/student/CourseworkDetailScreen';
+import { CourseworkFileScreen } from '@/pages/student/CourseworkFileScreen';
 import { EditProfileScreen } from '@/pages/common/EditProfileScreen';
 import {
   PrivacySecurityScreen,
@@ -67,6 +70,7 @@ export function RootNavigator() {
       {isAuthenticated ? (
         <>
           <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+          <Stack.Screen name="Dashboard" component={DashboardScreen} />
           <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
           <Stack.Screen name="LessonPlayer" component={LessonPlayerScreen} />
           <Stack.Screen name="DayAgenda" component={DayAgendaScreen} />
@@ -80,6 +84,8 @@ export function RootNavigator() {
           <Stack.Screen name="BookTraining" component={BookTrainingScreen} />
           <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
           <Stack.Screen name="Coursework" component={StudentCourseworkScreen} />
+          <Stack.Screen name="CourseworkDetail" component={CourseworkDetailScreen} />
+          <Stack.Screen name="CourseworkFile" component={CourseworkFileScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
           <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
@@ -8,15 +8,15 @@ import { EmptyState } from '@/components/custom/EmptyState';
 import { BellButton } from '@/components/custom/BellButton';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { AnnouncementModal } from '@/features/announcements/components/AnnouncementModal';
-import { useCourses } from '@/queries/useCourses';
-import { useSessions } from '@/queries/useSessions';
-import { useAnnouncements } from '@/queries/useAnnouncements';
+import { HomePulseCard } from '@/features/home/components/HomePulseCard';
+import { buildStudentDashboard, EMPTY_DASHBOARD } from '@/features/home/dashboardStats';
+import { useAllocatedCoursePacks, useCourses } from '@/queries/useCourses';
+import { useAnnouncements, useAcknowledgeAnnouncement } from '@/queries/useAnnouncements';
+import { useStudentBootstrap } from '@/queries/useBootstrap';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useAnnouncementAckStore } from '@/store/useAnnouncementAckStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothScrollProps } from '@/utils/scroll';
 import { CourseSummaryCard } from '@/features/courses/components/CourseSummaryCard';
-import { SessionListItem } from '@/features/calendar/components/SessionListItem';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Home'>;
@@ -24,21 +24,40 @@ type Props = MainTabScreenProps<'Home'>;
 export function HomeScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const user = useAuthStore((state) => state.user);
-  const { data: courses } = useCourses();
-  const { data: sessions } = useSessions();
+  const updateUser = useAuthStore((state) => state.updateUser);
+  const { data: bootstrap } = useStudentBootstrap();
+  const packsQuery = useAllocatedCoursePacks();
+  const { data: courses, allocateError, missingCompanyId } = useCourses();
   const { data: announcements } = useAnnouncements('students');
-  const acknowledgedIds = useAnnouncementAckStore((state) => state.acknowledgedIds);
-  const acknowledge = useAnnouncementAckStore((state) => state.acknowledge);
+  const acknowledgeAnnouncement = useAcknowledgeAnnouncement();
   const [query, setQuery] = useState('');
 
-  const firstName = user?.firstName ?? 'there';
-  const upcomingSessions = (sessions ?? []).slice(0, 2);
+  useEffect(() => {
+    if (bootstrap?.user) updateUser(bootstrap.user);
+  }, [bootstrap?.user, updateUser]);
+
+  const dashboard = useMemo(() => {
+    const allocatedCourses =
+      packsQuery.data && packsQuery.data.length > 0
+        ? packsQuery.data
+        : (bootstrap?.allocatedCourses ?? []);
+    if (!bootstrap && allocatedCourses.length === 0) return EMPTY_DASHBOARD;
+    return buildStudentDashboard({
+      allocations: bootstrap?.allocations ?? [],
+      allocatedCourses,
+      classCalendar: bootstrap?.classCalendar ?? [],
+      practicalBookings: bootstrap?.practicalBookings ?? [],
+      settings: bootstrap?.settings ?? null,
+      userId: bootstrap?.user.id ?? user?.id,
+    });
+  }, [bootstrap, packsQuery.data, user?.id]);
+
+  const firstName = bootstrap?.user.firstName ?? user?.firstName ?? 'there';
   const filteredCourses = (courses ?? []).filter((course) =>
     query.trim() ? course.title.toLowerCase().includes(query.trim().toLowerCase()) : true,
   );
-  const latestAnnouncement = announcements?.[0];
-  const showAnnouncementModal =
-    !!latestAnnouncement && !acknowledgedIds.includes(latestAnnouncement.id);
+  const pendingAnnouncement = (announcements ?? []).find((item) => !item.isAcknowledged);
+  const showAnnouncementModal = Boolean(pendingAnnouncement);
 
   return (
     <Screen style={styles.screen}>
@@ -50,13 +69,22 @@ export function HomeScreen({ navigation }: Props) {
       >
         <View style={styles.greetingRow}>
           <View style={styles.greetingCopy}>
-            <Text variant="largeTitle">Hi, {firstName} 👋</Text>
+            <Text variant="largeTitle">Hi, {firstName}</Text>
             <Text variant="bodySmall" color="textSecondary" style={styles.subtitle}>
               Let&apos;s continue your learning journey.
             </Text>
           </View>
           <BellButton />
         </View>
+
+        <HomePulseCard data={dashboard} onPress={() => navigation.navigate('Dashboard')} />
+        {(missingCompanyId || allocateError) && (
+          <Text variant="caption" color="danger" style={styles.subtitle}>
+            {missingCompanyId
+              ? 'Missing company id — sign out and sign in again.'
+              : `Courses failed to load: ${allocateError}`}
+          </Text>
+        )}
 
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color={tokens.colors.textMuted} />
@@ -78,16 +106,6 @@ export function HomeScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.shortcuts}>
-          <Shortcut
-            icon="school-outline"
-            label="Book class"
-            onPress={() => navigation.navigate('BookClass')}
-          />
-          <Shortcut
-            icon="fitness-outline"
-            label="Book training"
-            onPress={() => navigation.navigate('BookTraining')}
-          />
           <Shortcut
             icon="clipboard-outline"
             label="Bookings"
@@ -147,6 +165,7 @@ export function HomeScreen({ navigation }: Props) {
           </View>
         </ScalePressable>
 
+        {/* Upcoming Sessions — parked while home stays light; full stats live in Dashboard.
         <View style={styles.sectionHeader}>
           <Text variant="title">Upcoming Sessions</Text>
           <ScalePressable onPress={() => navigation.navigate('Calendar')} haptic={false}>
@@ -170,13 +189,14 @@ export function HomeScreen({ navigation }: Props) {
             message="No upcoming sessions. Book a class to get started."
           />
         ) : null}
+        */}
       </ScrollView>
 
-      {latestAnnouncement ? (
+      {pendingAnnouncement ? (
         <AnnouncementModal
           visible={showAnnouncementModal}
-          announcement={latestAnnouncement}
-          onAcknowledge={() => acknowledge(latestAnnouncement.id)}
+          announcement={pendingAnnouncement}
+          onAcknowledge={() => acknowledgeAnnouncement.mutate(pendingAnnouncement.id)}
         />
       ) : null}
     </Screen>
@@ -219,7 +239,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: tokens.spacing.lg,
-    gap: tokens.spacing.md,
+    gap: tokens.spacing.sm,
   },
   greetingCopy: {
     flex: 1,

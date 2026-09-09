@@ -1,4 +1,5 @@
 import { tokens } from '@/theme';
+import { getCourseSettings } from '@/api/crm';
 
 export interface EventCalendar {
   id: string;
@@ -6,20 +7,32 @@ export interface EventCalendar {
   accentColor: keyof typeof tokens.colors;
 }
 
-const calendars: EventCalendar[] = [
-  { id: 'all', name: 'All calendars', accentColor: 'primary' },
-  { id: 'acca', name: 'ACCA Skills', accentColor: 'secondary' },
-  { id: 'sage50', name: 'Sage 50', accentColor: 'success' },
-  { id: 'quickbooks', name: 'QuickBooks', accentColor: 'warning' },
-  { id: 'training', name: 'Training', accentColor: 'tertiary' },
+const ACCENTS: (keyof typeof tokens.colors)[] = [
+  'secondary',
+  'success',
+  'warning',
+  'tertiary',
+  'info',
+  'primary',
 ];
 
-function mockDelay<T>(value: T, ms = 300): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
-
 export const calendarsApi = {
-  list: (): Promise<EventCalendar[]> => mockDelay(calendars),
-  getById: (id: string): Promise<EventCalendar | undefined> =>
-    mockDelay(calendars.find((calendar) => calendar.id === id)),
+  async list(): Promise<EventCalendar[]> {
+    const settings = await getCourseSettings();
+    const classes = Array.isArray(settings.classes) ? settings.classes : [];
+    const mapped = classes
+      .filter((item) => item?.status !== 'Inactive')
+      .map((item, index) => ({
+        id: String(item._id),
+        name: item.title || 'Class',
+        accentColor: ACCENTS[index % ACCENTS.length],
+      }));
+
+    return [{ id: 'all', name: 'All calendars', accentColor: 'primary' }, ...mapped];
+  },
+
+  async getById(id: string): Promise<EventCalendar | undefined> {
+    const all = await calendarsApi.list();
+    return all.find((calendar) => calendar.id === id);
+  },
 };

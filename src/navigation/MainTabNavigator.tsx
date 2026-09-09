@@ -1,10 +1,10 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeScreen } from '@/pages/home/HomeScreen';
-import { StaffHomeScreen } from '@/pages/staff/StaffHomeScreen';
 import { CoursesListScreen } from '@/pages/courses/CoursesListScreen';
 import { CalendarScreen } from '@/pages/calendar/CalendarScreen';
 import { ChatListScreen } from '@/pages/chat/ChatListScreen';
 import { ProfileScreen } from '@/pages/ProfileScreen';
+import { StaffHomeScreen } from '@/pages/staff/StaffHomeScreen';
 import { StaffBookingsScreen } from '@/pages/staff/StaffBookingsScreen';
 import { StaffGroupsScreen } from '@/pages/staff/StaffGroupsScreen';
 import { StaffMoreScreen } from '@/pages/staff/StaffMoreScreen';

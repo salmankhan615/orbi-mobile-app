@@ -42,9 +42,19 @@ export function useBooking(id: string) {
 export function useBookSlot() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: ({ slotId, student }: { slotId: string; student: { id: string; name: string } }) =>
-      bookingsApi.book(slotId, student),
-    onSuccess: () => client.invalidateQueries({ queryKey: bookingKeys.all }),
+    mutationFn: ({
+      slotId,
+      student,
+      seat,
+    }: {
+      slotId: string;
+      student: { id: string; name: string };
+      seat?: number;
+    }) => bookingsApi.book(slotId, student, { seat }),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: bookingKeys.all });
+      client.invalidateQueries({ queryKey: ['bootstrap'] });
+    },
   });
 }
 
@@ -52,7 +62,10 @@ export function useCancelBooking() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: bookingsApi.cancel,
-    onSuccess: () => client.invalidateQueries({ queryKey: bookingKeys.all }),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: bookingKeys.all });
+      client.invalidateQueries({ queryKey: ['bootstrap'] });
+    },
   });
 }
 

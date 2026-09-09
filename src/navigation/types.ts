@@ -8,6 +8,7 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   ResetPassword: { email: string };
   MainTabs: undefined;
+  Dashboard: undefined;
   CourseDetail: { courseId: string };
   LessonPlayer: { courseId: string; lessonId: string };
   DayAgenda: { date: string; calendarId?: string };
@@ -20,7 +21,9 @@ export type RootStackParamList = {
   BookClass: undefined;
   BookTraining: undefined;
   MyBookings: undefined;
-  Coursework: undefined;
+  Coursework: { tab?: 'assignment' | 'resource' } | undefined;
+  CourseworkDetail: { courseworkId: string };
+  CourseworkFile: { url: string; filename: string; type: string };
   EditProfile: undefined;
   PrivacySecurity: undefined;
   HelpSupport: undefined;

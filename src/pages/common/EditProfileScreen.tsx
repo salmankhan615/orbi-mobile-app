@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useMutation } from '@tanstack/react-query';
 import { tokens } from '@/theme';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { StackScreen } from '@/components/custom/StackScreen';
+import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useToastStore } from '@/store/useToastStore';
 
@@ -16,6 +18,16 @@ export function EditProfileScreen() {
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
+
+  const save = useMutation({
+    mutationFn: () => authApi.updateProfile({ firstName, lastName, phone }),
+    onSuccess: (next) => {
+      updateUser(next);
+      showToast('Profile updated', 'success');
+      navigation.goBack();
+    },
+    onError: () => showToast('Could not update profile', 'danger'),
+  });
 
   return (
     <StackScreen title="Edit Profile" keyboardAvoiding>
@@ -29,12 +41,9 @@ export function EditProfileScreen() {
         icon="call-outline"
       />
       <Button
-        label="Save"
-        onPress={() => {
-          updateUser({ firstName, lastName, phone });
-          showToast('Profile updated', 'success');
-          navigation.goBack();
-        }}
+        label={save.isPending ? 'Saving…' : 'Save'}
+        onPress={() => save.mutate()}
+        disabled={save.isPending || !firstName.trim()}
         style={styles.save}
       />
     </StackScreen>

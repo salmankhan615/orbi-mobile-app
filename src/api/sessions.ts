@@ -1,3 +1,5 @@
+import { getClassCalendar, getClassCalendarById, getCourseSettings } from '@/api/crm';
+
 export type SessionType = 'green' | 'red' | 'amber' | 'blue';
 export type SessionStatus = 'upcoming' | 'completed' | 'cancelled';
 
@@ -11,7 +13,7 @@ export interface Session {
   id: string;
   calendarId: string;
   title: string;
-  date: string; // ISO date, e.g. '2026-08-04'
+  date: string;
   startTime: string;
   endTime: string;
   code: string;
@@ -21,92 +23,156 @@ export interface Session {
   mode: 'Online' | 'In-Person';
   description: string;
   attachments: SessionAttachment[];
-  /** Meeting link opened by "Join Session" for online sessions. */
   joinUrl?: string;
-  /** Physical address shown/opened by "Join Session" for in-person sessions. */
   location?: string;
 }
 
-const sessions: Session[] = [
-  {
-    id: 'sess-sage50-1',
-    calendarId: 'sage50',
-    title: 'Sage 50 Session 1',
-    date: '2026-08-04',
-    startTime: '10:00 AM',
-    endTime: '12:00 PM',
-    code: 'BP05-2504-0001',
-    type: 'green',
-    status: 'upcoming',
-    instructor: 'Arslan M',
-    mode: 'Online',
-    description:
-      'This session covers the essentials of Sage 50 including company setup, chart of accounts, and basic transaction entries.',
-    attachments: [{ id: 'att-1', name: 'Session_Outline.pdf', sizeLabel: '1.2 MB' }],
-    joinUrl: 'https://meet.google.com/kbm-sage50-session1',
-  },
-  {
-    id: 'sess-tk-taxation-1',
-    calendarId: 'acca',
-    title: 'TK Taxation',
-    date: '2026-08-04',
-    startTime: '12:30 PM',
-    endTime: '02:30 PM',
-    code: 'BP05-2504-0001',
-    type: 'red',
-    status: 'upcoming',
-    instructor: 'Kiran F',
-    mode: 'Online',
-    description: 'An introduction to UK taxation principles for accounting practitioners.',
-    attachments: [],
-    joinUrl: 'https://meet.google.com/kbm-tk-taxation',
-  },
-  {
-    id: 'sess-quickbooks-1',
-    calendarId: 'quickbooks',
-    title: 'QuickBooks Session 1',
-    date: '2026-08-04',
-    startTime: '03:00 PM',
-    endTime: '05:00 PM',
-    code: 'BP05-2504-0001',
-    type: 'amber',
-    status: 'upcoming',
-    instructor: 'Bilal R',
-    mode: 'Online',
-    description: 'Get hands-on with QuickBooks invoicing, reconciliation, and reporting.',
-    attachments: [],
-    joinUrl: 'https://meet.google.com/kbm-quickbooks-session1',
-  },
-  {
-    id: 'sess-vat-orientation-1',
-    calendarId: 'training',
-    title: 'VAT & Business Orientation',
-    date: '2026-08-05',
-    startTime: '02:00 PM',
-    endTime: '04:00 PM',
-    code: 'BP05-2504-0001',
-    type: 'blue',
-    status: 'upcoming',
-    instructor: 'Arslan M',
-    mode: 'In-Person',
-    description: 'Orientation covering VAT registration, filing, and general business compliance.',
-    attachments: [],
-    location: 'KBM Training Centre, 12 Bridge Street, London, EC4V 6DB',
-  },
-];
+type UnknownRecord = Record<string, unknown>;
 
-function mockDelay<T>(value: T, ms = 400): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
+function asRecord(value: unknown): UnknownRecord | null {
+  return value && typeof value === 'object' ? (value as UnknownRecord) : null;
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function idOf(value: unknown): string | null {
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  const record = asRecord(value);
+  if (!record) return null;
+  if (record._id != null) return String(record._id);
+  if (record.$oid != null) return String(record.$oid);
+  return null;
+}
+
+function str(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
+function toISODate(value: unknown): string {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  }
+  return '';
+}
+
+/** CRM stores start/end as ISO datetimes — show HH:MM. */
+function formatClock(value: unknown): string {
+  const raw = str(value);
+  if (!raw) return '';
+  if (/[ap]m/i.test(raw)) return raw;
+  const iso = raw.match(/T(\d{2}):(\d{2})/);
+  if (iso) {
+    const hour = Number(iso[1]);
+    const minute = iso[2];
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const h12 = hour % 12 || 12;
+    return `${String(h12).padStart(2, '0')}:${minute} ${suffix}`;
+  }
+  const match = raw.match(/^(\d{1,2}):(\d{2})/);
+  if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
+  return raw;
+}
+
+const TYPES: SessionType[] = ['green', 'red', 'amber', 'blue'];
+
+function typeFromSeed(seed: string): SessionType {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  return TYPES[hash % TYPES.length];
+}
+
+type TitleMaps = {
+  classes: Map<string, string>;
+  categories: Map<string, string>;
+  locations: Map<string, string>;
+};
+
+async function loadTitleMaps(): Promise<TitleMaps> {
+  try {
+    const settings = await getCourseSettings();
+    return {
+      classes: new Map((settings.classes ?? []).map((item) => [String(item._id), item.title])),
+      categories: new Map((settings.categories ?? []).map((item) => [String(item._id), item.title])),
+      locations: new Map((settings.locations ?? []).map((item) => [String(item._id), item.title])),
+    };
+  } catch {
+    return { classes: new Map(), categories: new Map(), locations: new Map() };
+  }
+}
+
+function mapCrmClassToSession(raw: unknown, maps: TitleMaps): Session | null {
+  const row = asRecord(raw);
+  if (!row) return null;
+  const id = idOf(row._id ?? row.id);
+  if (!id) return null;
+
+  const date = toISODate(row.classDate ?? row.date ?? row.start);
+  const classTypeId = idOf(row.classType) ?? str(row.classType);
+  const cateId = idOf(row.cateId) ?? str(row.cateId);
+  const locationId = idOf(row.location) ?? str(row.location);
+  const title =
+    str(row.className, row.title, row.eventType) ||
+    maps.classes.get(classTypeId) ||
+    maps.categories.get(cateId) ||
+    'Class';
+  const link = str(row.link, row.classLink, row.joinUrl, row.meetingLink);
+  const location =
+    maps.locations.get(locationId) ||
+    str(row.room, row.classRoom, row.locationName) ||
+    undefined;
+
+  const statusRaw = str(row.status, row.classStatus).toLowerCase();
+  let status: SessionStatus = 'upcoming';
+  if (statusRaw.includes('cancel')) status = 'cancelled';
+  else if (date && date < new Date().toISOString().slice(0, 10)) status = 'completed';
+
+  return {
+    id,
+    calendarId: classTypeId || cateId || 'all',
+    title,
+    date,
+    startTime: formatClock(row.startTime ?? row.classStartTime),
+    endTime: formatClock(row.endTime ?? row.classEndTime),
+    code: str(row.code, row.bookingCode, id.slice(-6).toUpperCase()),
+    type: typeFromSeed(id),
+    status,
+    instructor: str(asRecord(row.instructor)?.name, row.instructor) || 'Instructor',
+    mode: link ? 'Online' : 'In-Person',
+    description: str(row.description, row.notes) || title,
+    attachments: [],
+    joinUrl: link || undefined,
+    location,
+  };
 }
 
 export const sessionsApi = {
-  list: (calendarId?: string): Promise<Session[]> => {
-    const items =
-      !calendarId || calendarId === 'all'
-        ? sessions
-        : sessions.filter((session) => session.calendarId === calendarId);
-    return mockDelay(items);
+  async list(calendarId?: string): Promise<Session[]> {
+    const [raw, maps] = await Promise.all([getClassCalendar(), loadTitleMaps()]);
+    const sessions = asArray(raw)
+      .map((item) => mapCrmClassToSession(item, maps))
+      .filter((item): item is Session => Boolean(item));
+
+    if (!calendarId || calendarId === 'all') return sessions;
+    return sessions.filter((session) => session.calendarId === calendarId);
   },
-  getById: (id: string): Promise<Session | undefined> =>
-    mockDelay(sessions.find((s) => s.id === id)),
+
+  async getById(id: string): Promise<Session | undefined> {
+    const maps = await loadTitleMaps();
+    try {
+      const mapped = mapCrmClassToSession(await getClassCalendarById(id), maps);
+      if (mapped) return mapped;
+    } catch {
+      // fall through
+    }
+    const all = await sessionsApi.list();
+    return all.find((session) => session.id === id);
+  },
 };

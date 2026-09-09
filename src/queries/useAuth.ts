@@ -1,25 +1,57 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/api/auth';
 import { ApiError } from '@/api/client';
+import { bootstrapKeys } from '@/queries/useBootstrap';
+import { coursesKeys } from '@/queries/useCourses';
 import { useAuthStore } from '@/store/useAuthStore';
+
+async function hydrateAfterSignIn(
+  queryClient: ReturnType<typeof useQueryClient>,
+  user: { id: string; companyId?: string },
+) {
+  await queryClient.invalidateQueries({ queryKey: ['courses'] });
+  if (user.companyId) {
+    await queryClient.prefetchQuery({
+      queryKey: coursesKeys.allocatedPacks(user.id, user.companyId),
+      queryFn: async () => {
+        const { getAllocatedCourses } = await import('@/api/crm');
+        const { unwrapList } = await import('@/api/unwrap');
+        return unwrapList(await getAllocatedCourses(user.id, user.companyId!));
+      },
+    });
+  }
+  await queryClient.prefetchQuery({
+    queryKey: bootstrapKeys.student(user.id),
+    queryFn: async () => {
+      const { fetchStudentBootstrap } = await import('@/api/bootstrap');
+      return fetchStudentBootstrap();
+    },
+  });
+}
 
 export function useLogin() {
   const signIn = useAuthStore((state) => state.signIn);
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: authApi.login,
-    onSuccess: ({ user, sessionExpiresAt, cookie, token }) =>
-      signIn(user, sessionExpiresAt, { cookie, token }),
+    onSuccess: async ({ user, sessionExpiresAt, cookie, token }) => {
+      signIn(user, sessionExpiresAt, { cookie, token });
+      await hydrateAfterSignIn(queryClient, user);
+    },
   });
 }
 
 export function useSignup() {
   const signIn = useAuthStore((state) => state.signIn);
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: authApi.signup,
-    onSuccess: ({ user, sessionExpiresAt, cookie, token }) =>
-      signIn(user, sessionExpiresAt, { cookie, token }),
+    onSuccess: async ({ user, sessionExpiresAt, cookie, token }) => {
+      signIn(user, sessionExpiresAt, { cookie, token });
+      await hydrateAfterSignIn(queryClient, user);
+    },
   });
 }
 
