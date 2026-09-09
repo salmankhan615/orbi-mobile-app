@@ -38,14 +38,24 @@ export async function getCourseDetail(courseId: string) {
   return apiClient.get<unknown>(`/api/course/crm/course-detail/${encodeURIComponent(courseId)}`);
 }
 
-/** Mark a lesson complete (allocation progress). */
+/** Mark a lesson complete (allocation progress). Returns updated `lessonProgress`. */
 export async function markLessonComplete(payload: {
   userId: string;
   courseId: string;
   sectionId: string;
   lessonId: string;
 }) {
-  return apiClient.put<unknown>('/api/allocation/crm/mark-lesson-complete', payload);
+  return apiClient.put<{
+    success?: boolean;
+    message?: string;
+    data?: {
+      sectionId?: string;
+      lessonId?: string;
+      isCompleted?: boolean;
+      completedAt?: string;
+      _id?: string;
+    }[];
+  }>('/api/allocation/crm/mark-lesson-complete', payload);
 }
 
 /**

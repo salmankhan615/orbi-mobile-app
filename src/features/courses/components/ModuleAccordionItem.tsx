@@ -3,8 +3,9 @@ import { LayoutAnimation, Platform, Pressable, StyleSheet, UIManager, View } fro
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
+import { Badge } from '@/components/ui/Badge';
 import { ScalePressable } from '@/components/custom/ScalePressable';
-import type { CourseModule, Lesson } from '@/api/courses';
+import type { CourseModule, Lesson, LessonMediaType } from '@/api/courses';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -16,17 +17,24 @@ interface ModuleAccordionItemProps {
   onLessonPress?: (lesson: Lesson) => void;
 }
 
-const LESSON_ICON: Record<Lesson['status'], keyof typeof Ionicons.glyphMap> = {
-  done: 'checkmark-circle',
-  current: 'play-circle',
-  locked: 'lock-closed-outline',
-};
+function primaryMediaType(lesson: Lesson): LessonMediaType | null {
+  if (lesson.media?.some((item) => item.type === 'VIDEO')) return 'VIDEO';
+  if (lesson.media?.some((item) => item.type === 'PDF')) return 'PDF';
+  if (lesson.media?.some((item) => item.type === 'IMAGE')) return 'IMAGE';
+  if (lesson.media?.length) return 'FILE';
+  return null;
+}
 
-const LESSON_COLOR: Record<Lesson['status'], keyof typeof tokens.colors> = {
-  done: 'success',
-  current: 'info',
-  locked: 'textMuted',
-};
+function lessonIcon(lesson: Lesson): keyof typeof Ionicons.glyphMap {
+  if (lesson.status === 'done') return 'checkmark-circle';
+  if (lesson.status === 'locked') return 'lock-closed-outline';
+  const kind = primaryMediaType(lesson);
+  if (kind === 'VIDEO') return 'play-circle';
+  if (kind === 'PDF') return 'document-text';
+  if (kind === 'IMAGE') return 'image';
+  if (kind === 'FILE') return 'attach';
+  return 'reader-outline';
+}
 
 export function ModuleAccordionItem({
   module,
@@ -34,6 +42,9 @@ export function ModuleAccordionItem({
   onLessonPress,
 }: ModuleAccordionItemProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const doneCount = module.lessons.filter((lesson) => lesson.status === 'done').length;
+  const total = module.lessons.length;
+  const moduleDone = total > 0 && doneCount === total;
 
   function toggle() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -43,9 +54,15 @@ export function ModuleAccordionItem({
   return (
     <View style={styles.container}>
       <Pressable style={styles.header} onPress={toggle}>
-        <Text variant="bodySmall" style={styles.title}>
-          {module.title}
-        </Text>
+        <View style={styles.headerCopy}>
+          <Text variant="bodySmall" style={styles.title}>
+            {module.title}
+          </Text>
+          <Text variant="caption" color="textMuted">
+            {doneCount}/{total} completed
+          </Text>
+        </View>
+        {moduleDone ? <Badge label="Done" tone="success" /> : null}
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
           size={18}
@@ -55,30 +72,45 @@ export function ModuleAccordionItem({
 
       {expanded && (
         <View style={styles.lessons}>
-          {module.lessons.map((lesson) => (
-            <ScalePressable
-              key={lesson.id}
-              haptic={false}
-              onPress={() => onLessonPress?.(lesson)}
-              style={styles.lessonRow}
-            >
-              <Ionicons
-                name={LESSON_ICON[lesson.status]}
-                size={18}
-                color={tokens.colors[LESSON_COLOR[lesson.status]]}
-              />
-              <Text
-                variant="bodySmall"
-                color={lesson.status === 'locked' ? 'textMuted' : 'textPrimary'}
-                style={styles.lessonTitle}
+          {module.lessons.map((lesson) => {
+            const isDone = lesson.status === 'done';
+            return (
+              <ScalePressable
+                key={lesson.id}
+                haptic={false}
+                onPress={() => onLessonPress?.(lesson)}
+                style={isDone ? [styles.lessonRow, styles.lessonRowDone] : styles.lessonRow}
               >
-                {lesson.title}
-              </Text>
-              {lesson.status !== 'locked' && (
-                <Ionicons name="play" size={14} color={tokens.colors.textMuted} />
-              )}
-            </ScalePressable>
-          ))}
+                <Ionicons
+                  name={lessonIcon(lesson)}
+                  size={18}
+                  color={isDone ? tokens.colors.success : tokens.colors.info}
+                />
+                <View style={styles.lessonCopy}>
+                  <Text
+                    variant="bodySmall"
+                    color={lesson.status === 'locked' ? 'textMuted' : 'textPrimary'}
+                    style={styles.lessonTitle}
+                  >
+                    {lesson.title}
+                  </Text>
+                  <Text variant="caption" color={isDone ? 'success' : 'textMuted'}>
+                    {isDone
+                      ? 'Completed'
+                      : lesson.durationLabel !== '—'
+                        ? lesson.durationLabel
+                        : 'Not completed'}
+                    {lesson.hasQuiz && !isDone ? ' · Quiz on web' : ''}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color={tokens.colors.textMuted}
+                />
+              </ScalePressable>
+            );
+          })}
         </View>
       )}
     </View>
@@ -93,11 +125,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: tokens.spacing.sm,
     paddingVertical: tokens.spacing.lg,
   },
-  title: {
+  headerCopy: {
     flex: 1,
+    gap: 2,
+  },
+  title: {
     fontFamily: tokens.fontFamily.semibold,
   },
   lessons: {
@@ -110,8 +145,17 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.sm,
     paddingVertical: tokens.spacing.sm,
     paddingHorizontal: tokens.spacing.xs,
+    borderRadius: tokens.radius.md,
+  },
+  lessonRowDone: {
+    backgroundColor: tokens.colors.successMuted,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  lessonCopy: {
+    flex: 1,
+    gap: 2,
   },
   lessonTitle: {
-    flex: 1,
+    fontFamily: tokens.fontFamily.medium,
   },
 });

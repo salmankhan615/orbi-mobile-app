@@ -6,13 +6,29 @@ export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 const SAMPLE_VIDEO =
   'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
+export type LessonMediaType = 'VIDEO' | 'PDF' | 'IMAGE' | 'FILE';
+
+export interface LessonMedia {
+  id: string;
+  type: LessonMediaType;
+  /** Absolute playable / openable URL. */
+  url: string;
+  filename: string;
+}
+
 export interface Lesson {
   id: string;
+  /** CRM section id — required for mark-lesson-complete. */
+  sectionId: string;
   title: string;
   status: 'done' | 'current' | 'locked';
   durationLabel: string;
   description: string;
+  /** First video URL when present (mocks + player convenience). */
   videoUrl: string;
+  media: LessonMedia[];
+  /** CRM attached a quiz — not supported in-app; materials still open. */
+  hasQuiz?: boolean;
 }
 
 export interface CourseModule {
@@ -31,6 +47,10 @@ export interface Course {
   moduleCount: number;
   level: CourseLevel;
   modules: CourseModule[];
+  /** Set for CRM allocated courses — matches web Active / Access Expired. */
+  accessExpired?: boolean;
+  /** Formatted allocation end date, e.g. "06 Sep 2026". */
+  accessEndLabel?: string;
 }
 
 function lesson(
@@ -39,14 +59,24 @@ function lesson(
   status: Lesson['status'],
   durationLabel: string,
   description: string,
+  sectionId = 'mock-section',
 ): Lesson {
   return {
     id,
+    sectionId,
     title,
     status,
     durationLabel,
     description,
     videoUrl: SAMPLE_VIDEO,
+    media: [
+      {
+        id: `${id}-video`,
+        type: 'VIDEO',
+        url: SAMPLE_VIDEO,
+        filename: `${title}.mp4`,
+      },
+    ],
   };
 }
 

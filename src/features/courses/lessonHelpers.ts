@@ -37,6 +37,24 @@ export function findLesson(
   return { lesson: lessons[index], index, lessons };
 }
 
+/** Lessons in the same module only — used for prev/next without jumping modules. */
+export function findLessonInModule(
+  course: Course,
+  lessonId: string,
+): { lesson: LessonWithModule; index: number; lessons: LessonWithModule[]; module: CourseModule } | undefined {
+  for (const module of course.modules) {
+    const lessons = module.lessons.map((lesson) => ({
+      ...lesson,
+      moduleId: module.id,
+      moduleTitle: module.title,
+    }));
+    const index = lessons.findIndex((lesson) => lesson.id === lessonId);
+    if (index < 0) continue;
+    return { lesson: lessons[index], index, lessons, module };
+  }
+  return undefined;
+}
+
 export function findModule(course: Course, moduleId: string): CourseModule | undefined {
   return course.modules.find((module) => module.id === moduleId);
 }

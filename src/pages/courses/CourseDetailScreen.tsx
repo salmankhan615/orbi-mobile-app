@@ -7,15 +7,14 @@ import { setStatusBarStyle } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
-import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { useCourse } from '@/queries/useCourses';
 import { ModuleAccordionItem } from '@/features/courses/components/ModuleAccordionItem';
+import { CourseAccessLocked } from '@/features/courses/components/CourseAccessLocked';
 import { STATUS_LABEL } from '@/features/courses/categoryStyle';
-import { findContinueLesson } from '@/features/courses/lessonHelpers';
 import { useToastStore } from '@/store/useToastStore';
 import { haptics } from '@/utils/haptics';
 import type { Lesson } from '@/api/courses';
@@ -43,22 +42,18 @@ export function CourseDetailScreen({ route, navigation }: Props) {
 
   function openLesson(lesson: Lesson) {
     if (!course) return;
+    if (course.accessExpired) {
+      haptics.warning();
+      const ended = course.accessEndLabel ? ` on ${course.accessEndLabel}` : '';
+      showToast(`Course access expired${ended}. Contact administration for an extension.`, 'danger');
+      return;
+    }
     if (lesson.status === 'locked') {
       haptics.warning();
-      showToast('Complete previous lessons to unlock this one.', 'neutral');
+      showToast('This lesson is locked.', 'neutral');
       return;
     }
     navigation.navigate('LessonPlayer', { courseId: course.id, lessonId: lesson.id });
-  }
-
-  function continueLearning() {
-    if (!course) return;
-    const next = findContinueLesson(course);
-    if (!next) {
-      showToast('No lessons available yet.', 'neutral');
-      return;
-    }
-    navigation.navigate('LessonPlayer', { courseId: course.id, lessonId: next.id });
   }
 
   if (isLoading || !course) {
@@ -102,7 +97,16 @@ export function CourseDetailScreen({ route, navigation }: Props) {
         <Text variant="heading" color="onPrimary" style={styles.heroTitle}>
           {course.title}
         </Text>
-        <Badge label={STATUS_LABEL[course.status]} tone="success" />
+        <Badge
+          label={
+            typeof course.accessExpired === 'boolean'
+              ? course.accessExpired
+                ? 'Access Expired'
+                : 'Active'
+              : STATUS_LABEL[course.status]
+          }
+          tone={course.accessExpired ? 'danger' : 'success'}
+        />
         <Text variant="bodySmall" color="onPrimary" style={styles.heroDesc}>
           {course.description}
         </Text>
@@ -114,7 +118,14 @@ export function CourseDetailScreen({ route, navigation }: Props) {
         />
       </LinearGradient>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.body} {...smoothScrollProps}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.body,
+          { paddingBottom: Math.max(insets.bottom, tokens.spacing.lg) + tokens.spacing.xxxl },
+        ]}
+        {...smoothScrollProps}
+      >
         <View style={styles.stats}>
           <View style={styles.stat}>
             <Ionicons name="albums-outline" size={18} color={tokens.colors.primary} />
@@ -144,12 +155,24 @@ export function CourseDetailScreen({ route, navigation }: Props) {
         <View style={styles.progressBlock}>
           <View style={styles.progressHeader}>
             <Text variant="title">Course Progress</Text>
-            <Text variant="bodySmall" color="success" style={styles.progressPct}>
+            <Text
+              variant="bodySmall"
+              color={course.accessExpired ? 'textMuted' : 'success'}
+              style={styles.progressPct}
+            >
               {course.progress}%
             </Text>
           </View>
-          <ProgressBar progress={course.progress} fillColor="success" height={8} />
+          <ProgressBar
+            progress={course.progress}
+            fillColor={course.accessExpired ? 'textMuted' : 'success'}
+            height={8}
+          />
         </View>
+
+        {course.accessExpired && (
+          <CourseAccessLocked endLabel={course.accessEndLabel} variant="banner" />
+        )}
 
         <View style={styles.tabRow}>
           {VISIBLE_TABS.map((tab) => {
@@ -170,18 +193,32 @@ export function CourseDetailScreen({ route, navigation }: Props) {
           })}
         </View>
 
-        {activeTab === 'Modules' && (
-          <View style={styles.modules}>
-            {course.modules.map((module, index) => (
-              <ModuleAccordionItem
-                key={module.id}
-                module={module}
-                defaultExpanded={index === 0}
-                onLessonPress={openLesson}
-              />
-            ))}
-          </View>
-        )}
+        {activeTab === 'Modules' &&
+          (course.accessExpired ? (
+            <CourseAccessLocked endLabel={course.accessEndLabel} variant="panel" />
+          ) : course.modules.length === 0 ? (
+            <View style={styles.emptyModules}>
+              <Ionicons name="albums-outline" size={32} color={tokens.colors.textMuted} />
+              <Text variant="title" style={styles.emptyModulesTitle}>
+                No modules available
+              </Text>
+              <Text variant="bodySmall" color="textMuted" style={styles.emptyModulesBody}>
+                There is no published learning material in your allowed sections for this course
+                yet.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.modules}>
+              {course.modules.map((module, index) => (
+                <ModuleAccordionItem
+                  key={module.id}
+                  module={module}
+                  defaultExpanded={index === 0}
+                  onLessonPress={openLesson}
+                />
+              ))}
+            </View>
+          ))}
         {activeTab === 'About' && (
           <Text variant="body" color="textSecondary" style={styles.about}>
             {course.description}
@@ -198,10 +235,6 @@ export function CourseDetailScreen({ route, navigation }: Props) {
           </Text>
         )}
       </ScrollView>
-
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, tokens.spacing.lg) }]}>
-        <Button label="Continue Learning" icon="arrow-forward" onPress={continueLearning} />
-      </View>
     </View>
   );
 }
@@ -300,6 +333,19 @@ const styles = StyleSheet.create({
   modules: {
     marginHorizontal: tokens.spacing.screen,
   },
+  emptyModules: {
+    marginHorizontal: tokens.spacing.screen,
+    marginTop: tokens.spacing.xl,
+    padding: tokens.spacing.xl,
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+  },
+  emptyModulesTitle: {
+    textAlign: 'center',
+  },
+  emptyModulesBody: {
+    textAlign: 'center',
+  },
   about: {
     marginHorizontal: tokens.spacing.screen,
     marginTop: tokens.spacing.md,
@@ -307,11 +353,5 @@ const styles = StyleSheet.create({
   emptyTab: {
     textAlign: 'center',
     marginTop: tokens.spacing.xl,
-  },
-  footer: {
-    padding: tokens.spacing.screen,
-    backgroundColor: tokens.colors.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: tokens.colors.border,
   },
 });

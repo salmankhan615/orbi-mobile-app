@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
-import { getAllocatedCourses, getCourseDetail } from '@/api/crm';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getAllocatedCourses, getCourseDetail, markLessonComplete } from '@/api/crm';
 import { coursesApi, type Course } from '@/api/courses';
 import { unwrapList } from '@/api/unwrap';
 import {
+  applyLessonProgressToPacks,
   mapAllocatedCoursesToApp,
   mapCourseDetailToApp,
 } from '@/features/courses/mapAllocatedCourses';
@@ -77,30 +78,73 @@ export function useCourses() {
 
 export function useCourse(id: string) {
   const role = useAuthStore((state) => state.user?.role ?? 'student');
-  const { data: allocatedList } = useCourses();
+  const packsQuery = useAllocatedCoursePacks();
+  const fromAlloc = packsQuery.data
+    ? mapAllocatedCoursesToApp(packsQuery.data).find((course) => course.id === id)
+    : undefined;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: coursesKeys.detail(id),
     queryFn: async (): Promise<Course | undefined> => {
       if (role === 'student') {
         try {
           const raw = await getCourseDetail(id);
-          const mapped = mapCourseDetailToApp(raw, id);
-          if (mapped?.modules.length) return mapped;
-          if (mapped) {
-            const fromAlloc = (allocatedList ?? []).find((course) => course.id === id);
-            if (fromAlloc?.modules.length) {
-              return { ...mapped, modules: fromAlloc.modules, moduleCount: fromAlloc.moduleCount };
-            }
-            return mapped;
-          }
+          return mapCourseDetailToApp(raw, id);
         } catch {
-          // use allocated snapshot
+          return undefined;
         }
-        return (allocatedList ?? []).find((course) => course.id === id);
       }
       return coursesApi.getById(id);
     },
-    enabled: Boolean(id),
+    // Allocate packs already contain curriculum — only hit detail when packs miss this course.
+    enabled: Boolean(id) && (role !== 'student' || (packsQuery.isSuccess && !fromAlloc)),
+  });
+
+  if (role !== 'student') return query;
+
+  const data = fromAlloc ?? query.data;
+  return {
+    ...query,
+    data,
+    isLoading: !data && (packsQuery.isLoading || query.isLoading),
+    isPending: !data && (packsQuery.isPending || query.isPending),
+    isError: !data && (packsQuery.isError || query.isError),
+    error: packsQuery.error ?? query.error,
+  };
+}
+
+export function useMarkLessonComplete(courseId: string) {
+  const client = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id ?? '');
+  const companyId = useAuthStore((state) => state.user?.companyId?.trim() ?? '');
+  const packsKey = coursesKeys.allocatedPacks(userId || 'none', companyId || 'none');
+
+  return useMutation({
+    mutationFn: async (payload: { sectionId: string; lessonId: string }) => {
+      if (!userId) throw new Error('Not signed in');
+      const raw = await markLessonComplete({
+        userId,
+        courseId,
+        sectionId: payload.sectionId,
+        lessonId: payload.lessonId,
+      });
+      const progress = Array.isArray(raw?.data) ? raw.data : unwrapList(raw);
+      if (!Array.isArray(progress)) {
+        throw new Error(
+          (raw && typeof raw === 'object' && 'message' in raw && typeof raw.message === 'string'
+            ? raw.message
+            : null) || 'Lesson status was not updated',
+        );
+      }
+      return progress as unknown[];
+    },
+    onSuccess: (lessonProgress) => {
+      // Response `data` is the full updated lessonProgress — patch cache so UI flips to Completed now.
+      client.setQueryData<unknown[]>(packsKey, (current) => {
+        if (!current) return current;
+        return applyLessonProgressToPacks(current, courseId, lessonProgress);
+      });
+      void client.invalidateQueries({ queryKey: packsKey });
+    },
   });
 }

@@ -17,9 +17,16 @@ interface CourseCardProps {
   onPress?: () => void;
 }
 
-/** Reference list card: gradient icon tile, title, status, green progress, meta. */
+/** List card aligned with ORBI My Courses: title, Active/Access Expired, progress. */
 export function CourseCard({ course, index = 0, onPress }: CourseCardProps) {
   const gradient = tokens.gradients[CATEGORY_GRADIENT[course.category]];
+  const badge =
+    typeof course.accessExpired === 'boolean'
+      ? course.accessExpired
+        ? { label: 'Access Expired', tone: 'danger' as const }
+        : { label: 'Active', tone: 'success' as const }
+      : { label: STATUS_LABEL[course.status], tone: STATUS_TONE[course.status] };
+  const progressColor = course.accessExpired ? 'textMuted' : 'success';
 
   return (
     <FadeInView delay={staggerDelay(index)}>
@@ -39,17 +46,21 @@ export function CourseCard({ course, index = 0, onPress }: CourseCardProps) {
 
         <View style={styles.body}>
           <View style={styles.top}>
-            <Text variant="bodySmall" style={styles.title} numberOfLines={1}>
+            <Text variant="bodySmall" style={styles.title} numberOfLines={2}>
               {course.title}
             </Text>
-            <Badge label={STATUS_LABEL[course.status]} tone={STATUS_TONE[course.status]} />
+            <Badge label={badge.label} tone={badge.tone} />
           </View>
 
           <View style={styles.progressRow}>
             <View style={styles.progressTrack}>
-              <ProgressBar progress={course.progress} fillColor="success" height={5} />
+              <ProgressBar
+                progress={course.progress}
+                fillColor={course.accessExpired ? 'textMuted' : 'success'}
+                height={5}
+              />
             </View>
-            <Text variant="caption" color="success" style={styles.pct}>
+            <Text variant="caption" color={progressColor} style={styles.pct}>
               {course.progress}%
             </Text>
           </View>

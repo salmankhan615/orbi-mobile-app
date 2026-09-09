@@ -19,11 +19,15 @@ interface CourseSummaryCardProps {
 export function CourseSummaryCard({ course, index = 0, onPress }: CourseSummaryCardProps) {
   const gradient = tokens.gradients[CATEGORY_GRADIENT[course.category]];
   const status =
-    course.status === 'in_progress'
-      ? 'Active'
-      : course.status === 'not_started'
-        ? 'Not Started'
-        : STATUS_LABEL[course.status];
+    typeof course.accessExpired === 'boolean'
+      ? course.accessExpired
+        ? 'Access Expired'
+        : 'Active'
+      : course.status === 'in_progress'
+        ? 'Active'
+        : course.status === 'not_started'
+          ? 'Not Started'
+          : STATUS_LABEL[course.status];
 
   return (
     <FadeInView delay={staggerDelay(index)}>

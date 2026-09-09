@@ -1,6 +1,7 @@
 import {
   crmCourseProgress,
   flattenAllocatedCourseRows,
+  isAccessExpired,
 } from '@/features/courses/mapAllocatedCourses';
 
 export interface DashboardStatCards {
@@ -52,24 +53,6 @@ function idOf(value: unknown): string | null {
   if (record._id != null) return String(record._id);
   if (record.$oid != null) return String(record.$oid);
   return null;
-}
-
-function isAccessExpired(courseRow: UnknownRecord | null): boolean {
-  if (!courseRow) return false;
-  if (String(courseRow.accessType) === 'Free' && !courseRow.endDate) return false;
-  let endDate = courseRow.endDate;
-  for (const item of asArray(courseRow.overrides)) {
-    const row = asRecord(item);
-    if (!row?.extendedEndDate) continue;
-    const extended = new Date(String(row.extendedEndDate));
-    if (!endDate || extended > new Date(String(endDate))) {
-      endDate = row.extendedEndDate;
-    }
-  }
-  if (!endDate) return false;
-  const end = new Date(String(endDate));
-  end.setHours(23, 59, 59, 999);
-  return new Date() > end;
 }
 
 function categoryTitle(course: UnknownRecord | null, settingsCategories: unknown[]): string[] {
