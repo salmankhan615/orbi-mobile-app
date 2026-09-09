@@ -21,11 +21,7 @@ export function FilterSelectRow({ label, value, options, onChange }: FilterSelec
 
   return (
     <>
-      <ScalePressable
-        hapticStyle="select"
-        onPress={() => setOpen(true)}
-        style={styles.row}
-      >
+      <ScalePressable hapticStyle="select" onPress={() => setOpen(true)} style={styles.row}>
         <View style={styles.copy}>
           <Text variant="caption" color="textMuted">
             {label}

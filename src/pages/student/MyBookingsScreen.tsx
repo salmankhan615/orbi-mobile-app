@@ -6,10 +6,7 @@ import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { BookingPortalRow } from '@/features/bookings/components/BookingPortalRow';
 import { BookingStatsBar } from '@/features/bookings/components/BookingStatsBar';
-import {
-  FilterSelectRow,
-  SegmentedFilter,
-} from '@/features/bookings/components/BookingFilters';
+import { FilterSelectRow, SegmentedFilter } from '@/features/bookings/components/BookingFilters';
 import {
   calendarFilterOptions,
   computeBookingStats,
@@ -60,11 +57,7 @@ export function MyBookingsScreen() {
   return (
     <StackScreen title="My Bookings">
       <View style={styles.filters}>
-        <SegmentedFilter
-          options={KIND_OPTIONS}
-          value={kindFilter}
-          onChange={handleKindChange}
-        />
+        <SegmentedFilter options={KIND_OPTIONS} value={kindFilter} onChange={handleKindChange} />
         {kindFilter !== 'training' ? (
           <FilterSelectRow
             label="Calendar"
