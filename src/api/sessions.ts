@@ -93,19 +93,40 @@ type TitleMaps = {
   classes: Map<string, string>;
   categories: Map<string, string>;
   locations: Map<string, string>;
+  /** classType id → category (calendar) id via settings.classes.classCate */
+  classToCategory: Map<string, string>;
 };
 
 async function loadTitleMaps(): Promise<TitleMaps> {
   try {
     const settings = await getCourseSettings();
+    const classToCategory = new Map<string, string>();
+    for (const item of settings.classes ?? []) {
+      if (item.classCate) classToCategory.set(String(item._id), String(item.classCate));
+    }
     return {
       classes: new Map((settings.classes ?? []).map((item) => [String(item._id), item.title])),
-      categories: new Map((settings.categories ?? []).map((item) => [String(item._id), item.title])),
+      categories: new Map(
+        (settings.categories ?? []).map((item) => [String(item._id), item.title]),
+      ),
       locations: new Map((settings.locations ?? []).map((item) => [String(item._id), item.title])),
+      classToCategory,
     };
   } catch {
-    return { classes: new Map(), categories: new Map(), locations: new Map() };
+    return {
+      classes: new Map(),
+      categories: new Map(),
+      locations: new Map(),
+      classToCategory: new Map(),
+    };
   }
+}
+
+function calendarIdForRow(row: UnknownRecord, maps: TitleMaps): string {
+  const cateId = idOf(row.cateId) ?? str(row.cateId);
+  if (cateId) return cateId;
+  const classTypeId = idOf(row.classType) ?? str(row.classType);
+  return maps.classToCategory.get(classTypeId) || classTypeId || 'all';
 }
 
 function mapCrmClassToSession(raw: unknown, maps: TitleMaps): Session | null {
@@ -116,7 +137,7 @@ function mapCrmClassToSession(raw: unknown, maps: TitleMaps): Session | null {
 
   const date = toISODate(row.classDate ?? row.date ?? row.start);
   const classTypeId = idOf(row.classType) ?? str(row.classType);
-  const cateId = idOf(row.cateId) ?? str(row.cateId);
+  const cateId = calendarIdForRow(row, maps);
   const locationId = idOf(row.location) ?? str(row.location);
   const title =
     str(row.className, row.title, row.eventType) ||
@@ -125,9 +146,7 @@ function mapCrmClassToSession(raw: unknown, maps: TitleMaps): Session | null {
     'Class';
   const link = str(row.link, row.classLink, row.joinUrl, row.meetingLink);
   const location =
-    maps.locations.get(locationId) ||
-    str(row.room, row.classRoom, row.locationName) ||
-    undefined;
+    maps.locations.get(locationId) || str(row.room, row.classRoom, row.locationName) || undefined;
 
   const statusRaw = str(row.status, row.classStatus).toLowerCase();
   let status: SessionStatus = 'upcoming';
@@ -136,7 +155,7 @@ function mapCrmClassToSession(raw: unknown, maps: TitleMaps): Session | null {
 
   return {
     id,
-    calendarId: classTypeId || cateId || 'all',
+    calendarId: cateId,
     title,
     date,
     startTime: formatClock(row.startTime ?? row.classStartTime),

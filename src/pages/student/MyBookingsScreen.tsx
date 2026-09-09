@@ -1,62 +1,120 @@
-import { Alert } from 'react-native';
-import { StackScreen } from '@/components/custom/StackScreen';
-import { EntityRow } from '@/components/custom/EntityRow';
+import { useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
-import { useMyBookings, useCancelBooking } from '@/queries/useBookings';
+import { StackScreen } from '@/components/custom/StackScreen';
+import { EmptyState } from '@/components/custom/EmptyState';
+import { BookingPortalRow } from '@/features/bookings/components/BookingPortalRow';
+import { BookingStatsBar } from '@/features/bookings/components/BookingStatsBar';
+import {
+  FilterSelectRow,
+  SegmentedFilter,
+} from '@/features/bookings/components/BookingFilters';
+import {
+  calendarFilterOptions,
+  computeBookingStats,
+  filterBookingsByCalendar,
+  filterBookingsByKind,
+  filterBookingsByShift,
+  shiftFilterOptions,
+  type BookingKindFilter,
+} from '@/features/bookings/bookingFilters';
+import { useMyBookings } from '@/queries/useBookings';
+import { useCalendars } from '@/queries/useCalendars';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useToastStore } from '@/store/useToastStore';
-import type { BadgeTone } from '@/components/ui/Badge';
-import type { BookingStatus } from '@/api/bookings';
 
-const STATUS_TONE: Record<BookingStatus, BadgeTone> = {
-  confirmed: 'success',
-  attended: 'primary',
-  cancelled: 'danger',
-  available: 'neutral',
-};
+const KIND_OPTIONS = [
+  { id: 'all', label: 'All' },
+  { id: 'class', label: 'Classes' },
+  { id: 'training', label: 'Training' },
+];
 
 export function MyBookingsScreen() {
   const user = useAuthStore((state) => state.user);
-  const { data: bookings } = useMyBookings(user?.id ?? '');
-  const cancel = useCancelBooking();
-  const showToast = useToastStore((state) => state.show);
+  const { data: bookings, isPending, isError } = useMyBookings(user?.id ?? '');
+  const { data: calendars } = useCalendars();
 
-  function handleCancel(id: string, title: string) {
-    Alert.alert('Cancel booking', `Cancel ${title}?`, [
-      { text: 'Keep', style: 'cancel' },
-      {
-        text: 'Cancel booking',
-        style: 'destructive',
-        onPress: () =>
-          cancel.mutate(id, {
-            onSuccess: () => showToast('Booking cancelled', 'neutral'),
-          }),
-      },
-    ]);
+  const [kindFilter, setKindFilter] = useState<BookingKindFilter>('all');
+  const [calendarFilter, setCalendarFilter] = useState('all');
+  const [shiftFilter, setShiftFilter] = useState('all');
+
+  const calendarOptions = useMemo(() => calendarFilterOptions(calendars ?? []), [calendars]);
+  const shiftOptions = useMemo(() => shiftFilterOptions(bookings ?? []), [bookings]);
+
+  const filtered = useMemo(() => {
+    let list = filterBookingsByKind(bookings ?? [], kindFilter);
+    list = filterBookingsByCalendar(list, calendarFilter);
+    list = filterBookingsByShift(list, shiftFilter);
+    return list;
+  }, [bookings, kindFilter, calendarFilter, shiftFilter]);
+
+  const stats = useMemo(() => computeBookingStats(filtered), [filtered]);
+
+  function handleKindChange(id: string) {
+    const next = id as BookingKindFilter;
+    setKindFilter(next);
+    if (next === 'training') setCalendarFilter('all');
+    if (next === 'class') setShiftFilter('all');
   }
 
   return (
     <StackScreen title="My Bookings">
-      {(bookings ?? []).length === 0 ? (
-        <Text variant="body" color="textMuted">
-          You have no bookings yet.
-        </Text>
-      ) : (
-        (bookings ?? []).map((booking) => (
-          <EntityRow
-            key={booking.id}
-            icon={booking.kind === 'class' ? 'school-outline' : 'fitness-outline'}
-            title={booking.title}
-            subtitle={`${booking.date} · ${booking.startTime}–${booking.endTime}`}
-            badge={{ label: booking.status, tone: STATUS_TONE[booking.status] }}
-            onPress={
-              booking.status === 'confirmed'
-                ? () => handleCancel(booking.id, booking.title)
-                : undefined
-            }
+      <View style={styles.filters}>
+        <SegmentedFilter
+          options={KIND_OPTIONS}
+          value={kindFilter}
+          onChange={handleKindChange}
+        />
+        {kindFilter !== 'training' ? (
+          <FilterSelectRow
+            label="Calendar"
+            value={calendarFilter}
+            options={calendarOptions}
+            onChange={setCalendarFilter}
           />
-        ))
+        ) : null}
+        {kindFilter !== 'class' ? (
+          <FilterSelectRow
+            label="Shift"
+            value={shiftFilter}
+            options={shiftOptions}
+            onChange={setShiftFilter}
+          />
+        ) : null}
+      </View>
+
+      <BookingStatsBar stats={stats} />
+
+      {isPending ? (
+        <Text variant="body" color="textMuted" style={styles.message}>
+          Loading bookings…
+        </Text>
+      ) : isError ? (
+        <Text variant="body" color="danger" style={styles.message}>
+          Could not load bookings.
+        </Text>
+      ) : filtered.length === 0 ? (
+        <EmptyState icon="calendar-outline" message="No bookings match these filters." />
+      ) : (
+        <View style={styles.list}>
+          {filtered.map((booking, index) => (
+            <BookingPortalRow key={booking.id} booking={booking} index={index} />
+          ))}
+        </View>
       )}
     </StackScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  filters: {
+    gap: tokens.spacing.sm,
+    marginBottom: tokens.spacing.lg,
+  },
+  list: {
+    marginTop: tokens.spacing.lg,
+  },
+  message: {
+    marginTop: tokens.spacing.lg,
+  },
+});

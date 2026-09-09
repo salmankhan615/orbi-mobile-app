@@ -56,6 +56,22 @@ export function formatFullDate(date: Date): string {
   });
 }
 
+/** Portal-style date label, e.g. 13/10/2026. */
+export function formatPortalDate(value: string | Date | undefined | null): string {
+  if (!value) return '—';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    const iso = String(value).slice(0, 10);
+    const [year, month, day] = iso.split('-');
+    if (year && month && day) return `${day}/${month}/${year}`;
+    return '—';
+  }
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 export function getWeekRange(date: Date): { start: Date; end: Date } {
   const start = new Date(date);
   start.setDate(date.getDate() - date.getDay());

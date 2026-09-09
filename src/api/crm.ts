@@ -9,13 +9,29 @@ export async function getModuleById(moduleId: string) {
   return apiClient.get<unknown>(`/api/modules/crm/${moduleId}`);
 }
 
-/** Course booking settings: classes, locations, categories. */
+/**
+ * Course booking settings.
+ * `categories` are calendar types (ACCA, AAT, ACDAP, …).
+ * `classes` are class titles within a category (`classCate` → category id).
+ * `locations` are venues (Park Royal, Online, …).
+ */
 export async function getCourseSettings() {
   return apiClient.get<{
-    classes?: { _id: string; title: string; status?: string }[];
-    locations?: { _id: string; title: string; status?: string }[];
-    categories?: { _id: string; title: string; status?: string }[];
+    classes?: {
+      _id: string;
+      title: string;
+      status?: string;
+      classCate?: string;
+      order?: number;
+    }[];
+    locations?: { _id: string; title: string; status?: string; order?: number }[];
+    categories?: { _id: string; title: string; status?: string; order?: number }[];
   }>('/api/course/crm/getSettings');
+}
+
+/** Settings entries use "active" / "Inactive" interchangeably. */
+export function isSettingsActive(status?: string): boolean {
+  return String(status ?? 'active').toLowerCase() !== 'inactive';
 }
 
 /**

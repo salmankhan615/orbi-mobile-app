@@ -8,8 +8,10 @@ import {
   getClassCalendar,
   getCourseSettings,
   getMyPracticalBookings,
+  isSettingsActive,
 } from '@/api/crm';
 import { useAuthStore } from '@/store/useAuthStore';
+import { formatPortalDate } from '@/utils/date';
 
 export type BookingKind = 'class' | 'training';
 export type BookingStatus = 'confirmed' | 'attended' | 'cancelled' | 'available';
@@ -36,12 +38,34 @@ export interface Booking {
   studentName: string;
   studentId: string;
   kind: BookingKind;
+  /** Portal "Type" column — Class or Practical Training. */
+  typeLabel: string;
   title: string;
   date: string;
+  /** Portal-style DD/MM/YYYY for the session date. */
+  dateLabel: string;
   startTime: string;
   endTime: string;
+  /** Portal "Location" column. */
+  locationLabel: string;
+  /** ISO date when the booking was made. */
+  bookingDate: string;
+  /** Portal-style DD/MM/YYYY for booking date. */
+  bookingDateLabel: string;
+  seat?: number;
   status: BookingStatus;
+  /** Portal "Status" column — Active, Cancelled, etc. */
+  statusLabel: string;
   attendance?: 'present' | 'absent' | 'late';
+  /** Portal "Attendance" column. */
+  attendanceLabel?: string;
+  /** Category / calendar type id (`cateId`) — used by calendar filter. */
+  calendarId?: string;
+  /** Category title, e.g. ACDAP. */
+  calendarLabel?: string;
+  /** Training shift id — used by shift filter. */
+  shiftId?: string;
+  shiftName?: string;
   /** CRM cancel targets */
   classId?: string;
   dayId?: string;
@@ -138,10 +162,7 @@ function mapClassSlot(raw: unknown, classTitles: Map<string, string>): BookableS
   return {
     id,
     kind: 'class',
-    title:
-      str(row.className, row.title, row.eventType) ||
-      classTitles.get(classTypeId) ||
-      'Class',
+    title: str(row.className, row.title, row.eventType) || classTitles.get(classTypeId) || 'Class',
     date,
     startTime: formatClock(row.startTime ?? row.classStartTime),
     endTime: formatClock(row.endTime ?? row.classEndTime),
@@ -166,7 +187,7 @@ function nextDates(days: number): string[] {
 async function listTrainingSlots(): Promise<BookableSlot[]> {
   const settings = await getCourseSettings();
   const locations = (settings.locations ?? [])
-    .filter((item) => item?.status !== 'Inactive')
+    .filter((item) => isSettingsActive(item?.status))
     .slice(0, 4);
   if (locations.length === 0) return [];
 
@@ -210,92 +231,193 @@ async function listTrainingSlots(): Promise<BookableSlot[]> {
     ),
   );
 
-  return slots.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+  return slots.sort(
+    (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime),
+  );
+}
+
+type TitleMaps = {
+  classes: Map<string, string>;
+  categories: Map<string, string>;
+  locations: Map<string, string>;
+  /** classType id → category (calendar) id via settings.classes.classCate */
+  classToCategory: Map<string, string>;
+};
+
+function buildTitleMaps(settings: Awaited<ReturnType<typeof getCourseSettings>>): TitleMaps {
+  const classToCategory = new Map<string, string>();
+  for (const item of settings.classes ?? []) {
+    if (item.classCate) classToCategory.set(String(item._id), String(item.classCate));
+  }
+  return {
+    classes: new Map((settings.classes ?? []).map((item) => [String(item._id), item.title])),
+    categories: new Map((settings.categories ?? []).map((item) => [String(item._id), item.title])),
+    locations: new Map((settings.locations ?? []).map((item) => [String(item._id), item.title])),
+    classToCategory,
+  };
+}
+
+function calendarIdForRow(row: UnknownRecord, maps: TitleMaps): string {
+  const cateId = idOf(row.cateId) ?? str(row.cateId);
+  if (cateId) return cateId;
+  const classTypeId = idOf(row.classType) ?? str(row.classType);
+  return maps.classToCategory.get(classTypeId) || '';
 }
 
 function mapStatus(raw: unknown): BookingStatus {
   const status = str(raw).toLowerCase();
-  if (status === 'cancelled') return 'cancelled';
+  if (status === 'cancelled' || status === 'canceled') return 'cancelled';
   if (status === 'present' || status === 'attended') return 'attended';
   if (status === 'active' || status === 'confirmed' || status === 'booked') return 'confirmed';
   return 'confirmed';
 }
 
-function mapClassBookings(calendarRows: unknown[], studentId: string): Booking[] {
+function mapStatusLabel(raw: unknown): string {
+  const status = str(raw);
+  if (!status) return 'Active';
+  if (/cancel/i.test(status)) return 'Cancelled';
+  if (/present|attended/i.test(status)) return 'Attended';
+  if (/absent/i.test(status)) return 'Absent';
+  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+}
+
+function mapAttendance(raw: unknown): Booking['attendance'] | undefined {
+  const value = str(raw).toLowerCase();
+  if (!value) return undefined;
+  if (value.includes('present') || value === 'attended') return 'present';
+  if (value.includes('absent')) return 'absent';
+  if (value.includes('late')) return 'late';
+  return undefined;
+}
+
+function classTitleForRow(row: UnknownRecord, maps: TitleMaps): string {
+  const classTypeId = idOf(row.classType) ?? str(row.classType);
+  const cateId = idOf(row.cateId) ?? str(row.cateId);
+  return (
+    str(row.className, row.title, row.eventType) ||
+    maps.classes.get(classTypeId) ||
+    maps.categories.get(cateId) ||
+    'Class'
+  );
+}
+
+function classLocationForRow(row: UnknownRecord, maps: TitleMaps): string {
+  const locationId = idOf(row.location) ?? str(row.location);
+  const fromSettings = maps.locations.get(locationId);
+  if (fromSettings) return fromSettings;
+  const link = str(row.link, row.classLink);
+  if (link) return 'Online';
+  return str(row.room, row.locationName) || '—';
+}
+
+function pushClassBooking(
+  bookings: Booking[],
+  row: UnknownRecord,
+  booking: UnknownRecord,
+  studentId: string,
+  maps: TitleMaps,
+) {
+  const classId = idOf(row._id ?? row.id) ?? '';
+  const calendarId = calendarIdForRow(row, maps);
+  const date = toISODate(row.classDate ?? row.date);
+  const bookingDate = toISODate(booking.bookedAt ?? booking.bookingDate ?? booking.createdAt);
+  const bookingId = idOf(booking._id ?? booking.id) ?? `${classId}-${studentId}`;
+  const seat = Number(booking.seat);
+  const attendanceRaw = str(booking.attendance);
+  bookings.push({
+    id: `class:${bookingId}`,
+    slotId: classId,
+    studentName: str(asRecord(booking.user)?.name, booking.name, 'Student'),
+    studentId,
+    kind: 'class',
+    typeLabel: 'Class',
+    title: classTitleForRow(row, maps),
+    date,
+    dateLabel: formatPortalDate(date),
+    startTime: formatClock(row.classStartTime ?? row.startTime),
+    endTime: formatClock(row.classEndTime ?? row.endTime),
+    locationLabel: classLocationForRow(row, maps),
+    bookingDate,
+    bookingDateLabel: formatPortalDate(bookingDate),
+    seat: Number.isFinite(seat) ? seat : undefined,
+    status: mapStatus(booking.status),
+    statusLabel: mapStatusLabel(booking.status),
+    attendance: mapAttendance(attendanceRaw),
+    attendanceLabel: attendanceRaw || undefined,
+    calendarId: calendarId || undefined,
+    calendarLabel: calendarId ? maps.categories.get(calendarId) : undefined,
+    classId,
+    bookingId,
+  });
+}
+
+function mapClassBookings(calendarRows: unknown[], studentId: string, maps: TitleMaps): Booking[] {
   const bookings: Booking[] = [];
   for (const day of calendarRows) {
     const row = asRecord(day);
     if (!row) continue;
-    const classId = idOf(row._id ?? row.id) ?? '';
-    const date = toISODate(row.classDate ?? row.date);
-    const title = str(row.className, row.title, 'Class');
-    const startTime = formatClock(row.classStartTime ?? row.startTime);
-    const endTime = formatClock(row.classEndTime ?? row.endTime);
+
+    const myBookings = asArray(row.myBookings);
+    if (myBookings.length > 0) {
+      for (const bookingRaw of myBookings) {
+        const booking = asRecord(bookingRaw);
+        if (!booking) continue;
+        const userId = str(booking.user, booking.userId, idOf(booking.user));
+        if (userId && userId !== studentId) continue;
+        pushClassBooking(bookings, row, booking, studentId, maps);
+      }
+      continue;
+    }
 
     for (const bookingRaw of asArray(row.bookings)) {
       const booking = asRecord(bookingRaw);
       if (!booking) continue;
       const userId = str(booking.user, booking.userId, idOf(booking.user));
       if (userId && userId !== studentId) continue;
-      const bookingId = idOf(booking._id ?? booking.id) ?? `${classId}-${userId}`;
-      bookings.push({
-        id: `class:${bookingId}`,
-        slotId: classId,
-        studentName: str(asRecord(booking.user)?.name, booking.name, 'Student'),
-        studentId,
-        kind: 'class',
-        title,
-        date,
-        startTime,
-        endTime,
-        status: mapStatus(booking.status),
-        classId,
-        bookingId,
-      });
-    }
-
-    // Some payloads are already personal booking rows (userId query).
-    if (!asArray(row.bookings).length && (row.user != null || row.userId != null || row.status)) {
-      const userId = str(row.user, row.userId, idOf(row.user));
-      if (userId && userId !== studentId) continue;
-      if (!row.status && !userId) continue;
-      bookings.push({
-        id: `class:${classId || idOf(row._id)}`,
-        slotId: classId,
-        studentName: 'Student',
-        studentId,
-        kind: 'class',
-        title,
-        date,
-        startTime,
-        endTime,
-        status: mapStatus(row.status),
-        classId,
-        bookingId: idOf(row._id) ?? classId,
-      });
+      pushClassBooking(bookings, row, booking, studentId, maps);
     }
   }
   return bookings;
 }
 
-function mapPracticalBookings(raw: unknown, studentId: string): Booking[] {
+function mapPracticalBookings(raw: unknown, studentId: string, maps: TitleMaps): Booking[] {
   return asList(raw).map((item, index) => {
     const row = asRecord(item) ?? {};
     const bookingId = idOf(row._id ?? row.bookingId) ?? `pt-${index}`;
     const dayId = str(row.dayId, idOf(row.day), idOf(row.practicalDay));
-    const location = asRecord(row.location);
+    const locationId = idOf(row.location) ?? str(row.location);
     const shift = asRecord(row.shift);
+    const shiftId = idOf(shift?._id ?? shift?.id);
+    const shiftName = str(shift?.title, shift?.name);
+    const date = toISODate(row.date ?? row.classDate ?? row.bookingDate);
+    const bookingDate = toISODate(row.bookedAt ?? row.bookingDate ?? row.createdAt);
+    const seat = Number(row.seat);
+    const attendanceRaw = str(row.attendance);
+    const locationLabel =
+      maps.locations.get(locationId) || str(asRecord(row.location)?.title, row.locationName) || '—';
+
     return {
-      id: `training:${dayId}:${bookingId}`,
-      slotId: str(idOf(shift?._id), bookingId),
+      id: `training:${dayId || bookingId}:${bookingId}`,
+      slotId: shiftId ?? bookingId,
       studentName: str(asRecord(row.student)?.name, 'Student'),
       studentId,
       kind: 'training' as const,
-      title: str(shift?.title, shift?.name, location?.title, row.title, 'Training'),
-      date: toISODate(row.date ?? row.classDate ?? row.bookingDate),
+      typeLabel: 'Practical Training',
+      title: shiftName || locationLabel || 'Training',
+      date,
+      dateLabel: formatPortalDate(date),
       startTime: formatClock(shift?.startTime ?? row.startTime),
       endTime: formatClock(shift?.endTime ?? row.endTime),
+      locationLabel,
+      bookingDate,
+      bookingDateLabel: formatPortalDate(bookingDate),
+      seat: Number.isFinite(seat) ? seat : undefined,
       status: mapStatus(row.status),
+      statusLabel: mapStatusLabel(row.status),
+      attendance: mapAttendance(attendanceRaw),
+      attendanceLabel: attendanceRaw || undefined,
+      shiftId: shiftId || undefined,
+      shiftName: shiftName || undefined,
       dayId: dayId || undefined,
       bookingId,
     };
@@ -324,14 +446,16 @@ export const bookingsApi = {
   },
 
   async listMine(studentId: string): Promise<Booking[]> {
-    const [calendarRaw, practicalRaw] = await Promise.all([
-      getClassCalendar(studentId).catch(() => getClassCalendar()),
+    const [calendarRaw, practicalRaw, settings] = await Promise.all([
+      getClassCalendar(studentId),
       getMyPracticalBookings(studentId),
+      getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
     ]);
-    const classBookings = mapClassBookings(asList(calendarRaw), studentId);
-    const trainingBookings = mapPracticalBookings(practicalRaw, studentId);
-    return [...classBookings, ...trainingBookings].sort((a, b) =>
-      b.date.localeCompare(a.date),
+    const maps = buildTitleMaps(settings);
+    const classBookings = mapClassBookings(asList(calendarRaw), studentId, maps);
+    const trainingBookings = mapPracticalBookings(practicalRaw, studentId, maps);
+    return [...classBookings, ...trainingBookings].sort(
+      (a, b) => b.date.localeCompare(a.date) || b.bookingDate.localeCompare(a.bookingDate),
     );
   },
 
@@ -368,11 +492,17 @@ export const bookingsApi = {
         studentName: student.name,
         studentId: student.id,
         kind: 'training',
+        typeLabel: 'Practical Training',
         title: 'Training',
         date,
+        dateLabel: formatPortalDate(date),
         startTime: '—',
         endTime: '—',
+        locationLabel: '—',
+        bookingDate: new Date().toISOString().slice(0, 10),
+        bookingDateLabel: formatPortalDate(new Date()),
         status: 'confirmed',
+        statusLabel: 'Active',
       };
     }
 
@@ -386,17 +516,24 @@ export const bookingsApi = {
     }
 
     await bookClass(slotId, { seat, user: student.id });
+    const today = new Date().toISOString().slice(0, 10);
     return {
       id: `class:${slotId}:${student.id}`,
       slotId,
       studentName: student.name,
       studentId: student.id,
       kind: 'class',
+      typeLabel: 'Class',
       title: 'Class',
-      date: new Date().toISOString().slice(0, 10),
+      date: today,
+      dateLabel: formatPortalDate(today),
       startTime: '—',
       endTime: '—',
+      locationLabel: '—',
+      bookingDate: today,
+      bookingDateLabel: formatPortalDate(today),
       status: 'confirmed',
+      statusLabel: 'Active',
       classId: slotId,
     };
   },
