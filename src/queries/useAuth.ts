@@ -1,9 +1,29 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/api/auth';
 import { ApiError } from '@/api/client';
 import { bootstrapKeys } from '@/queries/useBootstrap';
 import { coursesKeys } from '@/queries/useCourses';
 import { useAuthStore } from '@/store/useAuthStore';
+
+export const authKeys = {
+  user: ['auth', 'user'] as const,
+};
+
+export function useCrmUser() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const updateUser = useAuthStore((state) => state.updateUser);
+
+  return useQuery({
+    queryKey: authKeys.user,
+    queryFn: async () => {
+      const user = await authApi.getUser();
+      updateUser(user);
+      return user;
+    },
+    enabled: isAuthenticated,
+    staleTime: 60_000,
+  });
+}
 
 async function hydrateAfterSignIn(
   queryClient: ReturnType<typeof useQueryClient>,

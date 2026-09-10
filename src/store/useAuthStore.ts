@@ -8,15 +8,34 @@ export interface AuthUser {
   lastName: string;
   email: string;
   phone?: string;
+  mobile?: string;
   /** CRM company id — required for get-allocate-course. */
   companyId?: string;
+  companyName?: string;
+  companyPhotoUrl?: string;
+  photoUrl?: string;
   role: UserRole;
+  roleLabel?: string;
+  status?: string;
+  country?: string;
+  city?: string;
+  state?: string;
+  street?: string;
+  zipCode?: string;
+  dateOfBirth?: string;
+  website?: string;
+  isVerified?: boolean;
   permissions: StaffPermission[];
 }
 
 export function displayName(user: Pick<AuthUser, 'firstName' | 'lastName'> | null | undefined) {
   if (!user) return 'Guest';
   return `${user.firstName} ${user.lastName}`.trim();
+}
+
+export function displayPhone(user: Pick<AuthUser, 'mobile' | 'phone'> | null | undefined) {
+  if (!user) return '';
+  return (user.mobile || user.phone || '').trim();
 }
 
 interface AuthState {

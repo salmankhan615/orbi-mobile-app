@@ -1,5 +1,6 @@
 import { apiClient, clearApiSession, getApiSession, setApiSession } from '@/api/client';
 import { AUTH_API_PREFIX } from '@/api/config';
+import { crmCourseMediaUrl } from '@/api/crmMedia';
 import {
   ALL_STAFF_PERMISSIONS,
   SESSION_DURATION_MS,
@@ -26,7 +27,7 @@ export interface AuthSession {
   token?: string | null;
 }
 
-/** Raw CRM user shape returned by `/api/users/crm/login`. */
+/** Raw CRM user shape from `/api/users/crm/login` and `getUser`. */
 interface CrmUser {
   _id?: string;
   id?: string;
@@ -36,14 +37,34 @@ interface CrmUser {
   lastName?: string;
   email?: string;
   phone?: string;
+  mobile?: string;
   role?: string;
+  type?: string;
   token?: string;
   profile?: string;
   profileId?: string | null;
   emsProfileId?: string | null;
+  status?: string;
+  country?: string;
+  city?: string;
+  state?: string;
+  street?: string;
+  zipCode?: string;
+  dateOfBirth?: string;
+  website?: string;
+  isVerified?: boolean;
+  photo?: { url?: string; filename?: string; type?: string }[] | string;
   /** CRM sometimes returns `company` (string id or populated doc) instead of `companyId`. */
-  companyId?: string | { _id?: string; $oid?: string } | null;
-  company?: string | { _id?: string; $oid?: string } | null;
+  companyId?:
+    | string
+    | {
+        _id?: string;
+        $oid?: string;
+        name?: string;
+        photo?: { url?: string; filename?: string; type?: string }[];
+      }
+    | null;
+  company?: string | { _id?: string; $oid?: string; name?: string } | null;
 }
 
 function asObjectId(value: unknown): string | undefined {
@@ -59,6 +80,37 @@ function asObjectId(value: unknown): string | undefined {
 
 function resolveCompanyId(raw: CrmUser): string | undefined {
   return asObjectId(raw.companyId) ?? asObjectId(raw.company);
+}
+
+function resolveCompanyName(raw: CrmUser): string | undefined {
+  if (raw.companyId && typeof raw.companyId === 'object' && raw.companyId.name) {
+    return String(raw.companyId.name).trim() || undefined;
+  }
+  if (raw.company && typeof raw.company === 'object' && 'name' in raw.company && raw.company.name) {
+    return String(raw.company.name).trim() || undefined;
+  }
+  return undefined;
+}
+
+function firstPhotoUrl(
+  photos: { url?: string; filename?: string; type?: string }[] | string | undefined,
+): string | undefined {
+  if (!photos) return undefined;
+  if (typeof photos === 'string' && photos.trim()) {
+    return crmCourseMediaUrl(photos.trim(), 'IMAGE');
+  }
+  if (!Array.isArray(photos) || photos.length === 0) return undefined;
+  const first = photos[0];
+  const key = (first.url || first.filename || '').trim();
+  if (!key) return undefined;
+  return crmCourseMediaUrl(key, first.type || 'IMAGE');
+}
+
+function resolveCompanyPhoto(raw: CrmUser): string | undefined {
+  if (raw.companyId && typeof raw.companyId === 'object') {
+    return firstPhotoUrl(raw.companyId.photo);
+  }
+  return undefined;
 }
 
 function unwrapUserPayload(raw: unknown): CrmUser {
@@ -94,19 +146,43 @@ function mapRole(role?: string): UserRole {
   return 'student';
 }
 
-function mapCrmUser(raw: CrmUser & { type?: string; mobile?: string }, fallbackEmail: string): AuthUser {
+function titleCase(value?: string): string | undefined {
+  const raw = (value ?? '').trim();
+  if (!raw) return undefined;
+  return raw
+    .split(/[\s_-]+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function mapCrmUser(raw: CrmUser, fallbackEmail: string): AuthUser {
   const role = mapRole(raw.role ?? raw.type);
   const firstName = (raw.firstName ?? raw.name ?? '').trim() || 'User';
   const lastName = (raw.lastName ?? raw.lname ?? '').trim();
+  const roleLabel = (raw.role || raw.type || (role === 'staff' ? 'Staff' : 'Student')).trim();
 
   return {
     id: String(raw._id ?? raw.id ?? fallbackEmail),
     firstName,
     lastName,
     email: raw.email ?? fallbackEmail,
-    phone: raw.phone || raw.mobile,
+    phone: (raw.phone || '').trim() || undefined,
+    mobile: (raw.mobile || '').trim() || undefined,
     companyId: resolveCompanyId(raw),
+    companyName: resolveCompanyName(raw),
+    companyPhotoUrl: resolveCompanyPhoto(raw),
+    photoUrl: firstPhotoUrl(raw.photo),
     role,
+    roleLabel,
+    status: (raw.status || '').trim() || undefined,
+    country: titleCase(raw.country),
+    city: titleCase(raw.city),
+    state: titleCase(raw.state),
+    street: (raw.street || '').trim() || undefined,
+    zipCode: (raw.zipCode || '').trim() || undefined,
+    dateOfBirth: (raw.dateOfBirth || '').trim() || undefined,
+    website: (raw.website || '').trim() || undefined,
+    isVerified: Boolean(raw.isVerified),
     permissions: role === 'staff' ? ALL_STAFF_PERMISSIONS : [],
   };
 }
@@ -167,11 +243,17 @@ export const authApi = {
     firstName: string;
     lastName: string;
     phone?: string;
+    mobile?: string;
+    country?: string;
+    city?: string;
   }): Promise<AuthUser> {
     await apiClient.patch(`${AUTH_API_PREFIX}/updateUser`, {
       name: payload.firstName,
       lname: payload.lastName,
       phone: payload.phone,
+      mobile: payload.mobile,
+      country: payload.country,
+      city: payload.city,
     });
     return authApi.getUser();
   },

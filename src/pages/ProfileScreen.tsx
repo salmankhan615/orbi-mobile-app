@@ -1,26 +1,53 @@
-import { Alert, ScrollView, StyleSheet, Switch, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, Image, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
 import { MenuRow } from '@/features/profile/components/MenuRow';
-import { useAuthStore, displayName } from '@/store/useAuthStore';
+import { useCrmUser } from '@/queries/useAuth';
+import { useAuthStore, displayName, displayPhone } from '@/store/useAuthStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothScrollProps } from '@/utils/scroll';
 import { haptics } from '@/utils/haptics';
-import { useState } from 'react';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Profile'>;
 
 export function ProfileScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
-  const user = useAuthStore((state) => state.user);
+  const storeUser = useAuthStore((state) => state.user);
   const signOut = useAuthStore((state) => state.signOut);
+  const { data: crmUser, refetch } = useCrmUser();
   const [notificationsOn, setNotificationsOn] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  );
+
+  const user = crmUser ?? storeUser;
   const name = displayName(user);
+  const phone = displayPhone(user);
+  const initial = (user?.firstName ?? 'G').charAt(0).toUpperCase();
+  const roleLabel = user?.roleLabel || (user?.role === 'staff' ? 'Staff' : 'Student');
+  const statusLabel = user?.status
+    ? user.status.charAt(0).toUpperCase() + user.status.slice(1).toLowerCase()
+    : undefined;
+
+  const details = useMemo(() => {
+    const rows: { label: string; value: string }[] = [];
+    if (user?.email) rows.push({ label: 'Email', value: user.email });
+    if (phone) rows.push({ label: 'Mobile', value: phone });
+    if (user?.companyName) rows.push({ label: 'Company', value: user.companyName });
+    if (user?.country) rows.push({ label: 'Country', value: user.country });
+    if (user?.city) rows.push({ label: 'City', value: user.city });
+    if (statusLabel) rows.push({ label: 'Status', value: statusLabel });
+    return rows;
+  }, [user, phone, statusLabel]);
 
   function handleSignOut() {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -47,25 +74,59 @@ export function ProfileScreen({ navigation }: Props) {
           Profile
         </Text>
 
-        <LinearGradient
-          colors={tokens.gradients.brand}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heroCard}
-        >
-          <View style={styles.avatar}>
-            <Text variant="heading" color="primary">
-              {(user?.firstName ?? 'G').charAt(0).toUpperCase()}
-            </Text>
+        <View style={styles.identityCard}>
+          <View style={styles.avatarWrap}>
+            {user?.photoUrl ? (
+              <Image source={{ uri: user.photoUrl }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text variant="heading" color="onPrimary">
+                  {initial}
+                </Text>
+              </View>
+            )}
           </View>
-          <Text variant="title" color="onPrimary">
+
+          <Text variant="title" style={styles.name}>
             {name}
           </Text>
-          <Text variant="bodySmall" color="onPrimary" style={styles.email}>
-            {user?.email ?? 'guest@kbm.com'}
+          <Text variant="bodySmall" color="textSecondary" style={styles.email}>
+            {user?.email ?? '—'}
           </Text>
-          <Badge label={user?.role === 'staff' ? 'Staff' : 'Student'} tone="warning" />
-        </LinearGradient>
+
+          <View style={styles.badges}>
+            <Badge label={roleLabel} tone="primary" />
+            {statusLabel ? (
+              <Badge
+                label={statusLabel}
+                tone={statusLabel.toLowerCase() === 'active' ? 'success' : 'neutral'}
+              />
+            ) : null}
+          </View>
+        </View>
+
+        {details.length > 0 ? (
+          <>
+            <Text variant="overline" color="textMuted" style={styles.sectionLabel}>
+              Details
+            </Text>
+            <View style={styles.group}>
+              {details.map((row, index) => (
+                <View
+                  key={row.label}
+                  style={[styles.detailRow, index < details.length - 1 && styles.detailDivider]}
+                >
+                  <Text variant="caption" color="textMuted">
+                    {row.label}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.detailValue} numberOfLines={2}>
+                    {row.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </>
+        ) : null}
 
         <Text variant="overline" color="textMuted" style={styles.sectionLabel}>
           Preferences
@@ -147,26 +208,47 @@ const styles = StyleSheet.create({
   pageTitle: {
     marginBottom: tokens.spacing.xl,
   },
-  heroCard: {
+  identityCard: {
     alignItems: 'center',
+    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     paddingVertical: tokens.spacing.xxl,
     paddingHorizontal: tokens.spacing.lg,
     marginBottom: tokens.spacing.xl,
     gap: tokens.spacing.xs,
-    ...tokens.shadows.md,
+    ...tokens.shadows.sm,
   },
-  avatar: {
+  avatarWrap: {
+    marginBottom: tokens.spacing.sm,
+  },
+  avatarImage: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: tokens.colors.onPrimary,
+    backgroundColor: tokens.colors.surfaceAlt,
+  },
+  avatarFallback: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: tokens.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: tokens.spacing.sm,
+  },
+  name: {
+    textAlign: 'center',
   },
   email: {
-    opacity: 0.85,
+    textAlign: 'center',
+  },
+  badges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: tokens.spacing.sm,
+    marginTop: tokens.spacing.sm,
   },
   sectionLabel: {
     marginBottom: tokens.spacing.sm,
@@ -175,9 +257,23 @@ const styles = StyleSheet.create({
   group: {
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     marginBottom: tokens.spacing.xl,
     overflow: 'hidden',
     ...tokens.shadows.sm,
+  },
+  detailRow: {
+    paddingVertical: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.lg,
+    gap: 2,
+  },
+  detailDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: tokens.colors.border,
+  },
+  detailValue: {
+    fontFamily: tokens.fontFamily.medium,
   },
   toggleRow: {
     flexDirection: 'row',
