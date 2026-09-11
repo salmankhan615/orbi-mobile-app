@@ -55,7 +55,7 @@ export function WeekGrid({
               </Text>
             </View>
             <View style={styles.events}>
-              {daySessions.slice(0, 2).map((session) => (
+              {daySessions.slice(0, 3).map((session) => (
                 <View
                   key={session.id}
                   style={[
@@ -69,13 +69,13 @@ export function WeekGrid({
                     numberOfLines={1}
                     style={styles.eventText}
                   >
-                    {session.startTime.split(' ')[0]}
+                    {session.title}
                   </Text>
                 </View>
               ))}
-              {daySessions.length > 2 ? (
+              {daySessions.length > 3 ? (
                 <Text variant="caption" color="textMuted" style={styles.more}>
-                  +{daySessions.length - 2}
+                  +{daySessions.length - 3}
                 </Text>
               ) : null}
             </View>

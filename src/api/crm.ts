@@ -150,20 +150,46 @@ export async function getCalendarData() {
   return apiClient.get<unknown[]>('/api/calendar/crm/getCalendarData');
 }
 
-export async function getClassAvailability(classId: string, userId: string) {
-  return apiClient.get<unknown>(
-    `/api/calendar/crm/${encodeURIComponent(classId)}/availability?userId=${encodeURIComponent(userId)}`,
+export async function getClassAvailability(classId: string, userId?: string) {
+  const qs = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+  return apiClient.get<{
+    classId?: string;
+    bookingLimit?: number;
+    activeBookingsCount?: number;
+    bookedSeats?: number[];
+    availableSeats?: number[] | number;
+    myBooking?: { seat?: number; status?: string; attendance?: string } | null;
+  }>(`/api/calendar/crm/${encodeURIComponent(classId)}/availability${qs}`);
+}
+
+export async function bookClass(classId: string, payload: { user: string; seat: number }) {
+  return apiClient.post<{ message?: string; classSummary?: unknown }>(
+    `/api/calendar/crm/${encodeURIComponent(classId)}/book`,
+    { user: payload.user, seat: payload.seat },
   );
 }
 
-export async function bookClass(classId: string, payload: { seat: number; user: string }) {
-  return apiClient.post<unknown>(`/api/calendar/crm/${encodeURIComponent(classId)}/book`, payload);
+export async function cancelClassBooking(classId: string, userId: string) {
+  return apiClient.post<{ success?: boolean; message?: string }>(
+    `/api/calendar/crm/${encodeURIComponent(classId)}/cancel`,
+    { user: userId },
+  );
 }
 
-export async function cancelClassBooking(classId: string, userId: string) {
-  return apiClient.post<unknown>(`/api/calendar/crm/${encodeURIComponent(classId)}/cancel`, {
-    user: userId,
-  });
+/** Self check-in for a booked class. */
+export async function markClassAttendance(
+  classId: string,
+  payload: { user: string; attendance: 'Present' | 'Absent' | 'Late' },
+) {
+  return apiClient.patch<unknown>(
+    `/api/calendar/crm/${encodeURIComponent(classId)}/attendance`,
+    payload,
+  );
+}
+
+/** Lightweight users for resolving instructor ids on calendar events. */
+export async function getCalendarUsersLite() {
+  return apiClient.get<unknown[]>('/api/calendar/crm/users-lite');
 }
 
 export async function getCalendarClosures(calendarId?: string) {
@@ -226,7 +252,7 @@ export async function getAllocationsByUser(userId: string) {
   );
 }
 
-/** Profile. */
-export async function updateCrmUser(payload: Record<string, unknown>) {
+/** Profile — multipart (`file` + fields). Screens should use `authApi.updateProfile`. */
+export async function updateCrmUser(payload: FormData | Record<string, unknown>) {
   return apiClient.patch<unknown>('/api/users/crm/updateUser', payload);
 }

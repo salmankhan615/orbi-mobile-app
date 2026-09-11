@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { cancelClassBooking, cancelPracticalBooking, getClassAvailability } from '@/api/crm';
 import { bookingsApi, type BookingKind } from '@/api/bookings';
+import { sessionsKeys } from '@/queries/useSessions';
+import { requireUserId } from '@/api/sessionUser';
 
 export const bookingKeys = {
   all: ['bookings'] as const,
@@ -7,7 +10,14 @@ export const bookingKeys = {
   mine: (studentId: string) => ['bookings', 'mine', studentId] as const,
   staff: ['bookings', 'staff'] as const,
   detail: (id: string) => ['bookings', id] as const,
+  availability: (classId: string) => ['bookings', 'availability', classId] as const,
 };
+
+function invalidateBookingQueries(client: ReturnType<typeof useQueryClient>) {
+  client.invalidateQueries({ queryKey: bookingKeys.all });
+  client.invalidateQueries({ queryKey: sessionsKeys.all });
+  client.invalidateQueries({ queryKey: ['bootstrap'] });
+}
 
 export function useBookableSlots(kind?: BookingKind) {
   return useQuery({
@@ -39,6 +49,18 @@ export function useBooking(id: string) {
   });
 }
 
+/** Seat map for Booking Details — authoritative availableSeats[]. */
+export function useClassAvailability(classId: string, enabled = true) {
+  return useQuery({
+    queryKey: bookingKeys.availability(classId),
+    queryFn: async () => {
+      const userId = requireUserId();
+      return getClassAvailability(classId, userId);
+    },
+    enabled: Boolean(classId) && enabled,
+  });
+}
+
 export function useBookSlot() {
   const client = useQueryClient();
   return useMutation({
@@ -51,9 +73,9 @@ export function useBookSlot() {
       student: { id: string; name: string };
       seat?: number;
     }) => bookingsApi.book(slotId, student, { seat }),
-    onSuccess: () => {
-      client.invalidateQueries({ queryKey: bookingKeys.all });
-      client.invalidateQueries({ queryKey: ['bootstrap'] });
+    onSuccess: (_data, vars) => {
+      invalidateBookingQueries(client);
+      client.invalidateQueries({ queryKey: bookingKeys.availability(vars.slotId) });
     },
   });
 }
@@ -62,11 +84,37 @@ export function useCancelBooking() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: bookingsApi.cancel,
-    onSuccess: () => {
-      client.invalidateQueries({ queryKey: bookingKeys.all });
-      client.invalidateQueries({ queryKey: ['bootstrap'] });
+    onSuccess: () => invalidateBookingQueries(client),
+  });
+}
+
+/** Cancel the current user's seat from Session / Booking Details. */
+export function useCancelSessionBooking() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (session: { id: string; kind?: 'class' | 'training' }) => {
+      if (session.kind === 'training') {
+        const parts = session.id.split(':');
+        const dayId = parts[1];
+        const bookingId = parts[2];
+        if (!dayId || !bookingId) throw new Error('Missing training booking ids');
+        return cancelPracticalBooking(dayId, bookingId);
+      }
+      const userId = requireUserId();
+      return cancelClassBooking(session.id, userId);
+    },
+    onSuccess: (_data, session) => {
+      invalidateBookingQueries(client);
+      if (session.kind !== 'training') {
+        client.invalidateQueries({ queryKey: bookingKeys.availability(session.id) });
+      }
     },
   });
+}
+
+/** @deprecated Prefer useCancelSessionBooking for calendar details. */
+export function useCancelClassBooking() {
+  return useCancelSessionBooking();
 }
 
 export function useMarkAttendance() {

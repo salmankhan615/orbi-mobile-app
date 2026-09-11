@@ -22,6 +22,7 @@ import { StudentCourseworkScreen } from '@/pages/student/StudentCourseworkScreen
 import { CourseworkDetailScreen } from '@/pages/student/CourseworkDetailScreen';
 import { CourseworkFileScreen } from '@/pages/student/CourseworkFileScreen';
 import { EditProfileScreen } from '@/pages/common/EditProfileScreen';
+import { ChangePasswordScreen } from '@/pages/common/ChangePasswordScreen';
 import {
   PrivacySecurityScreen,
   HelpSupportScreen,
@@ -87,6 +88,7 @@ export function RootNavigator() {
           <Stack.Screen name="CourseworkDetail" component={CourseworkDetailScreen} />
           <Stack.Screen name="CourseworkFile" component={CourseworkFileScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
           <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
           <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
           <Stack.Screen name="AboutKbm" component={AboutKbmScreen} />

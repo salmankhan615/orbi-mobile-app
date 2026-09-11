@@ -112,6 +112,10 @@ async function parseBody(response: Response): Promise<unknown> {
   }
 }
 
+function isFormDataBody(body: unknown): body is FormData {
+  return typeof FormData !== 'undefined' && body instanceof FormData;
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers, skipAuth, ...rest } = options;
   const authHeaders: Record<string, string> = {};
@@ -123,17 +127,20 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (cookie) authHeaders.Cookie = cookie;
   }
 
+  const formData = isFormDataBody(body);
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...rest,
     // omit — we send Cookie ourselves; include makes the native jar fight us.
     credentials: 'omit',
     headers: {
       Accept: 'application/json',
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      // Let fetch set the multipart boundary; JSON is the default for object bodies.
+      ...(body !== undefined && !formData ? { 'Content-Type': 'application/json' } : {}),
       ...authHeaders,
       ...headers,
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : formData ? body : JSON.stringify(body),
   });
 
   const setCookie = readSetCookie(response);

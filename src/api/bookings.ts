@@ -515,7 +515,7 @@ export const bookingsApi = {
       // use provided/default seat
     }
 
-    await bookClass(slotId, { seat, user: student.id });
+    await bookClass(slotId, { user: student.id, seat });
     const today = new Date().toISOString().slice(0, 10);
     return {
       id: `class:${slotId}:${student.id}`,

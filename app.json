@@ -31,6 +31,14 @@
       "expo-font",
       "expo-splash-screen",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "KBM needs photo access so you can update your profile picture.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-calendar",
         {
           "calendarPermission": "KBM needs calendar access to add your sessions to your calendar."

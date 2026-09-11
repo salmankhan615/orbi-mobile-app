@@ -15,6 +15,7 @@ import { CalendarPicker } from '@/features/calendar/components/CalendarPicker';
 import { MonthGrid } from '@/features/calendar/components/MonthGrid';
 import { WeekGrid } from '@/features/calendar/components/WeekGrid';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
+import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
 import {
   formatWeekRange,
   getVisibleCalendarRange,
@@ -235,6 +236,28 @@ export function CalendarScreen({ navigation }: Props) {
               )}
             </View>
 
+            <View style={styles.legend}>
+              <View style={styles.legendItem}>
+                <View
+                  style={[styles.legendDot, { backgroundColor: tokens.colors[SESSION_TYPE_COLOR.blue] }]}
+                />
+                <Text variant="caption" color="textMuted">
+                  Booked
+                </Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View
+                  style={[
+                    styles.legendDot,
+                    { backgroundColor: tokens.colors[SESSION_TYPE_COLOR.green] },
+                  ]}
+                />
+                <Text variant="caption" color="textMuted">
+                  Open to book
+                </Text>
+              </View>
+            </View>
+
             <Text variant="title" style={styles.sessionsHeader}>
               Sessions on {formatSessionDate(selectedDate)}
             </Text>
@@ -416,6 +439,23 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.xl,
     padding: tokens.spacing.lg,
     paddingBottom: tokens.spacing.xl,
+  },
+  legend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.lg,
+    marginTop: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.xs,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   sessionsHeader: {
     marginTop: tokens.spacing.xl,

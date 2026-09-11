@@ -75,6 +75,26 @@ export function useSignup() {
   });
 }
 
+export function useUpdateProfile() {
+  const updateUser = useAuthStore((state) => state.updateUser);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: authApi.updateProfile,
+    onSuccess: (next) => {
+      updateUser(next);
+      queryClient.setQueryData(authKeys.user, next);
+      void queryClient.invalidateQueries({ queryKey: authKeys.user });
+    },
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: authApi.changePassword,
+  });
+}
+
 export function useRequestPasswordReset() {
   return useMutation({
     mutationFn: authApi.requestPasswordReset,
@@ -87,8 +107,12 @@ export function useResetPassword() {
   });
 }
 
-export function loginErrorMessage(error: unknown): string {
+export function authErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) return error.message;
   if (error instanceof Error && error.message) return error.message;
-  return 'Sign in failed. Please try again.';
+  return fallback;
+}
+
+export function loginErrorMessage(error: unknown): string {
+  return authErrorMessage(error, 'Sign in failed. Please try again.');
 }

@@ -25,6 +25,7 @@ export type RootStackParamList = {
   CourseworkDetail: { courseworkId: string };
   CourseworkFile: { url: string; filename: string; type: string };
   EditProfile: undefined;
+  ChangePassword: undefined;
   PrivacySecurity: undefined;
   HelpSupport: undefined;
   AboutKbm: undefined;

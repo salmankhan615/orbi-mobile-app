@@ -59,17 +59,30 @@ export function formatFullDate(date: Date): string {
 /** Portal-style date label, e.g. 13/10/2026. */
 export function formatPortalDate(value: string | Date | undefined | null): string {
   if (!value) return '—';
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    const iso = String(value).slice(0, 10);
-    const [year, month, day] = iso.split('-');
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const [year, month, day] = value.slice(0, 10).split('-');
     if (year && month && day) return `${day}/${month}/${year}`;
-    return '—';
   }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
+}
+
+/** Portal-style 24h clock, e.g. 14:00. */
+export function formatPortalTime(time: string | undefined | null): string {
+  if (!time) return '—';
+  const ampm = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (ampm) {
+    let hour = Number(ampm[1]) % 12;
+    if (ampm[3].toUpperCase() === 'PM') hour += 12;
+    return `${String(hour).padStart(2, '0')}:${ampm[2]}`;
+  }
+  const match = time.match(/^(\d{1,2}):(\d{2})/);
+  if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
+  return time;
 }
 
 export function getWeekRange(date: Date): { start: Date; end: Date } {

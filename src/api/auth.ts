@@ -20,6 +20,26 @@ export interface SignupPayload {
   password: string;
 }
 
+export const MIN_PASSWORD_LENGTH = 6;
+
+/** Local photo picked for `PATCH /updateUser` multipart field `file`. */
+export interface ProfilePhotoFile {
+  uri: string;
+  name: string;
+  type: string;
+  blob?: Blob;
+}
+
+export interface UpdateProfilePayload {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  mobile?: string;
+  country?: string;
+  city?: string;
+  file?: ProfilePhotoFile;
+}
+
 export interface AuthSession {
   user: AuthUser;
   sessionExpiresAt: number;
@@ -191,6 +211,42 @@ function isCrmUser(value: unknown): value is CrmUser {
   return Boolean(value) && typeof value === 'object';
 }
 
+function messageFromPayload(raw: unknown, fallback: string): string {
+  if (raw && typeof raw === 'object' && 'message' in raw) {
+    const message = (raw as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message.trim();
+  }
+  return fallback;
+}
+
+function appendField(form: FormData, key: string, value?: string) {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return;
+  form.append(key, trimmed);
+}
+
+function appendProfileFile(form: FormData, file: ProfilePhotoFile) {
+  if (file.blob) {
+    form.append('file', file.blob, file.name);
+    return;
+  }
+  form.append('file', {
+    uri: file.uri,
+    name: file.name,
+    type: file.type,
+  } as unknown as Blob);
+}
+
+function userFromUpdateResponse(raw: unknown, fallbackEmail: string): AuthUser | null {
+  try {
+    const userPayload = unwrapUserPayload(raw);
+    if (!userPayload._id && !userPayload.id && !userPayload.email) return null;
+    return mapCrmUser(userPayload, userPayload.email ?? fallbackEmail);
+  } catch {
+    return null;
+  }
+}
+
 export const authApi = {
   async login({ email, password }: LoginPayload): Promise<AuthSession> {
     const raw = await apiClient.post<CrmUser | { user?: CrmUser; token?: string }>(
@@ -239,23 +295,26 @@ export const authApi = {
     return mapCrmUser(userPayload, userPayload.email ?? '');
   },
 
-  async updateProfile(payload: {
-    firstName: string;
-    lastName: string;
-    phone?: string;
-    mobile?: string;
-    country?: string;
-    city?: string;
-  }): Promise<AuthUser> {
-    await apiClient.patch(`${AUTH_API_PREFIX}/updateUser`, {
-      name: payload.firstName,
-      lname: payload.lastName,
-      phone: payload.phone,
-      mobile: payload.mobile,
-      country: payload.country,
-      city: payload.city,
+  async updateProfile(payload: UpdateProfilePayload): Promise<AuthUser> {
+    const form = new FormData();
+    appendField(form, 'name', payload.firstName);
+    appendField(form, 'lname', payload.lastName);
+    appendField(form, 'phone', payload.phone);
+    appendField(form, 'mobile', payload.mobile);
+    appendField(form, 'country', payload.country);
+    appendField(form, 'city', payload.city);
+    if (payload.file) appendProfileFile(form, payload.file);
+
+    const raw = await apiClient.patch<unknown>(`${AUTH_API_PREFIX}/updateUser`, form);
+    return userFromUpdateResponse(raw, '') ?? (await authApi.getUser());
+  },
+
+  async changePassword(payload: { oldPassword: string; password: string }): Promise<string> {
+    const raw = await apiClient.patch<{ message?: string }>(`${AUTH_API_PREFIX}/changePassword`, {
+      oldPassword: payload.oldPassword,
+      password: payload.password,
     });
-    return authApi.getUser();
+    return messageFromPayload(raw, 'Password updated');
   },
 
   async signup({ firstName, lastName, email, password }: SignupPayload): Promise<AuthSession> {
@@ -283,19 +342,21 @@ export const authApi = {
     };
   },
 
-  async requestPasswordReset(email: string): Promise<void> {
-    await apiClient.post(
+  async requestPasswordReset(email: string): Promise<string> {
+    const raw = await apiClient.post<{ message?: string }>(
       `${AUTH_API_PREFIX}/forgotPassword`,
       { email: email.trim().toLowerCase() },
       { skipAuth: true },
     );
+    return messageFromPayload(raw, 'Password reset email sent');
   },
 
-  async resetPassword(payload: { token: string; password: string }): Promise<void> {
-    await apiClient.patch(
-      `${AUTH_API_PREFIX}/resetPassword/${payload.token}`,
+  async resetPassword(payload: { token: string; password: string }): Promise<string> {
+    const raw = await apiClient.patch<{ message?: string }>(
+      `${AUTH_API_PREFIX}/resetPassword/${encodeURIComponent(payload.token)}`,
       { password: payload.password },
       { skipAuth: true },
     );
+    return messageFromPayload(raw, 'Password updated');
   },
 };

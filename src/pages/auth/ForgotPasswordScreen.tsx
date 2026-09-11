@@ -5,7 +5,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { StackScreen } from '@/components/custom/StackScreen';
-import { useRequestPasswordReset } from '@/queries/useAuth';
+import { useRequestPasswordReset, authErrorMessage } from '@/queries/useAuth';
 import { useToastStore } from '@/store/useToastStore';
 import type { RootStackScreenProps } from '@/navigation/types';
 
@@ -36,10 +36,12 @@ export function ForgotPasswordScreen({ navigation }: Props) {
         disabled={!email || request.isPending}
         onPress={() =>
           request.mutate(email, {
-            onSuccess: () => {
-              showToast('Reset link sent', 'success');
+            onSuccess: (message) => {
+              showToast(message, 'success');
               navigation.navigate('ResetPassword', { email });
             },
+            onError: (error) =>
+              showToast(authErrorMessage(error, 'Could not send reset email'), 'danger'),
           })
         }
         style={styles.submit}

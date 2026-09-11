@@ -5,7 +5,8 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { StackScreen } from '@/components/custom/StackScreen';
-import { useResetPassword } from '@/queries/useAuth';
+import { MIN_PASSWORD_LENGTH } from '@/api/auth';
+import { authErrorMessage, useResetPassword } from '@/queries/useAuth';
 import { useToastStore } from '@/store/useToastStore';
 import type { RootStackScreenProps } from '@/navigation/types';
 
@@ -17,10 +18,15 @@ export function ResetPasswordScreen({ route, navigation }: Props) {
   const reset = useResetPassword();
   const showToast = useToastStore((state) => state.show);
 
+  const passwordTooShort = Boolean(password) && password.length < MIN_PASSWORD_LENGTH;
+  const mismatch = Boolean(confirm) && password !== confirm;
+  const canSubmit =
+    password.length >= MIN_PASSWORD_LENGTH && password === confirm && !reset.isPending;
+
   return (
     <StackScreen title="Reset password" keyboardAvoiding>
       <Text variant="body" color="textSecondary" style={styles.copy}>
-        Choose a new password for {route.params.email}.
+        Choose a new password for {route.params.email} (at least {MIN_PASSWORD_LENGTH} characters).
       </Text>
       <TextField
         label="New password"
@@ -28,6 +34,7 @@ export function ResetPasswordScreen({ route, navigation }: Props) {
         secure
         value={password}
         onChangeText={setPassword}
+        error={passwordTooShort ? `At least ${MIN_PASSWORD_LENGTH} characters` : undefined}
       />
       <TextField
         label="Confirm password"
@@ -35,18 +42,22 @@ export function ResetPasswordScreen({ route, navigation }: Props) {
         secure
         value={confirm}
         onChangeText={setConfirm}
+        error={mismatch ? 'Passwords do not match' : undefined}
       />
       <Button
-        label={reset.isPending ? 'Saving…' : 'Update password'}
-        disabled={!password || password !== confirm || reset.isPending}
+        label="Update password"
+        loading={reset.isPending}
+        disabled={!canSubmit}
         onPress={() =>
           reset.mutate(
             { token: route.params.email, password },
             {
-              onSuccess: () => {
-                showToast('Password updated. Sign in to continue.', 'success');
+              onSuccess: (message) => {
+                showToast(`${message}. Sign in to continue.`, 'success');
                 navigation.navigate('Login');
               },
+              onError: (error) =>
+                showToast(authErrorMessage(error, 'Could not reset password'), 'danger'),
             },
           )
         }

@@ -163,6 +163,11 @@ export function ProfileScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('EditProfile')}
           />
           <MenuRow
+            icon="key-outline"
+            label="Change Password"
+            onPress={() => navigation.navigate('ChangePassword')}
+          />
+          <MenuRow
             icon="lock-closed-outline"
             label="Privacy & Security"
             onPress={() => navigation.navigate('PrivacySecurity')}
