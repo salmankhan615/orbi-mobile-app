@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { FadeInView } from '@/components/custom/FadeInView';
 import { staggerDelay } from '@/utils/formatters';
-import type { Session } from '@/api/sessions';
+import { sessionStatusBadge, type Session } from '@/api/sessions';
 import { SESSION_TYPE_ICON, SESSION_TYPE_TINT } from '../sessionStyle';
 
 interface SessionListItemProps {
@@ -38,6 +38,7 @@ export function SessionListItem({
 }: SessionListItemProps) {
   const tint = SESSION_TYPE_TINT[session.type];
   const { day, month } = formatDateParts(session.date);
+  const statusBadge = sessionStatusBadge(session);
 
   return (
     <FadeInView delay={staggerDelay(index)} style={styles.wrapper}>
@@ -77,7 +78,7 @@ export function SessionListItem({
         </View>
 
         <View style={styles.trailing}>
-          <Badge label="Upcoming" tone="success" />
+          <Badge label={statusBadge.label} tone={statusBadge.tone} />
           {showChevron ? (
             <Ionicons name="chevron-forward" size={16} color={tokens.colors.textMuted} />
           ) : null}

@@ -112,9 +112,32 @@ export async function updateAnnouncement(id: string, payload: unknown) {
   return apiClient.put<unknown>(`/api/announcements/${encodeURIComponent(id)}`, payload);
 }
 
-/** Student / staff class calendar events. */
-export async function getClassCalendar(userId?: string) {
-  const query = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+export type ClassCalendarParams = {
+  /** Prefer `viewAsStudentId` — matches ORBI Network calendar. */
+  viewAsStudentId?: string;
+  /** Legacy query still used by some CRM paths. */
+  userId?: string;
+  startDate?: string;
+  endDate?: string;
+  slim?: boolean;
+};
+
+/**
+ * Class calendar events.
+ * Calendar screen: `startDate`/`endDate` + `viewAsStudentId` + `slim=1`.
+ * My Bookings: `viewAsStudentId` without slim (needs full `myBookings` arrays).
+ * Pass a string for legacy `viewAsStudentId` only.
+ */
+export async function getClassCalendar(params?: string | ClassCalendarParams) {
+  const opts: ClassCalendarParams =
+    typeof params === 'string' ? { viewAsStudentId: params } : (params ?? {});
+  const qs = new URLSearchParams();
+  if (opts.startDate) qs.set('startDate', opts.startDate);
+  if (opts.endDate) qs.set('endDate', opts.endDate);
+  if (opts.viewAsStudentId) qs.set('viewAsStudentId', opts.viewAsStudentId);
+  else if (opts.userId) qs.set('userId', opts.userId);
+  if (opts.slim) qs.set('slim', '1');
+  const query = qs.toString() ? `?${qs.toString()}` : '';
   return apiClient.get<unknown[]>(`/api/calendar/crm/getClassCalendar${query}`);
 }
 
@@ -153,6 +176,23 @@ export async function getMyPracticalBookings(studentId?: string) {
   const query = studentId ? `?studentId=${encodeURIComponent(studentId)}` : '';
   return apiClient.get<{ data?: unknown[] }>(
     `/api/practical-training/bookings/my-bookings${query}`,
+  );
+}
+
+/** Practical training shifts on the student calendar (month range). */
+export async function getPracticalTrainingCalendar(params: {
+  startDate: string;
+  endDate: string;
+  viewAsStudentId?: string;
+  studentId?: string;
+}) {
+  const qs = new URLSearchParams();
+  qs.set('startDate', params.startDate);
+  qs.set('endDate', params.endDate);
+  if (params.viewAsStudentId) qs.set('viewAsStudentId', params.viewAsStudentId);
+  if (params.studentId) qs.set('studentId', params.studentId);
+  return apiClient.get<{ success?: boolean; count?: number; data?: unknown[] }>(
+    `/api/practical-training/bookings/calendar?${qs.toString()}`,
   );
 }
 

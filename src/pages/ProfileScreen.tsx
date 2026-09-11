@@ -95,11 +95,12 @@ export function ProfileScreen({ navigation }: Props) {
           </Text>
 
           <View style={styles.badges}>
-            <Badge label={roleLabel} tone="primary" />
+            <Badge label={roleLabel} tone="primary" style={styles.badge} />
             {statusLabel ? (
               <Badge
                 label={statusLabel}
                 tone={statusLabel.toLowerCase() === 'active' ? 'success' : 'neutral'}
+                style={styles.badge}
               />
             ) : null}
           </View>
@@ -249,6 +250,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: tokens.spacing.sm,
     marginTop: tokens.spacing.sm,
+  },
+  badge: {
+    alignSelf: 'center',
   },
   sectionLabel: {
     marginBottom: tokens.spacing.sm,

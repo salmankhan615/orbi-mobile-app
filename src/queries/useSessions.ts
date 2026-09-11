@@ -1,16 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
-import { sessionsApi } from '@/api/sessions';
+import { sessionsApi, type SessionListParams } from '@/api/sessions';
 
 export const sessionsKeys = {
   all: ['sessions'] as const,
-  list: (calendarId?: string) => ['sessions', calendarId ?? 'all'] as const,
+  list: (params: SessionListParams) =>
+    [
+      'sessions',
+      params.calendarId ?? 'all',
+      params.startDate,
+      params.endDate,
+    ] as const,
   detail: (id: string) => ['sessions', id] as const,
 };
 
-export function useSessions(calendarId?: string) {
+export function useSessions(params: SessionListParams) {
   return useQuery({
-    queryKey: sessionsKeys.list(calendarId),
-    queryFn: () => sessionsApi.list(calendarId),
+    queryKey: sessionsKeys.list(params),
+    queryFn: () => sessionsApi.list(params),
+    enabled: Boolean(params.startDate && params.endDate),
   });
 }
 

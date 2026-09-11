@@ -7,6 +7,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
 import { FadeInView } from '@/components/custom/FadeInView';
+import { sessionStatusBadge } from '@/api/sessions';
 import { useSession } from '@/queries/useSessions';
 import { useSessionActions } from '@/features/calendar/useSessionActions';
 import { smoothScrollProps } from '@/utils/scroll';
@@ -61,6 +62,7 @@ function SessionDetailsContent({
 }) {
   const { join, isJoining, addToCalendar, isAddingToCalendar, addedToCalendar } =
     useSessionActions(session);
+  const statusBadge = sessionStatusBadge(session);
 
   function handleShare() {
     Share.share({
@@ -88,7 +90,7 @@ function SessionDetailsContent({
             <Text variant="heading" style={styles.titleText}>
               {session.title}
             </Text>
-            <Badge label="Upcoming" tone="success" />
+            <Badge label={statusBadge.label} tone={statusBadge.tone} />
           </View>
 
           <View style={styles.infoCard}>

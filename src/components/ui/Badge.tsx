@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from './Text';
 
@@ -7,6 +7,7 @@ export type BadgeTone = 'success' | 'warning' | 'danger' | 'neutral' | 'primary'
 export interface BadgeProps {
   label: string;
   tone?: BadgeTone;
+  style?: StyleProp<ViewStyle>;
 }
 
 const TONE_COLORS: Record<
@@ -20,11 +21,11 @@ const TONE_COLORS: Record<
   primary: { bg: 'primaryMuted', fg: 'primary' },
 };
 
-export function Badge({ label, tone = 'neutral' }: BadgeProps) {
+export function Badge({ label, tone = 'neutral', style }: BadgeProps) {
   const { bg, fg } = TONE_COLORS[tone];
 
   return (
-    <View style={[styles.badge, { backgroundColor: tokens.colors[bg] }]}>
+    <View style={[styles.badge, { backgroundColor: tokens.colors[bg] }, style]}>
       <Text variant="caption" color={fg} style={styles.label}>
         {label}
       </Text>

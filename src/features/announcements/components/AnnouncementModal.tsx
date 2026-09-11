@@ -10,15 +10,26 @@ interface AnnouncementModalProps {
   visible: boolean;
   announcement: Announcement;
   onAcknowledge: () => void;
+  /** Lets already-acknowledged alerts close without posting again. */
+  onDismiss?: () => void;
 }
 
 export function AnnouncementModal({
   visible,
   announcement,
   onAcknowledge,
+  onDismiss,
 }: AnnouncementModalProps) {
+  const alreadyRead = Boolean(announcement.isAcknowledged);
+  const close = alreadyRead ? (onDismiss ?? onAcknowledge) : onAcknowledge;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {}}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={alreadyRead ? close : () => {}}
+    >
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <View style={styles.headerRow}>
@@ -48,8 +59,9 @@ export function AnnouncementModal({
           </Text>
 
           <Button
-            label="I Acknowledge & Understand"
-            onPress={onAcknowledge}
+            label={alreadyRead ? 'Close' : 'I Acknowledge & Understand'}
+            variant={alreadyRead ? 'outline' : 'primary'}
+            onPress={close}
             style={styles.acknowledgeButton}
           />
         </View>

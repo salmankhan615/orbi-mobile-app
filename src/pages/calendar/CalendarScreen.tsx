@@ -15,7 +15,13 @@ import { CalendarPicker } from '@/features/calendar/components/CalendarPicker';
 import { MonthGrid } from '@/features/calendar/components/MonthGrid';
 import { WeekGrid } from '@/features/calendar/components/WeekGrid';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
-import { formatWeekRange, getWeekRange, MONTH_NAMES, toISODate } from '@/utils/date';
+import {
+  formatWeekRange,
+  getVisibleCalendarRange,
+  getWeekRange,
+  MONTH_NAMES,
+  toISODate,
+} from '@/utils/date';
 import { useIsStaff, useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothScrollProps } from '@/utils/scroll';
@@ -44,14 +50,23 @@ export function CalendarScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const { data: calendars } = useCalendars();
   const [selectedCalendarId, setSelectedCalendarId] = useState('all');
-  const { data: sessions } = useSessions(selectedCalendarId);
-  const { data: closedDays = [] } = useClosedDays();
   const isStaff = useIsStaff();
   const canClose = useHasPermission('close_calendar');
   const [viewMode, setViewMode] = useState<ViewMode>('Month');
   const [cursor, setCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => toISODate(new Date()));
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  const range = useMemo(
+    () => getVisibleCalendarRange(cursor, viewMode),
+    [cursor, viewMode],
+  );
+  const { data: sessions } = useSessions({
+    calendarId: selectedCalendarId,
+    startDate: range.startDate,
+    endDate: range.endDate,
+  });
+  const { data: closedDays = [] } = useClosedDays();
 
   const selectedCalendar =
     calendars?.find((calendar) => calendar.id === selectedCalendarId) ?? calendars?.[0];

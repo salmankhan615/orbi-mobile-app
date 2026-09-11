@@ -1,4 +1,13 @@
-import { getClassCalendar, getClassCalendarById, getCourseSettings } from '@/api/crm';
+import type { BadgeTone } from '@/components/ui/Badge';
+import {
+  getAllocatedCourses,
+  getClassCalendar,
+  getCourseSettings,
+  getPracticalTrainingCalendar,
+} from '@/api/crm';
+import { collectAllocatedCalendarScope } from '@/features/calendar/allocatedScope';
+import { requireStudentContext, requireUserId } from '@/api/sessionUser';
+import { toISODate } from '@/utils/date';
 
 export type SessionType = 'green' | 'red' | 'amber' | 'blue';
 export type SessionStatus = 'upcoming' | 'completed' | 'cancelled';
@@ -7,6 +16,12 @@ export interface SessionAttachment {
   id: string;
   name: string;
   sizeLabel: string;
+}
+
+export interface SessionMyBooking {
+  seat?: number;
+  status?: string;
+  attendance?: string;
 }
 
 export interface Session {
@@ -25,48 +40,63 @@ export interface Session {
   attachments: SessionAttachment[];
   joinUrl?: string;
   location?: string;
+  seatsLeft: number;
+  myBooking?: SessionMyBooking | null;
+  bookingLimit?: number;
+  activeBookingsCount?: number;
+  classTypeId?: string;
+  /** Practical training vs theory class. */
+  kind?: 'class' | 'training';
 }
+
+export type SessionListParams = {
+  calendarId?: string;
+  startDate: string;
+  endDate: string;
+};
 
 type UnknownRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): UnknownRecord | null {
-  return value && typeof value === 'object' ? (value as UnknownRecord) : null;
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as UnknownRecord)
+    : null;
 }
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
-function idOf(value: unknown): string | null {
+function asList(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  const record = asRecord(value);
+  if (!record) return [];
+  if (Array.isArray(record.data)) return record.data;
+  if (Array.isArray(record.classes)) return record.classes;
+  return [];
+}
+
+function idOf(value: unknown): string {
   if (typeof value === 'string' || typeof value === 'number') return String(value);
   const record = asRecord(value);
-  if (!record) return null;
-  if (record._id != null) return String(record._id);
-  if (record.$oid != null) return String(record.$oid);
-  return null;
+  if (!record) return '';
+  if (typeof record._id === 'string' || typeof record._id === 'number') return String(record._id);
+  if (typeof record.id === 'string' || typeof record.id === 'number') return String(record.id);
+  return '';
 }
 
 function str(...values: unknown[]): string {
   for (const value of values) {
     if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   }
   return '';
 }
 
-function toISODate(value: unknown): string {
-  if (!value) return '';
-  if (typeof value === 'string') {
-    if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
-  }
-  return '';
-}
-
-/** CRM stores start/end as ISO datetimes — show HH:MM. */
+/** CRM stores start/end as ISO datetimes — show 12-hour clock for combineDateAndTime. */
 function formatClock(value: unknown): string {
   const raw = str(value);
-  if (!raw) return '';
+  if (!raw) return '12:00 AM';
   if (/[ap]m/i.test(raw)) return raw;
   const iso = raw.match(/T(\d{2}):(\d{2})/);
   if (iso) {
@@ -89,109 +119,208 @@ function typeFromSeed(seed: string): SessionType {
   return TYPES[hash % TYPES.length];
 }
 
-type TitleMaps = {
-  classes: Map<string, string>;
-  categories: Map<string, string>;
-  locations: Map<string, string>;
-  /** classType id → category (calendar) id via settings.classes.classCate */
-  classToCategory: Map<string, string>;
-};
+function mapStatus(raw: unknown, date: string): SessionStatus {
+  const status = str(raw).toLowerCase();
+  if (status.includes('cancel')) return 'cancelled';
+  if (status.includes('complete') || status.includes('done') || status.includes('past')) {
+    return 'completed';
+  }
+  if (date && date < toISODate(new Date())) return 'completed';
+  return 'upcoming';
+}
 
-async function loadTitleMaps(): Promise<TitleMaps> {
-  try {
-    const settings = await getCourseSettings();
+function seatsLeftFrom(row: UnknownRecord): number {
+  const limit = Number(row.bookingLimit ?? row.capacity ?? row.maxSeats ?? 0);
+  const booked = Number(
+    row.activeBookingsCount ??
+      (Array.isArray(row.bookedSeats) ? row.bookedSeats.length : undefined) ??
+      0,
+  );
+  if (Number.isFinite(limit) && limit > 0) {
+    return Math.max(0, limit - (Number.isFinite(booked) ? booked : 0));
+  }
+  const left = Number(row.seatsLeft ?? row.availableSeats ?? row.remainingSeats);
+  return Number.isFinite(left) ? left : 0;
+}
+
+function mapMyBooking(raw: unknown): SessionMyBooking | null {
+  if (raw == null) return null;
+  const row = asRecord(raw);
+  if (!row) return null;
+  return {
+    seat: Number(row.seat) || undefined,
+    status: str(row.status) || undefined,
+    attendance: str(row.attendance) || undefined,
+  };
+}
+
+/** Badge for session cards — booked / open / past / cancelled. */
+export function sessionStatusBadge(session: Session): { label: string; tone: BadgeTone } {
+  if (session.status === 'cancelled') return { label: 'Cancelled', tone: 'danger' };
+  const mb = session.myBooking;
+  if (mb) {
+    const st = (mb.status ?? '').toLowerCase();
+    if (st.includes('cancel')) return { label: 'Cancelled', tone: 'danger' };
+    return { label: 'Booked', tone: 'primary' };
+  }
+  if (session.status === 'completed') return { label: 'Past', tone: 'neutral' };
+  return { label: 'Open', tone: 'success' };
+}
+
+export const sessionsApi = {
+  async list(params: SessionListParams): Promise<Session[]> {
+    const { startDate, endDate, calendarId } = params;
+    const studentId = requireUserId();
+
+    let classTypeAllow: Set<string> | null = null;
+    let categoryAllow: Set<string> | null = null;
+    try {
+      const { userId, companyId } = requireStudentContext();
+      const allocated = await getAllocatedCourses(userId, companyId, { slim: true });
+      const scope = collectAllocatedCalendarScope(asArray(asRecord(allocated)?.data ?? allocated));
+      if (scope.classTypeIds.size > 0) classTypeAllow = scope.classTypeIds;
+      if (scope.categoryIds.size > 0) categoryAllow = scope.categoryIds;
+    } catch {
+      // Non-students or missing company: show unfiltered calendar range.
+    }
+
+    const [settings, calendarRaw, practicalRaw] = await Promise.all([
+      getCourseSettings(),
+      getClassCalendar({
+        startDate,
+        endDate,
+        viewAsStudentId: studentId,
+        slim: true,
+      }),
+      getPracticalTrainingCalendar({
+        startDate,
+        endDate,
+        viewAsStudentId: studentId,
+        studentId,
+      }).catch(() => ({ data: [] as unknown[] })),
+    ]);
+
+    const classTitles = new Map((settings.classes ?? []).map((c) => [String(c._id), c.title]));
+    const categoryTitles = new Map(
+      (settings.categories ?? []).map((c) => [String(c._id), c.title]),
+    );
+    const locationTitles = new Map(
+      (settings.locations ?? []).map((l) => [String(l._id), l.title]),
+    );
     const classToCategory = new Map<string, string>();
     for (const item of settings.classes ?? []) {
       if (item.classCate) classToCategory.set(String(item._id), String(item.classCate));
     }
-    return {
-      classes: new Map((settings.classes ?? []).map((item) => [String(item._id), item.title])),
-      categories: new Map(
-        (settings.categories ?? []).map((item) => [String(item._id), item.title]),
-      ),
-      locations: new Map((settings.locations ?? []).map((item) => [String(item._id), item.title])),
-      classToCategory,
-    };
-  } catch {
-    return {
-      classes: new Map(),
-      categories: new Map(),
-      locations: new Map(),
-      classToCategory: new Map(),
-    };
-  }
-}
 
-function calendarIdForRow(row: UnknownRecord, maps: TitleMaps): string {
-  const cateId = idOf(row.cateId) ?? str(row.cateId);
-  if (cateId) return cateId;
-  const classTypeId = idOf(row.classType) ?? str(row.classType);
-  return maps.classToCategory.get(classTypeId) || classTypeId || 'all';
-}
+    const sessions: Session[] = [];
 
-function mapCrmClassToSession(raw: unknown, maps: TitleMaps): Session | null {
-  const row = asRecord(raw);
-  if (!row) return null;
-  const id = idOf(row._id ?? row.id);
-  if (!id) return null;
+    for (const item of asList(calendarRaw)) {
+      const row = asRecord(item);
+      if (!row) continue;
+      const id = idOf(row._id ?? row.id);
+      if (!id) continue;
 
-  const date = toISODate(row.classDate ?? row.date ?? row.start);
-  const classTypeId = idOf(row.classType) ?? str(row.classType);
-  const cateId = calendarIdForRow(row, maps);
-  const locationId = idOf(row.location) ?? str(row.location);
-  const title =
-    str(row.className, row.title, row.eventType) ||
-    maps.classes.get(classTypeId) ||
-    maps.categories.get(cateId) ||
-    'Class';
-  const link = str(row.link, row.classLink, row.joinUrl, row.meetingLink);
-  const location =
-    maps.locations.get(locationId) || str(row.room, row.classRoom, row.locationName) || undefined;
+      const classTypeId = idOf(row.classType) || str(row.classType);
+      const cateId =
+        idOf(row.cateId) || str(row.cateId) || classToCategory.get(classTypeId) || '';
 
-  const statusRaw = str(row.status, row.classStatus).toLowerCase();
-  let status: SessionStatus = 'upcoming';
-  if (statusRaw.includes('cancel')) status = 'cancelled';
-  else if (date && date < new Date().toISOString().slice(0, 10)) status = 'completed';
+      if (classTypeAllow && classTypeId && !classTypeAllow.has(classTypeId)) {
+        if (!categoryAllow?.has(cateId)) continue;
+      } else if (!classTypeAllow && categoryAllow && cateId && !categoryAllow.has(cateId)) {
+        continue;
+      }
 
-  return {
-    id,
-    calendarId: cateId,
-    title,
-    date,
-    startTime: formatClock(row.startTime ?? row.classStartTime),
-    endTime: formatClock(row.endTime ?? row.classEndTime),
-    code: str(row.code, row.bookingCode, id.slice(-6).toUpperCase()),
-    type: typeFromSeed(id),
-    status,
-    instructor: str(asRecord(row.instructor)?.name, row.instructor) || 'Instructor',
-    mode: link ? 'Online' : 'In-Person',
-    description: str(row.description, row.notes) || title,
-    attachments: [],
-    joinUrl: link || undefined,
-    location,
-  };
-}
+      if (calendarId && calendarId !== 'all' && cateId !== calendarId) continue;
 
-export const sessionsApi = {
-  async list(calendarId?: string): Promise<Session[]> {
-    const [raw, maps] = await Promise.all([getClassCalendar(), loadTitleMaps()]);
-    const sessions = asArray(raw)
-      .map((item) => mapCrmClassToSession(item, maps))
-      .filter((item): item is Session => Boolean(item));
+      const date = str(row.date, row.classDate).slice(0, 10);
+      if (!date) continue;
 
-    if (!calendarId || calendarId === 'all') return sessions;
-    return sessions.filter((session) => session.calendarId === calendarId);
+      const title =
+        str(row.title, row.className, row.eventType) ||
+        classTitles.get(classTypeId) ||
+        categoryTitles.get(cateId) ||
+        'Class session';
+
+      const locationId = idOf(row.location) || str(row.location);
+      const instructorId = idOf(row.instructor) || str(row.instructor);
+      const link = str(row.link, row.classLink, row.joinUrl, row.meetingLink);
+      const location =
+        locationTitles.get(locationId) ||
+        str(row.room, row.classRoom, row.locationName) ||
+        locationId ||
+        undefined;
+
+      sessions.push({
+        id,
+        calendarId: cateId || 'uncategorized',
+        title,
+        date,
+        startTime: formatClock(row.startTime ?? row.start),
+        endTime: formatClock(row.endTime ?? row.end),
+        code: str(row.code, row.bookingCode) || id.slice(-6).toUpperCase(),
+        type: typeFromSeed(id),
+        status: mapStatus(row.status, date),
+        instructor: instructorId || 'Instructor',
+        mode: link ? 'Online' : 'In-Person',
+        description: str(row.description, row.notes) || title,
+        attachments: [],
+        joinUrl: link || undefined,
+        location,
+        seatsLeft: seatsLeftFrom(row),
+        myBooking: mapMyBooking(row.myBooking),
+        bookingLimit: Number(row.bookingLimit) || undefined,
+        activeBookingsCount: Number(row.activeBookingsCount) || undefined,
+        classTypeId: classTypeId || undefined,
+        kind: 'class',
+      });
+    }
+
+    const practicalList = asArray(asRecord(practicalRaw)?.data ?? practicalRaw);
+    for (const item of practicalList) {
+      const row = asRecord(item);
+      if (!row) continue;
+      const id = idOf(row._id ?? row.id) || `training:${str(row.date)}:${idOf(row.shift)}`;
+      const date = str(row.date, row.dayDate, row.classDate).slice(0, 10);
+      if (!date) continue;
+      if (calendarId && calendarId !== 'all') continue;
+
+      const title = str(row.title, row.locationName, row.name, 'Practical training');
+      sessions.push({
+        id,
+        calendarId: 'training',
+        title,
+        date,
+        startTime: formatClock(row.startTime ?? row.start),
+        endTime: formatClock(row.endTime ?? row.end),
+        code: str(row.code) || id.slice(-6).toUpperCase(),
+        type: typeFromSeed(id),
+        status: mapStatus(row.status, date),
+        instructor: str(row.instructor, row.trainer, 'Trainer'),
+        mode: 'In-Person',
+        description: title,
+        attachments: [],
+        location: str(row.locationName, row.location) || 'Training centre',
+        seatsLeft: Number(row.availableSeats ?? row.seatsLeft ?? 0) || 0,
+        myBooking: mapMyBooking(row.myBooking ?? row.booking) ?? {
+          seat: Number(row.seat) || undefined,
+          status: str(row.bookingStatus, row.status) || 'Active',
+        },
+        kind: 'training',
+      });
+    }
+
+    return sessions.sort(
+      (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime),
+    );
   },
 
-  async getById(id: string): Promise<Session | undefined> {
-    const maps = await loadTitleMaps();
-    try {
-      const mapped = mapCrmClassToSession(await getClassCalendarById(id), maps);
-      if (mapped) return mapped;
-    } catch {
-      // fall through
-    }
-    const all = await sessionsApi.list();
-    return all.find((session) => session.id === id);
+  async getById(id: string): Promise<Session> {
+    const now = new Date();
+    const startDate = toISODate(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+    const endDate = toISODate(new Date(now.getFullYear(), now.getMonth() + 2, 0));
+    const list = await this.list({ startDate, endDate });
+    const found = list.find((session) => session.id === id);
+    if (!found) throw new Error('Session not found');
+    return found;
   },
 };

@@ -80,6 +80,25 @@ export function getWeekRange(date: Date): { start: Date; end: Date } {
   return { start, end };
 }
 
+/** First/last day of the month containing `date` (local). */
+export function getMonthDateRange(date: Date): { startDate: string; endDate: string } {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  return { startDate: toISODate(start), endDate: toISODate(end) };
+}
+
+/** Visible fetch window for calendar Month/Week/List modes. */
+export function getVisibleCalendarRange(
+  cursor: Date,
+  viewMode: 'Month' | 'Week' | 'List',
+): { startDate: string; endDate: string } {
+  if (viewMode === 'Week') {
+    const { start, end } = getWeekRange(cursor);
+    return { startDate: toISODate(start), endDate: toISODate(end) };
+  }
+  return getMonthDateRange(cursor);
+}
+
 export function getWeekDays(anchor: Date): MonthDay[] {
   const { start } = getWeekRange(anchor);
   return Array.from({ length: 7 }, (_, index) => {

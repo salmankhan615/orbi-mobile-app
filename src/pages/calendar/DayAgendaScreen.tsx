@@ -5,9 +5,11 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
 import { ScalePressable } from '@/components/custom/ScalePressable';
+import { sessionStatusBadge } from '@/api/sessions';
 import { useSessions } from '@/queries/useSessions';
 import { useCalendar } from '@/queries/useCalendars';
 import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
+import { getMonthDateRange } from '@/utils/date';
 import { smoothScrollProps } from '@/utils/scroll';
 import type { RootStackScreenProps } from '@/navigation/types';
 
@@ -24,11 +26,17 @@ function formatDayTitle(iso: string) {
 
 export function DayAgendaScreen({ route, navigation }: Props) {
   const calendarId = route.params.calendarId;
-  const { data: sessions } = useSessions(calendarId);
+  const dayDate = route.params.date;
+  const range = getMonthDateRange(new Date(`${dayDate}T12:00:00`));
+  const { data: sessions } = useSessions({
+    calendarId,
+    startDate: range.startDate,
+    endDate: range.endDate,
+  });
   const { data: calendar } = useCalendar(calendarId ?? 'all');
 
   const daySessions = (sessions ?? [])
-    .filter((session) => session.date === route.params.date)
+    .filter((session) => session.date === dayDate)
     .slice()
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
@@ -52,7 +60,9 @@ export function DayAgendaScreen({ route, navigation }: Props) {
         contentContainerStyle={styles.timeline}
         {...smoothScrollProps}
       >
-        {daySessions.map((session, index) => (
+        {daySessions.map((session, index) => {
+          const statusBadge = sessionStatusBadge(session);
+          return (
           <View key={session.id} style={styles.timelineRow}>
             <View style={styles.timeCol}>
               <Text variant="caption" color="textSecondary" style={styles.timeLabel}>
@@ -84,11 +94,12 @@ export function DayAgendaScreen({ route, navigation }: Props) {
                 <Text variant="caption" color="textMuted">
                   {session.code}
                 </Text>
-                <Badge label="Upcoming" tone="success" />
+                <Badge label={statusBadge.label} tone={statusBadge.tone} />
               </View>
             </ScalePressable>
           </View>
-        ))}
+          );
+        })}
 
         {daySessions.length === 0 && (
           <Text variant="bodySmall" color="textMuted" style={styles.empty}>
