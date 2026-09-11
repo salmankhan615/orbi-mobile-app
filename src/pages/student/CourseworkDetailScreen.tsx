@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { CourseworkFileChip } from '@/features/coursework/components/CourseworkFileChip';
+import { Spinner } from '@/components/ui/Spinner';
 import {
   formatCourseworkDate,
   isCourseworkOverdue,
@@ -44,7 +45,7 @@ export function CourseworkDetailScreen({ navigation, route }: Props) {
   if (isPending) {
     return (
       <StackScreen title="Coursework">
-        <EmptyState icon="hourglass-outline" message="Loading…" />
+        <Spinner fill label="Loading coursework…" />
       </StackScreen>
     );
   }

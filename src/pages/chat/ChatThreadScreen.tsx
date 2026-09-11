@@ -15,6 +15,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
 import { Avatar } from '@/features/chat/components/Avatar';
 import { MessageBubble } from '@/features/chat/components/MessageBubble';
+import { Spinner } from '@/components/ui/Spinner';
 import { useConversation, useMessages, useSendMessage } from '@/queries/useChat';
 import { haptics } from '@/utils/haptics';
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -24,7 +25,7 @@ type Props = RootStackScreenProps<'ChatThread'>;
 export function ChatThreadScreen({ route, navigation }: Props) {
   const { conversationId } = route.params;
   const { data: conversation } = useConversation(conversationId);
-  const { data: messages } = useMessages(conversationId);
+  const { data: messages, isLoading } = useMessages(conversationId);
   const sendMessage = useSendMessage(conversationId);
   const [draft, setDraft] = useState('');
   const listRef = useRef<FlatList>(null);
@@ -70,6 +71,7 @@ export function ChatThreadScreen({ route, navigation }: Props) {
           data={messages ?? []}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messages}
+          ListEmptyComponent={isLoading ? <Spinner label="Loading messages…" /> : null}
           renderItem={({ item }) => <MessageBubble message={item} />}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         />
@@ -85,10 +87,17 @@ export function ChatThreadScreen({ route, navigation }: Props) {
           />
           <Pressable
             onPress={handleSend}
-            disabled={!draft.trim()}
-            style={[styles.sendButton, !draft.trim() && styles.sendButtonDisabled]}
+            disabled={!draft.trim() || sendMessage.isPending}
+            style={[
+              styles.sendButton,
+              (!draft.trim() || sendMessage.isPending) && styles.sendButtonDisabled,
+            ]}
           >
-            <Ionicons name="arrow-up" size={18} color={tokens.colors.onPrimary} />
+            {sendMessage.isPending ? (
+              <Spinner size="small" color="onPrimary" style={styles.sendSpinner} />
+            ) : (
+              <Ionicons name="arrow-up" size={18} color={tokens.colors.onPrimary} />
+            )}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -143,7 +152,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     maxHeight: 100,
-    backgroundColor: tokens.colors.surfaceMuted,
+    backgroundColor: tokens.colors.surfaceAlt,
     borderRadius: tokens.radius.full,
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.sm,
@@ -161,5 +170,8 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.35,
+  },
+  sendSpinner: {
+    paddingVertical: 0,
   },
 });

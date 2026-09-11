@@ -1,6 +1,7 @@
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { Text } from '@/components/ui/Text';
 import { useStaffCoursework } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
@@ -11,7 +12,7 @@ type Props = RootStackScreenProps<'StaffCoursework'>;
 export function StaffCourseworkScreen({ navigation }: Props) {
   const allowed = useHasPermission('view_coursework');
   const canSubs = useHasPermission('view_submissions');
-  const { data } = useStaffCoursework();
+  const { data, isLoading } = useStaffCoursework();
 
   if (!allowed) {
     return (
@@ -25,7 +26,9 @@ export function StaffCourseworkScreen({ navigation }: Props) {
 
   return (
     <StackScreen title="Coursework">
-      {(data ?? []).length === 0 ? (
+      {isLoading ? (
+        <EntityListSkeleton />
+      ) : (data ?? []).length === 0 ? (
         <EmptyState icon="document-text-outline" message="No coursework assignments yet." />
       ) : (
         (data ?? []).map((item) => (

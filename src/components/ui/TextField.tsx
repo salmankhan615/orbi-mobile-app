@@ -66,13 +66,13 @@ const styles = StyleSheet.create({
   field: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: tokens.colors.surfaceAlt,
+    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.md,
     paddingHorizontal: tokens.spacing.md,
     height: 50,
     gap: tokens.spacing.sm,
     borderWidth: 1.5,
-    borderColor: tokens.colors.transparent,
+    borderColor: tokens.colors.border,
   },
   fieldFocused: {
     backgroundColor: tokens.colors.surface,

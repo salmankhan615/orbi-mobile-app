@@ -16,6 +16,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     overflow: 'hidden',
     ...tokens.shadows.sm,
   },

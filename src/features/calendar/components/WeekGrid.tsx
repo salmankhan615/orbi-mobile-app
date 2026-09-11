@@ -48,7 +48,7 @@ export function WeekGrid({
             >
               <Text
                 variant="bodySmall"
-                color={isSelected ? 'onPrimary' : 'textPrimary'}
+                color={isSelected ? 'onSecondary' : 'textPrimary'}
                 style={isSelected ? styles.daySelectedLabel : undefined}
               >
                 {day.date.getDate()}

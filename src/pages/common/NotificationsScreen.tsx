@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { Text } from '@/components/ui/Text';
 import { AnnouncementModal } from '@/features/announcements/components/AnnouncementModal';
 import { useNotifications } from '@/queries/useNotifications';
@@ -18,14 +19,14 @@ const TYPE_META: Record<
   }
 > = {
   announcement: { icon: 'megaphone-outline', tone: 'warning', label: 'Announcement' },
-  upcoming_class: { icon: 'calendar-outline', tone: 'primary', label: 'Class' },
-  upcoming_training: { icon: 'fitness-outline', tone: 'success', label: 'Training' },
-  course_progress: { icon: 'trending-up-outline', tone: 'neutral', label: 'Progress' },
+  upcoming_class: { icon: 'calendar-outline', tone: 'info', label: 'Class' },
+  upcoming_training: { icon: 'fitness-outline', tone: 'warning', label: 'Training' },
+  course_progress: { icon: 'trending-up-outline', tone: 'warning', label: 'Progress' },
 };
 
 export function NotificationsScreen() {
   const isStaff = useIsStaff();
-  const { data } = useNotifications();
+  const { data, isLoading } = useNotifications();
   const { data: announcements } = useAnnouncements(isStaff ? 'staff' : 'students');
   const acknowledgeAnnouncement = useAcknowledgeAnnouncement();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -49,7 +50,9 @@ export function NotificationsScreen() {
         ) : null
       }
     >
-      {items.length === 0 ? (
+      {isLoading ? (
+        <EntityListSkeleton />
+      ) : items.length === 0 ? (
         <Text variant="body" color="textMuted">
           You are all caught up.
         </Text>

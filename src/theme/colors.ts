@@ -42,11 +42,6 @@ export const palette = {
   tealSoft: '#E6F7F5',
   amber500: '#F59E0B',
   amber700: '#B45309',
-
-  /** Student dashboard chart palette (matches CRM ApexCharts). */
-  chartBlue: '#0D6EFD',
-  chartTealDark: '#01524B',
-  chartTeal: '#20C997',
 } as const;
 
 export const colors = {
@@ -103,11 +98,11 @@ export const colors = {
   categoryPurpleMuted: palette.purple50,
 
   chartCompleted: palette.green500,
-  chartInProgress: palette.chartBlue,
-  chartNotStarted: palette.amber500,
+  chartInProgress: palette.gold500,
+  chartNotStarted: palette.gray400,
   chartExpired: palette.red500,
-  chartBar: palette.chartTealDark,
-  chartBarAlt: palette.chartTeal,
+  chartBar: palette.blue800,
+  chartBarAlt: palette.purple500,
 
   overlay: 'rgba(21, 35, 63, 0.45)',
   transparent: 'transparent',

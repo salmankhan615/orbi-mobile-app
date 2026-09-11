@@ -23,6 +23,9 @@ export function MonthGrid({
   onSelectDate,
 }: MonthGridProps) {
   const days = getMonthGrid(year, month);
+  const weeks = Array.from({ length: days.length / 7 }, (_, index) =>
+    days.slice(index * 7, index * 7 + 7),
+  );
 
   return (
     <View>
@@ -34,46 +37,48 @@ export function MonthGrid({
         ))}
       </View>
 
-      <View style={styles.grid}>
-        {days.map((day) => {
-          const isSelected = day.iso === selectedDate;
-          const isClosed = closedDates.includes(day.iso);
-          const daySessions = sessionsByDate.get(day.iso) ?? [];
+      {weeks.map((week) => (
+        <View key={week[0]?.iso} style={styles.daysRow}>
+          {week.map((day) => {
+            const isSelected = day.iso === selectedDate;
+            const isClosed = closedDates.includes(day.iso);
+            const daySessions = sessionsByDate.get(day.iso) ?? [];
 
-          return (
-            <Pressable key={day.iso} style={styles.dayCell} onPress={() => onSelectDate(day.iso)}>
-              <View
-                style={[
-                  styles.dayCircle,
-                  isClosed && styles.dayCircleClosed,
-                  isSelected && styles.dayCircleSelected,
-                ]}
-              >
-                <Text
-                  variant="bodySmall"
-                  color={
-                    isSelected ? 'onPrimary' : day.isCurrentMonth ? 'textPrimary' : 'textMuted'
-                  }
-                  style={isSelected ? styles.daySelectedLabel : undefined}
+            return (
+              <Pressable key={day.iso} style={styles.dayCell} onPress={() => onSelectDate(day.iso)}>
+                <View
+                  style={[
+                    styles.dayCircle,
+                    isClosed && styles.dayCircleClosed,
+                    isSelected && styles.dayCircleSelected,
+                  ]}
                 >
-                  {day.date.getDate()}
-                </Text>
-              </View>
-              <View style={styles.dotsRow}>
-                {daySessions.slice(0, 3).map((session) => (
-                  <View
-                    key={session.id}
-                    style={[
-                      styles.dot,
-                      { backgroundColor: tokens.colors[SESSION_TYPE_COLOR[session.type]] },
-                    ]}
-                  />
-                ))}
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
+                  <Text
+                    variant="bodySmall"
+                    color={
+                      isSelected ? 'onSecondary' : day.isCurrentMonth ? 'textPrimary' : 'textMuted'
+                    }
+                    style={isSelected ? styles.daySelectedLabel : undefined}
+                  >
+                    {day.date.getDate()}
+                  </Text>
+                </View>
+                <View style={styles.dotsRow}>
+                  {daySessions.slice(0, 3).map((session) => (
+                    <View
+                      key={session.id}
+                      style={[
+                        styles.dot,
+                        { backgroundColor: tokens.colors[SESSION_TYPE_COLOR[session.type]] },
+                      ]}
+                    />
+                  ))}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      ))}
     </View>
   );
 }
@@ -90,12 +95,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: tokens.fontFamily.semibold,
   },
-  grid: {
+  daysRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
   },
   dayCell: {
-    width: `${100 / 7}%`,
+    flex: 1,
     alignItems: 'center',
     marginBottom: tokens.spacing.md,
     minHeight: CELL_SIZE + 12,

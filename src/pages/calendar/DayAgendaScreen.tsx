@@ -9,6 +9,7 @@ import { sessionStatusBadge } from '@/api/sessions';
 import { useSessions } from '@/queries/useSessions';
 import { useCalendar } from '@/queries/useCalendars';
 import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { getMonthDateRange } from '@/utils/date';
 import { smoothScrollProps } from '@/utils/scroll';
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -28,7 +29,7 @@ export function DayAgendaScreen({ route, navigation }: Props) {
   const calendarId = route.params.calendarId;
   const dayDate = route.params.date;
   const range = getMonthDateRange(new Date(`${dayDate}T12:00:00`));
-  const { data: sessions } = useSessions({
+  const { data: sessions, isLoading } = useSessions({
     calendarId,
     startDate: range.startDate,
     endDate: range.endDate,
@@ -60,7 +61,11 @@ export function DayAgendaScreen({ route, navigation }: Props) {
         contentContainerStyle={styles.timeline}
         {...smoothScrollProps}
       >
-        {daySessions.map((session, index) => {
+        {isLoading ? (
+          <EntityListSkeleton rows={4} />
+        ) : (
+          <>
+            {daySessions.map((session, index) => {
           const statusBadge = sessionStatusBadge(session);
           return (
           <View key={session.id} style={styles.timelineRow}>
@@ -106,6 +111,8 @@ export function DayAgendaScreen({ route, navigation }: Props) {
             No sessions this day
             {calendar && calendarId && calendarId !== 'all' ? ` in ${calendar.name}` : ''}.
           </Text>
+        )}
+          </>
         )}
       </ScrollView>
     </Screen>

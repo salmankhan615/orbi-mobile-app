@@ -69,6 +69,7 @@ export function LoginScreen({ navigation }: Props) {
               label={login.isPending ? 'Signing in…' : 'Sign In'}
               onPress={handleSignIn}
               disabled={login.isPending || !email || !password}
+              loading={login.isPending}
               style={styles.submit}
             />
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { StudentDashboard } from '@/features/home/components/StudentDashboard';
+import { DashboardSkeleton } from '@/components/custom/Skeletons';
 import { buildStudentDashboard, EMPTY_DASHBOARD } from '@/features/home/dashboardStats';
 import { useAllocatedCoursePacks } from '@/queries/useCourses';
 import { useStudentBootstrap } from '@/queries/useBootstrap';
@@ -9,7 +10,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 export function DashboardScreen() {
   const user = useAuthStore((state) => state.user);
   const updateUser = useAuthStore((state) => state.updateUser);
-  const { data: bootstrap } = useStudentBootstrap();
+  const { data: bootstrap, isLoading: bootstrapLoading } = useStudentBootstrap();
   const packsQuery = useAllocatedCoursePacks();
 
   useEffect(() => {
@@ -32,9 +33,12 @@ export function DashboardScreen() {
     });
   }, [bootstrap, packsQuery.data, user?.id]);
 
+  const loading =
+    (bootstrapLoading && !bootstrap) || (packsQuery.isLoading && !packsQuery.data);
+
   return (
     <StackScreen title="Dashboard">
-      <StudentDashboard data={dashboard} />
+      {loading ? <DashboardSkeleton /> : <StudentDashboard data={dashboard} />}
     </StackScreen>
   );
 }

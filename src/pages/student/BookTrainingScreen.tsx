@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
@@ -134,53 +134,42 @@ export function BookTrainingScreen({ route, navigation }: Props) {
           </View>
 
           <View style={styles.form}>
-            {loadingLocations ? (
-              <ActivityIndicator color={tokens.colors.primary} style={styles.loader} />
-            ) : (
-              <SelectDropdown
-                label="Select Location"
-                required
-                placeholder="Choose a location..."
-                value={locationId}
-                options={locationOptions}
-                onChange={setLocationId}
-                emptyMessage="No training locations available."
-              />
-            )}
+            <SelectDropdown
+              label="Select Location"
+              required
+              placeholder="Choose a location..."
+              value={locationId}
+              options={locationOptions}
+              onChange={setLocationId}
+              loading={loadingLocations}
+              emptyMessage="No training locations available."
+            />
 
             {locationId ? (
-              <View style={styles.fieldBlock}>
-                {shiftsQuery.isLoading ? (
-                  <View style={styles.shiftLoading}>
-                    <Text variant="bodySmall" style={styles.fieldLabel}>
-                      Select Shift <Text color="danger">*</Text>
+              shifts.length === 0 && !shiftsQuery.isLoading ? (
+                <View style={styles.fieldBlock}>
+                  <Text variant="bodySmall" style={styles.fieldLabel}>
+                    Select Shift <Text color="danger">*</Text>
+                  </Text>
+                  <View style={styles.warningBox}>
+                    <Ionicons name="warning" size={20} color={tokens.colors.warning} />
+                    <Text variant="caption" color="textSecondary" style={styles.warningText}>
+                      No practical training shifts are available for your allocated access type on
+                      the selected date.
                     </Text>
-                    <ActivityIndicator color={tokens.colors.primary} />
                   </View>
-                ) : shifts.length === 0 ? (
-                  <View style={styles.fieldBlock}>
-                    <Text variant="bodySmall" style={styles.fieldLabel}>
-                      Select Shift <Text color="danger">*</Text>
-                    </Text>
-                    <View style={styles.warningBox}>
-                      <Ionicons name="warning" size={20} color={tokens.colors.warning} />
-                      <Text variant="caption" color="textSecondary" style={styles.warningText}>
-                        No practical training shifts are available for your allocated access type on
-                        the selected date.
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  <SelectDropdown
-                    label="Select Shift"
-                    required
-                    placeholder="Choose a shift..."
-                    value={shiftId}
-                    options={shiftOptions}
-                    onChange={setShiftId}
-                  />
-                )}
-              </View>
+                </View>
+              ) : (
+                <SelectDropdown
+                  label="Select Shift"
+                  required
+                  placeholder="Choose a shift..."
+                  value={shiftId}
+                  options={shiftOptions}
+                  onChange={setShiftId}
+                  loading={shiftsQuery.isLoading}
+                />
+              )
             ) : null}
 
             {selectedShift && freeSeats.length > 0 ? (
@@ -247,11 +236,14 @@ const styles = StyleSheet.create({
   },
   dateCard: {
     gap: tokens.spacing.xs,
-    backgroundColor: tokens.colors.surfaceAlt,
+    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.lg,
     marginBottom: tokens.spacing.xl,
+    ...tokens.shadows.sm,
   },
   dateLabel: {
     fontFamily: tokens.fontFamily.semibold,
@@ -266,13 +258,6 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontFamily: tokens.fontFamily.semibold,
-  },
-  loader: {
-    marginTop: tokens.spacing.md,
-    alignSelf: 'flex-start',
-  },
-  shiftLoading: {
-    gap: tokens.spacing.md,
   },
   warningBox: {
     flexDirection: 'row',

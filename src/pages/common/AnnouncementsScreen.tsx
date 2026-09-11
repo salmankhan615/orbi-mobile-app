@@ -1,5 +1,6 @@
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { Text } from '@/components/ui/Text';
 import { useAnnouncements } from '@/queries/useAnnouncements';
 import { useIsStaff } from '@/hooks/useHasPermission';
@@ -9,11 +10,13 @@ type Props = RootStackScreenProps<'Announcements'>;
 
 export function AnnouncementsScreen({ navigation }: Props) {
   const isStaff = useIsStaff();
-  const { data } = useAnnouncements(isStaff ? 'staff' : 'students');
+  const { data, isLoading } = useAnnouncements(isStaff ? 'staff' : 'students');
 
   return (
     <StackScreen title="Announcements">
-      {(data ?? []).length === 0 ? (
+      {isLoading ? (
+        <EntityListSkeleton />
+      ) : (data ?? []).length === 0 ? (
         <Text variant="body" color="textMuted">
           No announcements yet.
         </Text>

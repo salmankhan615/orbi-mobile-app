@@ -73,7 +73,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: tokens.radius.sm,
   },
   bubbleThem: {
-    backgroundColor: tokens.colors.surfaceMuted,
+    backgroundColor: tokens.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     borderBottomLeftRadius: tokens.radius.sm,
   },
   time: {

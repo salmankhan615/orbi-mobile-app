@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/Text';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { BookingPortalRow } from '@/features/bookings/components/BookingPortalRow';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { BookingStatsBar } from '@/features/bookings/components/BookingStatsBar';
 import { FilterSelectRow, SegmentedFilter } from '@/features/bookings/components/BookingFilters';
 import {
@@ -79,9 +80,7 @@ export function MyBookingsScreen() {
       <BookingStatsBar stats={stats} />
 
       {isPending ? (
-        <Text variant="body" color="textMuted" style={styles.message}>
-          Loading bookings…
-        </Text>
+        <EntityListSkeleton rows={4} />
       ) : isError ? (
         <Text variant="body" color="danger" style={styles.message}>
           Could not load bookings.

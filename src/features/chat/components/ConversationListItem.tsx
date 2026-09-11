@@ -56,6 +56,8 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.md,
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     padding: tokens.spacing.md,
     marginBottom: tokens.spacing.sm,
     ...tokens.shadows.sm,

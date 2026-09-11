@@ -2,6 +2,8 @@ import { Text } from '@/components/ui/Text';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
+import { Spinner } from '@/components/ui/Spinner';
 import { useStaffGroups, useGroupStudents } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -10,9 +12,9 @@ type Props = RootStackScreenProps<'GroupDetail'>;
 
 export function GroupDetailScreen({ route }: Props) {
   const canSessions = useHasPermission('view_group_sessions');
-  const { data: groups } = useStaffGroups();
+  const { data: groups, isLoading: groupsLoading } = useStaffGroups();
   const group = groups?.find((item) => item.id === route.params.groupId);
-  const { data: students } = useGroupStudents(route.params.groupId);
+  const { data: students, isLoading: studentsLoading } = useGroupStudents(route.params.groupId);
 
   return (
     <StackScreen title={group?.name ?? 'Group'}>
@@ -28,7 +30,11 @@ export function GroupDetailScreen({ route }: Props) {
           Session details are hidden for your role.
         </Text>
       )}
-      {(students ?? []).length === 0 ? (
+      {groupsLoading && !group ? (
+        <Spinner fill label="Loading group…" />
+      ) : studentsLoading ? (
+        <EntityListSkeleton />
+      ) : (students ?? []).length === 0 ? (
         <EmptyState icon="person-outline" message="No students in this group yet." />
       ) : (
         (students ?? []).map((student) => (

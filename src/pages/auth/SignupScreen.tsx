@@ -69,6 +69,7 @@ export function SignupScreen({ navigation }: Props) {
               label={signup.isPending ? 'Creating account…' : 'Sign Up'}
               onPress={() => signup.mutate({ firstName, lastName, email, password })}
               disabled={!canSubmit}
+              loading={signup.isPending}
               style={styles.submit}
             />
 

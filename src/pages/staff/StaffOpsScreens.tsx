@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/Text';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import {
   useInvoices,
@@ -21,7 +22,7 @@ import type { Agreement } from '@/api/staff';
 
 export function InvoicesScreen() {
   const allowed = useHasPermission('view_invoices');
-  const { data } = useInvoices();
+  const { data, isLoading } = useInvoices();
   if (!allowed) {
     return (
       <StackScreen title="Invoices">
@@ -33,7 +34,9 @@ export function InvoicesScreen() {
   }
   return (
     <StackScreen title="Invoices">
-      {(data ?? []).length === 0 ? (
+      {isLoading ? (
+        <EntityListSkeleton />
+      ) : (data ?? []).length === 0 ? (
         <EmptyState icon="receipt-outline" message="No invoices yet." />
       ) : (
         (data ?? []).map((item) => (
@@ -62,7 +65,7 @@ const AGREEMENT_FILTERS: (Agreement['status'] | 'all')[] = ['all', 'pending', 's
 
 export function AgreementsScreen() {
   const allowed = useHasPermission('view_agreements');
-  const { data } = useAgreements();
+  const { data, isLoading } = useAgreements();
   const [filter, setFilter] = useState<(typeof AGREEMENT_FILTERS)[number]>('all');
   const list =
     filter === 'all' ? (data ?? []) : (data ?? []).filter((item) => item.status === filter);
@@ -93,7 +96,9 @@ export function AgreementsScreen() {
           </ScalePressable>
         ))}
       </View>
-      {list.length === 0 ? (
+      {isLoading ? (
+        <EntityListSkeleton />
+      ) : list.length === 0 ? (
         <EmptyState icon="document-attach-outline" message="No agreements match this filter." />
       ) : (
         list.map((item) => (
@@ -121,7 +126,7 @@ export function AgreementsScreen() {
 
 export function BookingShiftsScreen() {
   const allowed = useHasPermission('view_shifts');
-  const { data } = useShifts();
+  const { data, isLoading } = useShifts();
   if (!allowed) {
     return (
       <StackScreen title="Shifts">
@@ -133,7 +138,9 @@ export function BookingShiftsScreen() {
   }
   return (
     <StackScreen title="Booking shifts">
-      {(data ?? []).length === 0 ? (
+      {isLoading ? (
+        <EntityListSkeleton />
+      ) : (data ?? []).length === 0 ? (
         <EmptyState icon="time-outline" message="No shifts scheduled." />
       ) : (
         (data ?? []).map((item) => (
@@ -161,7 +168,7 @@ function upcomingDates(count: number): string[] {
 
 export function CloseCalendarScreen() {
   const allowed = useHasPermission('close_calendar');
-  const { data: closed = [] } = useClosedDays();
+  const { data: closed = [], isLoading } = useClosedDays();
   const closeDay = useCloseDay();
   const openDay = useOpenDay();
   const showToast = useToastStore((state) => state.show);
@@ -212,7 +219,9 @@ export function CloseCalendarScreen() {
       <Text variant="title" style={styles.section}>
         Currently closed
       </Text>
-      {closed.length === 0 ? (
+      {isLoading ? (
+        <EntityListSkeleton rows={3} />
+      ) : closed.length === 0 ? (
         <Text variant="bodySmall" color="textMuted">
           No closed days.
         </Text>
@@ -239,13 +248,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     borderRadius: tokens.radius.full,
-    backgroundColor: tokens.colors.surfaceAlt,
+    backgroundColor: tokens.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
   },
   chipActive: {
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     borderRadius: tokens.radius.full,
     backgroundColor: tokens.colors.secondary,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.secondary,
   },
   section: {
     marginTop: tokens.spacing.lg,

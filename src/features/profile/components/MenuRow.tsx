@@ -34,7 +34,7 @@ export function MenuRow({
         <Ionicons
           name={icon}
           size={16}
-          color={isDanger ? tokens.colors.danger : tokens.colors.primary}
+          color={isDanger ? tokens.colors.danger : tokens.colors.secondary}
         />
       </View>
       <Text variant="bodySmall" color={isDanger ? 'danger' : 'textPrimary'} style={styles.label}>
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: tokens.radius.sm,
-    backgroundColor: tokens.colors.primaryMuted,
+    backgroundColor: tokens.colors.secondaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },

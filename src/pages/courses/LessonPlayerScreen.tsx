@@ -7,6 +7,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
+import { Spinner } from '@/components/ui/Spinner';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
@@ -69,9 +70,7 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
   if (isLoading || !course) {
     return (
       <Screen edges={['top', 'bottom']} style={styles.loading}>
-        <Text variant="body" color="textMuted">
-          Loading…
-        </Text>
+        <Spinner fill label="Loading lesson…" />
       </Screen>
     );
   }
@@ -326,9 +325,10 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: tokens.colors.surface,
+    backgroundColor: tokens.colors.background,
   },
   loading: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -123,6 +123,8 @@ const styles = StyleSheet.create({
   group: {
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     overflow: 'hidden',
     ...tokens.shadows.sm,
   },

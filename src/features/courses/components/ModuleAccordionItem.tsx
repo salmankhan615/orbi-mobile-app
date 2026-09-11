@@ -84,7 +84,7 @@ export function ModuleAccordionItem({
                 <Ionicons
                   name={lessonIcon(lesson)}
                   size={18}
-                  color={isDone ? tokens.colors.success : tokens.colors.info}
+                  color={isDone ? tokens.colors.success : tokens.colors.secondary}
                 />
                 <View style={styles.lessonCopy}>
                   <Text

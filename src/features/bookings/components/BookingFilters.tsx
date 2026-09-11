@@ -97,7 +97,7 @@ export function SegmentedFilter({ options, value, onChange }: SegmentedFilterPro
           >
             <Text
               variant="caption"
-              color={active ? 'onPrimary' : 'textSecondary'}
+              color={active ? 'onSecondary' : 'textSecondary'}
               style={styles.segmentLabel}
             >
               {option.label}
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.sm,
   },
   segmentItemActive: {
-    backgroundColor: tokens.colors.primary,
+    backgroundColor: tokens.colors.secondary,
   },
   segmentLabel: {
     fontFamily: tokens.fontFamily.semibold,

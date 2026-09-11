@@ -34,6 +34,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
       <Button
         label={request.isPending ? 'Sending…' : 'Send reset link'}
         disabled={!email || request.isPending}
+        loading={request.isPending}
         onPress={() =>
           request.mutate(email, {
             onSuccess: (message) => {

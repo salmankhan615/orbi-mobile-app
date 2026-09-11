@@ -1,6 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   Pressable,
@@ -15,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
+import { Spinner } from '@/components/ui/Spinner';
 import { FadeInView } from '@/components/custom/FadeInView';
 import { sessionStatusBadge, type Session } from '@/api/sessions';
 import { useSession } from '@/queries/useSessions';
@@ -66,9 +66,7 @@ export function SessionDetailsScreen({ route, navigation }: Props) {
   if (isLoading || !session) {
     return (
       <Screen style={styles.loading}>
-        <Text variant="body" color="textMuted">
-          Loading…
-        </Text>
+        <Spinner fill label="Loading session…" />
       </Screen>
     );
   }
@@ -264,7 +262,7 @@ function BookingDetailsContent({
                 Select Seat Number*
               </Text>
               {availabilityQuery.isLoading && seats.length === 0 ? (
-                <ActivityIndicator color={tokens.colors.primary} />
+                <Spinner />
               ) : seats.length === 0 ? (
                 <Text variant="caption" color="textMuted">
                   No seats available for this class.
@@ -281,7 +279,7 @@ function BookingDetailsContent({
                       >
                         <Text
                           variant="caption"
-                          color={selected ? 'onPrimary' : 'textPrimary'}
+                          color={selected ? 'onSecondary' : 'textPrimary'}
                           style={styles.seatChipLabel}
                         >
                           {seat}
@@ -440,8 +438,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   seatChipSelected: {
-    backgroundColor: tokens.colors.primary,
-    borderColor: tokens.colors.primary,
+    backgroundColor: tokens.colors.secondary,
+    borderColor: tokens.colors.secondary,
   },
   seatChipLabel: {
     fontFamily: tokens.fontFamily.semibold,

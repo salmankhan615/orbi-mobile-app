@@ -7,6 +7,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
 import { useConversations } from '@/queries/useChat';
 import { ConversationListItem } from '@/features/chat/components/ConversationListItem';
+import { ConversationListSkeleton } from '@/components/custom/Skeletons';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothListProps } from '@/utils/scroll';
 import { useToastStore } from '@/store/useToastStore';
@@ -18,7 +19,7 @@ type Props = MainTabScreenProps<'Chat'>;
 export function ChatListScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const showToast = useToastStore((state) => state.show);
-  const { data: conversations } = useConversations();
+  const { data: conversations, isLoading } = useConversations();
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -41,7 +42,7 @@ export function ChatListScreen({ navigation }: Props) {
         </View>
         <IconButton
           name="create-outline"
-          background="surface"
+          background="surfaceAlt"
           onPress={() => {
             const first = conversations?.[0];
             if (first) {
@@ -72,6 +73,9 @@ export function ChatListScreen({ navigation }: Props) {
         contentContainerStyle={[styles.list, { paddingBottom: tabPadding }]}
         {...smoothListProps}
         ListEmptyComponent={
+          isLoading ? (
+            <ConversationListSkeleton />
+          ) : (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
               <Ionicons name="chatbubbles-outline" size={28} color={tokens.colors.textMuted} />
@@ -80,6 +84,7 @@ export function ChatListScreen({ navigation }: Props) {
               No conversations yet
             </Text>
           </View>
+          )
         }
         renderItem={({ item, index }) => (
           <ConversationListItem
@@ -115,10 +120,11 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.sm,
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     paddingHorizontal: tokens.spacing.md,
     height: 48,
     marginBottom: tokens.spacing.lg,
-    ...tokens.shadows.sm,
   },
   searchInput: {
     flex: 1,

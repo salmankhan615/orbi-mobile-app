@@ -1,13 +1,14 @@
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { Text } from '@/components/ui/Text';
 import { useDirectory } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
 
 export function UserDirectoryScreen() {
   const allowed = useHasPermission('view_users');
-  const { data } = useDirectory();
+  const { data, isLoading } = useDirectory();
 
   if (!allowed) {
     return (
@@ -21,7 +22,9 @@ export function UserDirectoryScreen() {
 
   return (
     <StackScreen title="Users directory">
-      {(data ?? []).length === 0 ? (
+      {isLoading ? (
+        <EntityListSkeleton />
+      ) : (data ?? []).length === 0 ? (
         <EmptyState icon="people-outline" message="No users found." />
       ) : (
         (data ?? []).map((user) => (

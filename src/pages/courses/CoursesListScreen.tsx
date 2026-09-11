@@ -10,6 +10,7 @@ import { useCourses } from '@/queries/useCourses';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothListProps } from '@/utils/scroll';
 import { CourseCard } from '@/features/courses/components/CourseCard';
+import { CourseListSkeleton } from '@/components/custom/Skeletons';
 import type { Course, CourseStatus } from '@/api/courses';
 import type { MainTabScreenProps } from '@/navigation/types';
 
@@ -25,7 +26,7 @@ const FILTERS: { key: FilterTab; label: string }[] = [
 
 export function CoursesListScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
-  const { data: courses, allocateError, missingCompanyId } = useCourses();
+  const { data: courses, isLoading, allocateError, missingCompanyId } = useCourses();
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [query, setQuery] = useState('');
 
@@ -39,7 +40,7 @@ export function CoursesListScreen({ navigation }: Props) {
   }, [courses, activeFilter, query]);
 
   return (
-    <Screen style={styles.screen} background="surface">
+    <Screen style={styles.screen}>
       <FlatList
         style={styles.listFlex}
         data={filtered}
@@ -96,7 +97,7 @@ export function CoursesListScreen({ navigation }: Props) {
                     <View style={[styles.filterChip, isActive && styles.filterChipActive]}>
                       <Text
                         variant="caption"
-                        color={isActive ? 'onPrimary' : 'textSecondary'}
+                        color={isActive ? 'onSecondary' : 'textSecondary'}
                         style={styles.filterChipLabel}
                       >
                         {item.label}
@@ -109,6 +110,9 @@ export function CoursesListScreen({ navigation }: Props) {
           </View>
         }
         ListEmptyComponent={
+          isLoading ? (
+            <CourseListSkeleton />
+          ) : (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
               <Ionicons name="book-outline" size={28} color={tokens.colors.textMuted} />
@@ -121,6 +125,7 @@ export function CoursesListScreen({ navigation }: Props) {
                   : 'No courses match your filters'}
             </Text>
           </View>
+          )
         }
         renderItem={({ item, index }) => (
           <CourseCard
@@ -153,8 +158,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing.sm,
-    backgroundColor: tokens.colors.surfaceAlt,
+    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     paddingHorizontal: tokens.spacing.md,
     height: 48,
     marginBottom: tokens.spacing.md,
@@ -177,10 +184,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: tokens.spacing.md,
     borderRadius: tokens.radius.full,
-    backgroundColor: tokens.colors.surfaceAlt,
+    backgroundColor: tokens.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
   },
   filterChipActive: {
-    backgroundColor: tokens.colors.primary,
+    backgroundColor: tokens.colors.secondary,
+    borderColor: tokens.colors.secondary,
   },
   filterChipLabel: {
     fontFamily: tokens.fontFamily.semibold,

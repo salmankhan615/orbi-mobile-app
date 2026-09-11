@@ -26,7 +26,7 @@ export function CourseCard({ course, index = 0, onPress }: CourseCardProps) {
         ? { label: 'Access Expired', tone: 'danger' as const }
         : { label: 'Active', tone: 'success' as const }
       : { label: STATUS_LABEL[course.status], tone: STATUS_TONE[course.status] };
-  const progressColor = course.accessExpired ? 'textMuted' : 'success';
+  const progressColor = course.accessExpired ? 'textMuted' : 'tertiary';
 
   return (
     <FadeInView delay={staggerDelay(index)}>
@@ -56,7 +56,7 @@ export function CourseCard({ course, index = 0, onPress }: CourseCardProps) {
             <View style={styles.progressTrack}>
               <ProgressBar
                 progress={course.progress}
-                fillColor={course.accessExpired ? 'textMuted' : 'success'}
+                fillColor={course.accessExpired ? 'textMuted' : 'tertiary'}
                 height={5}
               />
             </View>

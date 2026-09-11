@@ -5,6 +5,7 @@ import { Screen } from '@/components/custom/Screen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { useStaffGroups } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
@@ -16,7 +17,7 @@ type Props = MainTabScreenProps<'Groups'>;
 export function StaffGroupsScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const allowed = useHasPermission('view_groups');
-  const { data } = useStaffGroups();
+  const { data, isLoading } = useStaffGroups();
   const groups = data ?? [];
 
   return (
@@ -31,6 +32,8 @@ export function StaffGroupsScreen({ navigation }: Props) {
           <Text variant="body" color="textMuted">
             You do not have permission to view groups.
           </Text>
+        ) : isLoading ? (
+          <EntityListSkeleton />
         ) : groups.length === 0 ? (
           <EmptyState icon="people-outline" message="No groups yet." />
         ) : (

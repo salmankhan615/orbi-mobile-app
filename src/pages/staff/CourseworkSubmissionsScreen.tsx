@@ -1,6 +1,7 @@
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { Text } from '@/components/ui/Text';
 import { useSubmissions } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
@@ -10,7 +11,7 @@ type Props = RootStackScreenProps<'CourseworkSubmissions'>;
 
 export function CourseworkSubmissionsScreen({ route }: Props) {
   const allowed = useHasPermission('view_submissions');
-  const { data } = useSubmissions(route.params.assignmentId);
+  const { data, isLoading } = useSubmissions(route.params.assignmentId);
 
   if (!allowed) {
     return (
@@ -24,7 +25,9 @@ export function CourseworkSubmissionsScreen({ route }: Props) {
 
   return (
     <StackScreen title="Submissions">
-      {(data ?? []).length === 0 ? (
+      {isLoading ? (
+        <EntityListSkeleton />
+      ) : (data ?? []).length === 0 ? (
         <EmptyState icon="cloud-upload-outline" message="No submissions yet." />
       ) : (
         (data ?? []).map((item) => (

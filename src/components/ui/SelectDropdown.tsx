@@ -6,6 +6,7 @@ import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { haptics } from '@/utils/haptics';
+import { Spinner } from '@/components/ui/Spinner';
 
 export type SelectOption = {
   id: string;
@@ -75,11 +76,15 @@ export function SelectDropdown({
             </Text>
           ) : null}
         </View>
-        <Ionicons
-          name={open ? 'chevron-up' : 'chevron-down'}
-          size={18}
-          color={tokens.colors.textMuted}
-        />
+        {loading ? (
+          <Spinner size="small" style={styles.triggerSpinner} />
+        ) : (
+          <Ionicons
+            name={open ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={tokens.colors.textMuted}
+          />
+        )}
       </ScalePressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -171,6 +176,9 @@ const styles = StyleSheet.create({
   },
   triggerDisabled: {
     opacity: 0.55,
+  },
+  triggerSpinner: {
+    paddingVertical: 0,
   },
   triggerCopy: {
     flex: 1,

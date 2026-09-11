@@ -23,7 +23,7 @@ export function CourseworkFileChip({ file, onPress }: FileChipProps) {
       <Text variant="caption" color="textSecondary" style={styles.chipLabel} numberOfLines={1}>
         {file.filename}
       </Text>
-      <Ionicons name="eye-outline" size={16} color={tokens.colors.primary} />
+      <Ionicons name="eye-outline" size={16} color={tokens.colors.secondary} />
     </Pressable>
   );
 }

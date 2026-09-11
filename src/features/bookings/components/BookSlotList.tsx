@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { useBookableSlots, useBookSlot } from '@/queries/useBookings';
+import { CardListSkeleton } from '@/components/custom/Skeletons';
 import { useAuthStore, displayName } from '@/store/useAuthStore';
 import { useToastStore } from '@/store/useToastStore';
 import type { BookingKind } from '@/api/bookings';
@@ -16,7 +17,7 @@ interface BookSlotListProps {
 }
 
 export function BookSlotList({ kind, title }: BookSlotListProps) {
-  const { data: slots } = useBookableSlots(kind);
+  const { data: slots, isLoading } = useBookableSlots(kind);
   const book = useBookSlot();
   const user = useAuthStore((state) => state.user);
   const showToast = useToastStore((state) => state.show);
@@ -42,7 +43,9 @@ export function BookSlotList({ kind, title }: BookSlotListProps) {
 
   return (
     <StackScreen title={title}>
-      {(slots ?? []).length === 0 ? (
+      {isLoading ? (
+        <CardListSkeleton rows={3} />
+      ) : (slots ?? []).length === 0 ? (
         <EmptyState icon="calendar-outline" message="No bookable slots available right now." />
       ) : (
         (slots ?? []).map((slot) => (
@@ -64,6 +67,7 @@ export function BookSlotList({ kind, title }: BookSlotListProps) {
               variant="accent"
               onPress={() => handleBook(slot.id, slot.title, slot.seat)}
               disabled={slot.seatsLeft === 0 || book.isPending}
+              loading={book.isPending}
               style={styles.cta}
             />
           </View>

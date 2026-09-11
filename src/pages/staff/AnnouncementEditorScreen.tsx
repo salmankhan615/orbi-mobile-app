@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { StackScreen } from '@/components/custom/StackScreen';
+import { Spinner } from '@/components/ui/Spinner';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import {
   useAnnouncement,
@@ -24,7 +25,7 @@ const AUDIENCES: AnnouncementAudience[] = ['all', 'students', 'staff'];
 export function AnnouncementEditorScreen({ route, navigation }: Props) {
   const id = route.params.announcementId;
   const canManage = useHasPermission('manage_announcements');
-  const { data: existing } = useAnnouncement(id ?? '');
+  const { data: existing, isLoading: existingLoading } = useAnnouncement(id ?? '');
   const create = useCreateAnnouncement();
   const update = useUpdateAnnouncement();
   const user = useAuthStore((state) => state.user);
@@ -50,6 +51,14 @@ export function AnnouncementEditorScreen({ route, navigation }: Props) {
         <Text variant="body" color="textMuted">
           You do not have permission to manage announcements.
         </Text>
+      </StackScreen>
+    );
+  }
+
+  if (id && existingLoading && !existing) {
+    return (
+      <StackScreen title="Edit announcement">
+        <Spinner fill label="Loading announcement…" />
       </StackScreen>
     );
   }
@@ -121,6 +130,7 @@ export function AnnouncementEditorScreen({ route, navigation }: Props) {
         label={id ? 'Save changes' : 'Publish'}
         onPress={save}
         disabled={!title.trim() || !body.trim() || create.isPending || update.isPending}
+        loading={create.isPending || update.isPending}
         style={styles.save}
       />
     </StackScreen>
@@ -141,13 +151,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     borderRadius: tokens.radius.full,
-    backgroundColor: tokens.colors.surfaceAlt,
+    backgroundColor: tokens.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
   },
   chipActive: {
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     borderRadius: tokens.radius.full,
     backgroundColor: tokens.colors.secondary,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.secondary,
   },
   pin: {
     paddingVertical: tokens.spacing.md,

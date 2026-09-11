@@ -3,6 +3,7 @@ import { Text } from '@/components/ui/Text';
 import { Screen } from '@/components/custom/Screen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useStaffBookings } from '@/queries/useBookings';
 import { useHasPermission } from '@/hooks/useHasPermission';
@@ -16,7 +17,7 @@ type Props = MainTabScreenProps<'Bookings'>;
 export function StaffBookingsScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const allowed = useHasPermission('view_bookings');
-  const { data } = useStaffBookings();
+  const { data, isLoading } = useStaffBookings();
   const bookings = data ?? [];
 
   return (
@@ -31,6 +32,8 @@ export function StaffBookingsScreen({ navigation }: Props) {
           <Text variant="body" color="textMuted">
             You do not have permission to view bookings.
           </Text>
+        ) : isLoading ? (
+          <EntityListSkeleton />
         ) : bookings.length === 0 ? (
           <EmptyState icon="clipboard-outline" message="No bookings yet." />
         ) : (

@@ -8,7 +8,8 @@ import {
 import 'react-native-gesture-handler';
 import { useCallback, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { tokens } from '@/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -19,6 +20,19 @@ import { rootStyles } from '@/theme/rootStyles';
 import { Toast } from '@/components/custom/Toast';
 
 SplashScreen.preventAutoHideAsync();
+
+const navTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: tokens.colors.primary,
+    background: tokens.colors.background,
+    card: tokens.colors.surface,
+    text: tokens.colors.textPrimary,
+    border: tokens.colors.border,
+    notification: tokens.colors.tertiary,
+  },
+};
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -48,7 +62,7 @@ export default function App() {
     <GestureHandlerRootView style={rootStyles.flexFill} onLayout={onLayoutRootView}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <NavigationContainer>
+          <NavigationContainer theme={navTheme}>
             <RootNavigator />
             <Toast />
             <StatusBar style="dark" />

@@ -7,6 +7,7 @@ import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { CourseworkFileChip } from '@/features/coursework/components/CourseworkFileChip';
+import { CardListSkeleton } from '@/components/custom/Skeletons';
 import { courseworkTabForKind, type CourseworkTab } from '@/api/coursework';
 import { useCoursework } from '@/queries/useCoursework';
 import type { BadgeTone } from '@/components/ui/Badge';
@@ -74,7 +75,7 @@ export function StudentCourseworkScreen({ navigation, route }: Props) {
               <View style={[styles.tab, active && styles.tabActive]}>
                 <Text
                   variant="caption"
-                  color={active ? 'primary' : 'textSecondary'}
+                  color={active ? 'secondary' : 'textSecondary'}
                   style={styles.tabLabel}
                 >
                   {item.label} ({count})
@@ -86,7 +87,7 @@ export function StudentCourseworkScreen({ navigation, route }: Props) {
       </View>
 
       {isPending ? (
-        <EmptyState icon="hourglass-outline" message="Loading coursework…" />
+        <CardListSkeleton rows={4} />
       ) : isError ? (
         <EmptyState icon="alert-circle-outline" message={errorMessage} />
       ) : visible.length === 0 ? (
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.spacing.sm,
     paddingHorizontal: tokens.spacing.md,
     borderRadius: tokens.radius.md,
-    backgroundColor: tokens.colors.surfaceAlt,
+    backgroundColor: tokens.colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.border,
   },

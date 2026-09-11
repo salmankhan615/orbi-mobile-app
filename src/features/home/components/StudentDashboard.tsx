@@ -26,14 +26,14 @@ const OVERVIEW_SEGMENTS: {
 ];
 
 const CATEGORY_COLORS: ColorToken[] = [
-  'chartBar',
-  'chartBarAlt',
-  'categoryBlue',
+  'primary',
+  'secondary',
+  'tertiary',
+  'categoryTeal',
   'categoryPurple',
   'categoryAmber',
-  'categoryTeal',
-  'categoryGreen',
   'categoryNavy',
+  'success',
 ];
 
 export function StudentDashboard({ data }: StudentDashboardProps) {

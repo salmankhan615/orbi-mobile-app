@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { StackScreen } from '@/components/custom/StackScreen';
+import { Spinner } from '@/components/ui/Spinner';
 import { useBooking, useCancelBooking, useMarkAttendance } from '@/queries/useBookings';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useToastStore } from '@/store/useToastStore';
@@ -12,19 +13,17 @@ import type { RootStackScreenProps } from '@/navigation/types';
 type Props = RootStackScreenProps<'StaffBookingDetail'>;
 
 export function StaffBookingDetailScreen({ route, navigation }: Props) {
-  const { data } = useBooking(route.params.bookingId);
+  const { data, isLoading } = useBooking(route.params.bookingId);
   const canAttend = useHasPermission('mark_attendance');
   const canCancel = useHasPermission('cancel_booking');
   const mark = useMarkAttendance();
   const cancel = useCancelBooking();
   const showToast = useToastStore((state) => state.show);
 
-  if (!data) {
+  if (isLoading || !data) {
     return (
       <StackScreen title="Booking">
-        <Text variant="body" color="textMuted">
-          Loading…
-        </Text>
+        <Spinner fill label="Loading booking…" />
       </StackScreen>
     );
   }
@@ -47,6 +46,7 @@ export function StaffBookingDetailScreen({ route, navigation }: Props) {
           <Button
             label="Present"
             variant="accent"
+            loading={mark.isPending}
             onPress={() =>
               mark.mutate(
                 { id: data.id, attendance: 'present' },
@@ -57,6 +57,7 @@ export function StaffBookingDetailScreen({ route, navigation }: Props) {
           <Button
             label="Late"
             variant="secondary"
+            loading={mark.isPending}
             onPress={() =>
               mark.mutate(
                 { id: data.id, attendance: 'late' },
@@ -67,6 +68,7 @@ export function StaffBookingDetailScreen({ route, navigation }: Props) {
           <Button
             label="Absent"
             variant="outline"
+            loading={mark.isPending}
             onPress={() =>
               mark.mutate(
                 { id: data.id, attendance: 'absent' },

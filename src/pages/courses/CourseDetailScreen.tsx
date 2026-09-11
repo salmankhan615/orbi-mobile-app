@@ -7,6 +7,7 @@ import { setStatusBarStyle } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
+import { Spinner } from '@/components/ui/Spinner';
 import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -59,9 +60,7 @@ export function CourseDetailScreen({ route, navigation }: Props) {
   if (isLoading || !course) {
     return (
       <View style={[styles.loading, { paddingTop: insets.top + tokens.spacing.lg }]}>
-        <Text variant="body" color="textMuted">
-          Loading…
-        </Text>
+        <Spinner fill label={isLoading ? 'Loading course…' : 'Course not found'} />
       </View>
     );
   }
@@ -136,7 +135,7 @@ export function CourseDetailScreen({ route, navigation }: Props) {
           </View>
           <View style={styles.statLine} />
           <View style={styles.stat}>
-            <Ionicons name="trending-up-outline" size={18} color={tokens.colors.success} />
+            <Ionicons name="trending-up-outline" size={18} color={tokens.colors.tertiary} />
             <Text variant="title">{course.progress}%</Text>
             <Text variant="caption" color="textMuted">
               Progress
@@ -157,7 +156,7 @@ export function CourseDetailScreen({ route, navigation }: Props) {
             <Text variant="title">Course Progress</Text>
             <Text
               variant="bodySmall"
-              color={course.accessExpired ? 'textMuted' : 'success'}
+              color={course.accessExpired ? 'textMuted' : 'tertiary'}
               style={styles.progressPct}
             >
               {course.progress}%
@@ -165,7 +164,7 @@ export function CourseDetailScreen({ route, navigation }: Props) {
           </View>
           <ProgressBar
             progress={course.progress}
-            fillColor={course.accessExpired ? 'textMuted' : 'success'}
+            fillColor={course.accessExpired ? 'textMuted' : 'tertiary'}
             height={8}
           />
         </View>
@@ -242,13 +241,13 @@ export function CourseDetailScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: tokens.colors.surface,
+    backgroundColor: tokens.colors.background,
   },
   loading: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: tokens.colors.surface,
+    backgroundColor: tokens.colors.background,
   },
   hero: {
     paddingHorizontal: tokens.spacing.screen,
@@ -286,6 +285,8 @@ const styles = StyleSheet.create({
     marginHorizontal: tokens.spacing.screen,
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     paddingVertical: tokens.spacing.lg,
     marginBottom: tokens.spacing.xl,
     ...tokens.shadows.md,

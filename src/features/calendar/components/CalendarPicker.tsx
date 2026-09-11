@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     borderRadius: tokens.radius.full,
-    backgroundColor: tokens.colors.surfaceAlt,
+    backgroundColor: tokens.colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.border,
   },

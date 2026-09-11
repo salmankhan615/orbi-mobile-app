@@ -10,12 +10,12 @@ export interface EventCalendar {
 }
 
 const ACCENTS: (keyof typeof tokens.colors)[] = [
-  'secondary',
-  'success',
-  'warning',
-  'tertiary',
-  'info',
   'primary',
+  'secondary',
+  'tertiary',
+  'success',
+  'categoryTeal',
+  'info',
 ];
 
 export const calendarsApi = {

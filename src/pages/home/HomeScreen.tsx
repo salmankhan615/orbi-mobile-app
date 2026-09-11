@@ -17,6 +17,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothScrollProps } from '@/utils/scroll';
 import { CourseSummaryCard } from '@/features/courses/components/CourseSummaryCard';
+import { HomeSkeleton, CourseCarouselSkeleton } from '@/components/custom/Skeletons';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Home'>;
@@ -25,9 +26,9 @@ export function HomeScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const user = useAuthStore((state) => state.user);
   const updateUser = useAuthStore((state) => state.updateUser);
-  const { data: bootstrap } = useStudentBootstrap();
+  const { data: bootstrap, isLoading: bootstrapLoading } = useStudentBootstrap();
   const packsQuery = useAllocatedCoursePacks();
-  const { data: courses, allocateError, missingCompanyId } = useCourses();
+  const { data: courses, isLoading: coursesLoading, allocateError, missingCompanyId } = useCourses();
   const { data: announcements } = useAnnouncements('students');
   const acknowledgeAnnouncement = useAcknowledgeAnnouncement();
   const [query, setQuery] = useState('');
@@ -57,6 +58,10 @@ export function HomeScreen({ navigation }: Props) {
     query.trim() ? course.title.toLowerCase().includes(query.trim().toLowerCase()) : true,
   );
   const pendingAnnouncement = (announcements ?? []).find((item) => !item.isAcknowledged);
+  const showHomeSkeleton =
+    (bootstrapLoading && !bootstrap) ||
+    (coursesLoading && !courses) ||
+    (packsQuery.isLoading && !packsQuery.data);
   const showAnnouncementModal = Boolean(pendingAnnouncement);
 
   return (
@@ -77,13 +82,19 @@ export function HomeScreen({ navigation }: Props) {
           <BellButton />
         </View>
 
-        <HomePulseCard data={dashboard} onPress={() => navigation.navigate('Dashboard')} />
-        {(missingCompanyId || allocateError) && (
-          <Text variant="caption" color="danger" style={styles.subtitle}>
-            {missingCompanyId
-              ? 'Missing company id — sign out and sign in again.'
-              : `Courses failed to load: ${allocateError}`}
-          </Text>
+        {showHomeSkeleton ? (
+          <HomeSkeleton />
+        ) : (
+          <>
+            <HomePulseCard data={dashboard} onPress={() => navigation.navigate('Dashboard')} />
+            {(missingCompanyId || allocateError) && (
+              <Text variant="caption" color="danger" style={styles.subtitle}>
+                {missingCompanyId
+                  ? 'Missing company id — sign out and sign in again.'
+                  : `Courses failed to load: ${allocateError}`}
+              </Text>
+            )}
+          </>
         )}
 
         <View style={styles.searchBar}>
@@ -127,23 +138,29 @@ export function HomeScreen({ navigation }: Props) {
           </ScalePressable>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.courseRow}
-        >
-          {filteredCourses.map((course, index) => (
-            <CourseSummaryCard
-              key={course.id}
-              course={course}
-              index={index}
-              onPress={() => navigation.navigate('CourseDetail', { courseId: course.id })}
-            />
-          ))}
-        </ScrollView>
-        {filteredCourses.length === 0 ? (
-          <EmptyState icon="book-outline" message="No courses match your search." />
-        ) : null}
+        {showHomeSkeleton || (coursesLoading && !courses) ? (
+          <CourseCarouselSkeleton />
+        ) : (
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.courseRow}
+            >
+              {filteredCourses.map((course, index) => (
+                <CourseSummaryCard
+                  key={course.id}
+                  course={course}
+                  index={index}
+                  onPress={() => navigation.navigate('CourseDetail', { courseId: course.id })}
+                />
+              ))}
+            </ScrollView>
+            {filteredCourses.length === 0 ? (
+              <EmptyState icon="book-outline" message="No courses match your search." />
+            ) : null}
+          </>
+        )}
 
         <ScalePressable onPress={() => navigation.navigate('Calendar')} style={styles.banner}>
           <View style={styles.bannerIcon}>
@@ -226,7 +243,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     paddingHorizontal: tokens.spacing.screen,
-    backgroundColor: tokens.colors.surface,
   },
   scroll: {
     flex: 1,
@@ -252,8 +268,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing.sm,
-    backgroundColor: tokens.colors.surfaceAlt,
+    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     paddingLeft: tokens.spacing.md,
     paddingRight: tokens.spacing.sm,
     height: 48,
@@ -270,7 +288,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: tokens.radius.md,
-    backgroundColor: tokens.colors.surface,
+    backgroundColor: tokens.colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -311,6 +329,8 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.md,
     backgroundColor: tokens.colors.tertiaryMuted,
     borderRadius: tokens.radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     padding: tokens.spacing.lg,
     marginBottom: tokens.spacing.xl,
   },

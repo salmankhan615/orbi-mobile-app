@@ -6,6 +6,7 @@ import { Screen } from '@/components/custom/Screen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { BellButton } from '@/components/custom/BellButton';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { AnnouncementBanner } from '@/features/announcements/components/AnnouncementBanner';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { useAnnouncements } from '@/queries/useAnnouncements';
@@ -23,7 +24,7 @@ export function StaffHomeScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const user = useAuthStore((state) => state.user);
   const { data: announcements } = useAnnouncements('staff');
-  const { data: bookings } = useStaffBookings();
+  const { data: bookings, isLoading: bookingsLoading } = useStaffBookings();
   const { data: agreements } = useAgreements();
   const canBookings = useHasPermission('view_bookings');
   const canAnnouncements = useHasPermission('view_announcements');
@@ -130,19 +131,27 @@ export function StaffHomeScreen({ navigation }: Props) {
             <Text variant="title" style={styles.section}>
               Recent bookings
             </Text>
-            {(bookings ?? []).slice(0, 4).map((booking) => (
-              <EntityRow
-                key={booking.id}
-                icon="calendar-outline"
-                title={booking.title}
-                subtitle={`${booking.studentName} · ${booking.date}`}
-                badge={{ label: booking.status, tone: 'success' }}
-                onPress={() => navigation.navigate('StaffBookingDetail', { bookingId: booking.id })}
-              />
-            ))}
-            {(bookings ?? []).length === 0 ? (
-              <EmptyState icon="clipboard-outline" message="No bookings to show." />
-            ) : null}
+            {bookingsLoading ? (
+              <EntityListSkeleton rows={3} />
+            ) : (
+              <>
+                {(bookings ?? []).slice(0, 4).map((booking) => (
+                  <EntityRow
+                    key={booking.id}
+                    icon="calendar-outline"
+                    title={booking.title}
+                    subtitle={`${booking.studentName} · ${booking.date}`}
+                    badge={{ label: booking.status, tone: 'success' }}
+                    onPress={() =>
+                      navigation.navigate('StaffBookingDetail', { bookingId: booking.id })
+                    }
+                  />
+                ))}
+                {(bookings ?? []).length === 0 ? (
+                  <EmptyState icon="clipboard-outline" message="No bookings to show." />
+                ) : null}
+              </>
+            )}
           </>
         ) : (
           <Text variant="bodySmall" color="textMuted">

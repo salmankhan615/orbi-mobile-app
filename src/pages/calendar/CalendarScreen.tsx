@@ -15,6 +15,7 @@ import { CalendarPicker } from '@/features/calendar/components/CalendarPicker';
 import { MonthGrid } from '@/features/calendar/components/MonthGrid';
 import { WeekGrid } from '@/features/calendar/components/WeekGrid';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
+import { CalendarSkeleton, EntityListSkeleton } from '@/components/custom/Skeletons';
 import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
 import {
   formatWeekRange,
@@ -62,7 +63,7 @@ export function CalendarScreen({ navigation }: Props) {
     () => getVisibleCalendarRange(cursor, viewMode),
     [cursor, viewMode],
   );
-  const { data: sessions } = useSessions({
+  const { data: sessions, isLoading } = useSessions({
     calendarId: selectedCalendarId,
     startDate: range.startDate,
     endDate: range.endDate,
@@ -138,7 +139,7 @@ export function CalendarScreen({ navigation }: Props) {
   }
 
   return (
-    <Screen style={styles.screen} background="surface">
+    <Screen style={styles.screen}>
       <View style={styles.header}>
         <Text variant="heading">My Calendar</Text>
         {isStaff && canClose ? (
@@ -194,7 +195,7 @@ export function CalendarScreen({ navigation }: Props) {
             >
               <Text
                 variant="bodySmall"
-                color={isActive ? 'onPrimary' : 'textSecondary'}
+                color={isActive ? 'onSecondary' : 'textSecondary'}
                 style={styles.segmentLabel}
               >
                 {mode}
@@ -268,20 +269,26 @@ export function CalendarScreen({ navigation }: Props) {
               />
             ) : null}
 
-            {sessionsForSelectedDate.map((session, index) => (
-              <SessionListItem
-                key={session.id}
-                session={session}
-                index={index}
-                onPress={() => navigation.navigate('SessionDetails', { sessionId: session.id })}
-              />
-            ))}
+            {isLoading ? (
+              <EntityListSkeleton rows={3} />
+            ) : (
+              <>
+                {sessionsForSelectedDate.map((session, index) => (
+                  <SessionListItem
+                    key={session.id}
+                    session={session}
+                    index={index}
+                    onPress={() => navigation.navigate('SessionDetails', { sessionId: session.id })}
+                  />
+                ))}
 
-            {sessionsForSelectedDate.length === 0 && (
-              <Text variant="bodySmall" color="textMuted" style={styles.empty}>
-                No sessions this day
-                {selectedCalendarId !== 'all' ? ` in ${selectedCalendar?.name}` : ''}
-              </Text>
+                {sessionsForSelectedDate.length === 0 && (
+                  <Text variant="bodySmall" color="textMuted" style={styles.empty}>
+                    No sessions this day
+                    {selectedCalendarId !== 'all' ? ` in ${selectedCalendar?.name}` : ''}
+                  </Text>
+                )}
+              </>
             )}
 
             {sessionsForSelectedDate.length > 0 && (
@@ -299,30 +306,34 @@ export function CalendarScreen({ navigation }: Props) {
           </>
         )}
 
-        {viewMode === 'List' &&
-          groupedForList.map((group) => (
-            <View key={group.date} style={styles.listGroup}>
-              <Text variant="bodySmall" color="textSecondary" style={styles.listGroupHeader}>
-                {formatSessionDate(group.date)}
+        {viewMode === 'List' && isLoading ? (
+          <CalendarSkeleton />
+        ) : viewMode === 'List' ? (
+          <>
+            {groupedForList.map((group) => (
+              <View key={group.date} style={styles.listGroup}>
+                <Text variant="bodySmall" color="textSecondary" style={styles.listGroupHeader}>
+                  {formatSessionDate(group.date)}
+                </Text>
+                {group.sessions.map((session, index) => (
+                  <SessionListItem
+                    key={session.id}
+                    session={session}
+                    index={index}
+                    hideDate
+                    showChevron
+                    onPress={() => navigation.navigate('SessionDetails', { sessionId: session.id })}
+                  />
+                ))}
+              </View>
+            ))}
+            {groupedForList.length === 0 ? (
+              <Text variant="bodySmall" color="textMuted" style={styles.empty}>
+                No sessions in this calendar yet.
               </Text>
-              {group.sessions.map((session, index) => (
-                <SessionListItem
-                  key={session.id}
-                  session={session}
-                  index={index}
-                  hideDate
-                  showChevron
-                  onPress={() => navigation.navigate('SessionDetails', { sessionId: session.id })}
-                />
-              ))}
-            </View>
-          ))}
-
-        {viewMode === 'List' && groupedForList.length === 0 && (
-          <Text variant="bodySmall" color="textMuted" style={styles.empty}>
-            No sessions in this calendar yet.
-          </Text>
-        )}
+            ) : null}
+          </>
+        ) : null}
       </ScrollView>
 
       <Modal
@@ -456,10 +467,13 @@ const styles = StyleSheet.create({
     paddingBottom: tokens.spacing.xxxl,
   },
   monthCard: {
-    backgroundColor: tokens.colors.surfaceAlt,
+    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
     padding: tokens.spacing.lg,
     paddingBottom: tokens.spacing.xl,
+    ...tokens.shadows.sm,
   },
   legend: {
     flexDirection: 'row',

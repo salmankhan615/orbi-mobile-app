@@ -2,7 +2,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from './Text';
 
-export type BadgeTone = 'success' | 'warning' | 'danger' | 'neutral' | 'primary';
+export type BadgeTone = 'success' | 'warning' | 'danger' | 'neutral' | 'primary' | 'info';
 
 export interface BadgeProps {
   label: string;
@@ -19,6 +19,7 @@ const TONE_COLORS: Record<
   danger: { bg: 'dangerMuted', fg: 'danger' },
   neutral: { bg: 'surfaceAlt', fg: 'textSecondary' },
   primary: { bg: 'primaryMuted', fg: 'primary' },
+  info: { bg: 'infoMuted', fg: 'info' },
 };
 
 export function Badge({ label, tone = 'neutral', style }: BadgeProps) {

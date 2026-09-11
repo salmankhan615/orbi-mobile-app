@@ -17,7 +17,7 @@ export function AnnouncementBanner({ announcement, onPress }: AnnouncementBanner
         <Ionicons name="megaphone" size={18} color={tokens.colors.onTertiary} />
       </View>
       <View style={styles.body}>
-        <Text variant="caption" color="secondary" style={styles.kicker}>
+        <Text variant="caption" color="tertiary" style={styles.kicker}>
           Announcement
         </Text>
         <Text variant="bodySmall" style={styles.title} numberOfLines={1}>

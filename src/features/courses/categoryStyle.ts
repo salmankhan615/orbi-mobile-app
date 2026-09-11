@@ -39,7 +39,7 @@ export const STATUS_LABEL: Record<CourseStatus, string> = {
 };
 
 export const STATUS_TONE: Record<CourseStatus, BadgeTone> = {
-  in_progress: 'success',
+  in_progress: 'warning',
   not_started: 'neutral',
-  completed: 'primary',
+  completed: 'success',
 };

@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { StackScreen } from '@/components/custom/StackScreen';
+import { Spinner } from '@/components/ui/Spinner';
 import { useAnnouncement } from '@/queries/useAnnouncements';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -11,15 +12,13 @@ import type { RootStackScreenProps } from '@/navigation/types';
 type Props = RootStackScreenProps<'AnnouncementDetail'>;
 
 export function AnnouncementDetailScreen({ route, navigation }: Props) {
-  const { data } = useAnnouncement(route.params.announcementId);
+  const { data, isLoading } = useAnnouncement(route.params.announcementId);
   const canEdit = useHasPermission('manage_announcements');
 
-  if (!data) {
+  if (isLoading || !data) {
     return (
       <StackScreen title="Announcement">
-        <Text variant="body" color="textMuted">
-          Loading…
-        </Text>
+        <Spinner fill label="Loading announcement…" />
       </StackScreen>
     );
   }
