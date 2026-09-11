@@ -19,7 +19,7 @@ export type RootStackParamList = {
   AnnouncementDetail: { announcementId: string };
   AnnouncementEditor: { announcementId?: string };
   BookClass: undefined;
-  BookTraining: undefined;
+  BookTraining: { date?: string } | undefined;
   MyBookings: undefined;
   Coursework: { tab?: 'assignment' | 'resource' } | undefined;
   CourseworkDetail: { courseworkId: string };

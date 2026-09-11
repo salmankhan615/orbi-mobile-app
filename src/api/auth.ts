@@ -296,16 +296,31 @@ export const authApi = {
   },
 
   async updateProfile(payload: UpdateProfilePayload): Promise<AuthUser> {
-    const form = new FormData();
-    appendField(form, 'name', payload.firstName);
-    appendField(form, 'lname', payload.lastName);
-    appendField(form, 'phone', payload.phone);
-    appendField(form, 'mobile', payload.mobile);
-    appendField(form, 'country', payload.country);
-    appendField(form, 'city', payload.city);
-    if (payload.file) appendProfileFile(form, payload.file);
+    const fields = {
+      name: payload.firstName.trim(),
+      lname: payload.lastName.trim(),
+      phone: payload.phone?.trim() || undefined,
+      mobile: payload.mobile?.trim() || undefined,
+      country: payload.country?.trim() || undefined,
+      city: payload.city?.trim() || undefined,
+    };
 
-    const raw = await apiClient.patch<unknown>(`${AUTH_API_PREFIX}/updateUser`, form);
+    // PATCH is partial: skip `file` unless a new photo was picked.
+    let raw: unknown;
+    if (payload.file) {
+      const form = new FormData();
+      appendField(form, 'name', fields.name);
+      appendField(form, 'lname', fields.lname);
+      appendField(form, 'phone', fields.phone);
+      appendField(form, 'mobile', fields.mobile);
+      appendField(form, 'country', fields.country);
+      appendField(form, 'city', fields.city);
+      appendProfileFile(form, payload.file);
+      raw = await apiClient.patch<unknown>(`${AUTH_API_PREFIX}/updateUser`, form);
+    } else {
+      raw = await apiClient.patch<unknown>(`${AUTH_API_PREFIX}/updateUser`, fields);
+    }
+
     return userFromUpdateResponse(raw, '') ?? (await authApi.getUser());
   },
 

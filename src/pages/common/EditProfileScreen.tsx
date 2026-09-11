@@ -105,7 +105,7 @@ export function EditProfileScreen() {
           </View>
         </View>
         <Text variant="caption" color="secondary" style={styles.photoHint}>
-          Tap to change photo
+          Optional — tap to change photo
         </Text>
       </ScalePressable>
 

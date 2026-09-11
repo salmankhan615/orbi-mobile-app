@@ -148,11 +148,7 @@ export function CalendarScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('CloseCalendar')}
           />
         ) : (
-          <IconButton
-            name="add"
-            background="surfaceAlt"
-            onPress={() => navigation.navigate('BookClass')}
-          />
+          <View style={styles.headerSpacer} />
         )}
       </View>
 
@@ -262,6 +258,16 @@ export function CalendarScreen({ navigation }: Props) {
               Sessions on {formatSessionDate(selectedDate)}
             </Text>
 
+            {!isStaff ? (
+              <Button
+                label="Book Practical Training"
+                icon="fitness-outline"
+                variant="accent"
+                onPress={() => navigation.navigate('BookTraining', { date: selectedDate })}
+                style={styles.bookTrainingBtn}
+              />
+            ) : null}
+
             {sessionsForSelectedDate.map((session, index) => (
               <SessionListItem
                 key={session.id}
@@ -335,6 +341,18 @@ export function CalendarScreen({ navigation }: Props) {
               <Text variant="title">{formatSessionDate(selectedDate)}</Text>
               <IconButton name="close" onPress={() => setSheetOpen(false)} />
             </View>
+            {!isStaff ? (
+              <Button
+                label="Book Practical Training"
+                icon="fitness-outline"
+                variant="accent"
+                onPress={() => {
+                  setSheetOpen(false);
+                  navigation.navigate('BookTraining', { date: selectedDate });
+                }}
+                style={styles.sheetBookTraining}
+              />
+            ) : null}
             <ScrollView style={styles.sheetList} {...smoothScrollProps}>
               {sessionsForSelectedDate.map((session, index) => (
                 <SessionListItem
@@ -379,6 +397,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: tokens.spacing.md,
+  },
+  headerSpacer: {
+    width: 40,
   },
   controls: {
     flexDirection: 'row',
@@ -461,6 +482,9 @@ const styles = StyleSheet.create({
     marginTop: tokens.spacing.xl,
     marginBottom: tokens.spacing.md,
   },
+  bookTrainingBtn: {
+    marginBottom: tokens.spacing.md,
+  },
   empty: {
     textAlign: 'center',
     paddingVertical: tokens.spacing.xl,
@@ -504,6 +528,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: tokens.spacing.md,
+  },
+  sheetBookTraining: {
     marginBottom: tokens.spacing.md,
   },
   sheetList: {

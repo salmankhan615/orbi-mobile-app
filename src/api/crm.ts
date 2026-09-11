@@ -224,19 +224,53 @@ export async function getPracticalTrainingCalendar(params: {
 
 export async function getAvailableTrainingShifts(params: { date: string; location: string }) {
   const query = `?date=${encodeURIComponent(params.date)}&location=${encodeURIComponent(params.location)}`;
-  return apiClient.get<{ data?: { shifts?: unknown[] } }>(
-    `/api/practical-training/available-shifts${query}`,
-  );
+  return apiClient.get<{
+    success?: boolean;
+    data?: {
+      location?: { _id?: string };
+      date?: string;
+      shifts?: TrainingShiftRaw[];
+    };
+  }>(`/api/practical-training/available-shifts${query}`);
 }
 
+export type TrainingShiftRaw = {
+  _id?: string;
+  name?: string;
+  description?: string;
+  startTime?: string;
+  endTime?: string;
+  color?: string;
+  defaultLimit?: number;
+  currentLimit?: number;
+  /** Count of booked seats (naming trap vs class calendar). */
+  bookedSeats?: number;
+  bookedSeatNumbers?: number[];
+  /** Count of free seats. */
+  availableSeats?: number;
+  isOverridden?: boolean;
+  allowedAccessTypes?: string[];
+};
+
+/** Student app should omit `studentId` (server defaults to req.user). */
 export async function bookPracticalTraining(payload: {
   location: string;
   shift: string;
   date: string;
   seat: number;
-  studentId: string;
+  studentId?: string;
 }) {
-  return apiClient.post<unknown>('/api/practical-training/bookings', payload);
+  const body: Record<string, unknown> = {
+    location: payload.location,
+    shift: payload.shift,
+    date: payload.date,
+    seat: payload.seat,
+  };
+  if (payload.studentId) body.studentId = payload.studentId;
+  return apiClient.post<{ success?: boolean; message?: string; data?: unknown }>(
+    '/api/practical-training/bookings',
+    body,
+  );
 }
 
 export async function cancelPracticalBooking(dayId: string, bookingId: string) {
@@ -252,7 +286,7 @@ export async function getAllocationsByUser(userId: string) {
   );
 }
 
-/** Profile — multipart (`file` + fields). Screens should use `authApi.updateProfile`. */
+/** Profile PATCH — JSON fields, or multipart when `file` is included. */
 export async function updateCrmUser(payload: FormData | Record<string, unknown>) {
   return apiClient.patch<unknown>('/api/users/crm/updateUser', payload);
 }

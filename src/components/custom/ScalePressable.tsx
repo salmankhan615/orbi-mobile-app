@@ -1,11 +1,17 @@
 import { PropsWithChildren } from 'react';
-import { GestureResponderEvent, Pressable, PressableProps, ViewStyle } from 'react-native';
+import {
+  GestureResponderEvent,
+  Pressable,
+  PressableProps,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { tokens } from '@/theme';
 import { haptics } from '@/utils/haptics';
 
-interface ScalePressableProps extends PropsWithChildren, Pick<PressableProps, 'onPress'> {
-  style?: ViewStyle | ViewStyle[];
+interface ScalePressableProps extends PropsWithChildren, Pick<PressableProps, 'onPress' | 'disabled'> {
+  style?: StyleProp<ViewStyle>;
   scaleTo?: number;
   haptic?: boolean;
   hapticStyle?: 'tap' | 'select';
@@ -22,6 +28,7 @@ export function ScalePressable({
   scaleTo = 0.97,
   haptic = true,
   hapticStyle = 'tap',
+  disabled,
 }: ScalePressableProps) {
   const scale = useSharedValue(1);
 
@@ -30,7 +37,7 @@ export function ScalePressable({
   }));
 
   function fireHaptic() {
-    if (!haptic) return;
+    if (!haptic || disabled) return;
     if (hapticStyle === 'select') {
       haptics.select();
       return;
@@ -39,6 +46,7 @@ export function ScalePressable({
   }
 
   function handlePressIn() {
+    if (disabled) return;
     fireHaptic();
     // eslint-disable-next-line react-hooks/immutability -- Reanimated SharedValue, not React state
     scale.value = withSpring(scaleTo, tokens.spring.press);
@@ -50,11 +58,13 @@ export function ScalePressable({
   }
 
   function handlePress(event: GestureResponderEvent) {
+    if (disabled) return;
     onPress?.(event);
   }
 
   return (
     <AnimatedPressable
+      disabled={disabled}
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}

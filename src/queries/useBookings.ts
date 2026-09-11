@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { cancelClassBooking, cancelPracticalBooking, getClassAvailability } from '@/api/crm';
 import { bookingsApi, type BookingKind } from '@/api/bookings';
+import { trainingApi } from '@/api/training';
 import { sessionsKeys } from '@/queries/useSessions';
 import { requireUserId } from '@/api/sessionUser';
 
@@ -11,6 +12,9 @@ export const bookingKeys = {
   staff: ['bookings', 'staff'] as const,
   detail: (id: string) => ['bookings', id] as const,
   availability: (classId: string) => ['bookings', 'availability', classId] as const,
+  trainingLocations: ['bookings', 'training', 'locations'] as const,
+  trainingShifts: (date: string, locationId: string) =>
+    ['bookings', 'training', 'shifts', date, locationId] as const,
 };
 
 function invalidateBookingQueries(client: ReturnType<typeof useQueryClient>) {
@@ -58,6 +62,34 @@ export function useClassAvailability(classId: string, enabled = true) {
       return getClassAvailability(classId, userId);
     },
     enabled: Boolean(classId) && enabled,
+  });
+}
+
+export function useTrainingLocations() {
+  return useQuery({
+    queryKey: bookingKeys.trainingLocations,
+    queryFn: () => trainingApi.listLocations(),
+  });
+}
+
+export function useAvailableTrainingShifts(date: string, locationId: string) {
+  return useQuery({
+    queryKey: bookingKeys.trainingShifts(date, locationId),
+    queryFn: () => trainingApi.listShifts(date, locationId),
+    enabled: Boolean(date && locationId),
+  });
+}
+
+export function useBookTrainingShift() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: trainingApi.book,
+    onSuccess: (_data, vars) => {
+      invalidateBookingQueries(client);
+      client.invalidateQueries({
+        queryKey: bookingKeys.trainingShifts(vars.date, vars.locationId),
+      });
+    },
   });
 }
 

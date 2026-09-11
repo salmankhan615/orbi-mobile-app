@@ -484,7 +484,6 @@ export const bookingsApi = {
         shift: shiftId,
         date,
         seat,
-        studentId: student.id,
       });
       return {
         id: `training:${date}:${shiftId}`,
