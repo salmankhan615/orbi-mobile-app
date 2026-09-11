@@ -99,10 +99,11 @@ export function ChangePasswordScreen() {
       />
 
       <Text variant="overline" color="textMuted" style={styles.forgotLabel}>
-        Forgot password
+        Forgot current password
       </Text>
       <Text variant="bodySmall" color="textSecondary" style={styles.forgotCopy}>
-        We will send a reset link to {email || 'your account email'}.
+        We will email a reset link to {email || 'your account email'}. Open that email to set a new
+        password, then sign in again.
       </Text>
       <Button
         variant="outline"

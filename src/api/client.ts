@@ -113,7 +113,10 @@ async function parseBody(response: Response): Promise<unknown> {
 }
 
 function isFormDataBody(body: unknown): body is FormData {
-  return typeof FormData !== 'undefined' && body instanceof FormData;
+  if (!body || typeof body !== 'object') return false;
+  if (typeof FormData !== 'undefined' && body instanceof FormData) return true;
+  // Hermes can fail `instanceof FormData` across realms — still must not JSON.stringify.
+  return typeof (body as FormData).append === 'function';
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {

@@ -14,6 +14,7 @@ import type {
   LessonMediaType,
 } from '@/api/courses';
 import { crmCourseMediaUrl } from '@/api/crmMedia';
+import { stripHtml } from '@/utils/stripHtml';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -97,7 +98,7 @@ function isQuizOnlyPanel(panel: UnknownRecord, media: LessonMedia[]): boolean {
   const quizzes = asArray(panel.quizzes);
   if (quizzes.length === 0) return false;
   if (media.length > 0) return false;
-  const content = str(panel.content, panel.description, panel.panelDescription);
+  const content = stripHtml(str(panel.content, panel.description, panel.panelDescription));
   return isPlaceholderContent(content);
 }
 
@@ -268,7 +269,7 @@ function mapModules(course: UnknownRecord, courseRow: UnknownRecord | null = nul
       if (isQuizOnlyPanel(item, media)) return;
 
       const title = str(item.panelTitle, item.title, item.name) || `Lesson ${panelIndex + 1}`;
-      const rawContent = str(item.description, item.content, item.panelDescription);
+      const rawContent = stripHtml(str(item.description, item.content, item.panelDescription));
       const description = isPlaceholderContent(rawContent) ? title : rawContent;
       const videoUrl = media.find((m) => m.type === 'VIDEO')?.url ?? '';
       const hasQuiz = asArray(item.quizzes).length > 0;
@@ -391,8 +392,9 @@ export function mapAllocatedCoursesToApp(packs: unknown[]): Course[] {
       id,
       title,
       description:
-        str(course.courseDescription, course.courseOverview, course.description, course.overview) ||
-        title,
+        stripHtml(
+          str(course.courseDescription, course.courseOverview, course.description, course.overview),
+        ) || title,
       category: hashCategory(id),
       status: statusFromProgress(progress, expired),
       progress,
@@ -423,8 +425,9 @@ export function mapCourseDetailToApp(
     id,
     title,
     description:
-      str(course.courseDescription, course.courseOverview, course.description, course.overview) ||
-      title,
+      stripHtml(
+        str(course.courseDescription, course.courseOverview, course.description, course.overview),
+      ) || title,
     category: hashCategory(id),
     status: statusFromProgress(progress, false),
     progress,

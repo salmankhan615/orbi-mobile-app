@@ -1,6 +1,7 @@
 import { apiClient, clearApiSession, getApiSession, setApiSession } from '@/api/client';
 import { AUTH_API_PREFIX } from '@/api/config';
 import { crmCourseMediaUrl } from '@/api/crmMedia';
+import { Platform } from 'react-native';
 import {
   ALL_STAFF_PERMISSIONS,
   SESSION_DURATION_MS,
@@ -226,14 +227,16 @@ function appendField(form: FormData, key: string, value?: string) {
 }
 
 function appendProfileFile(form: FormData, file: ProfilePhotoFile) {
-  if (file.blob) {
+  // Native RN FormData needs { uri, name, type }. A web Blob/File from the picker
+  // is often HEIC — only append blob when we already transcoded to JPEG.
+  if (Platform.OS === 'web' && file.blob) {
     form.append('file', file.blob, file.name);
     return;
   }
   form.append('file', {
     uri: file.uri,
-    name: file.name,
-    type: file.type,
+    name: file.name || 'profile.jpg',
+    type: file.type || 'image/jpeg',
   } as unknown as Blob);
 }
 
@@ -296,31 +299,20 @@ export const authApi = {
   },
 
   async updateProfile(payload: UpdateProfilePayload): Promise<AuthUser> {
-    const fields = {
-      name: payload.firstName.trim(),
-      lname: payload.lastName.trim(),
-      phone: payload.phone?.trim() || undefined,
-      mobile: payload.mobile?.trim() || undefined,
-      country: payload.country?.trim() || undefined,
-      city: payload.city?.trim() || undefined,
-    };
-
-    // PATCH is partial: skip `file` unless a new photo was picked.
-    let raw: unknown;
+    // Always multipart — JSON PATCH leaves multer with no `file` and CRM returns
+    // "profile picture not selected". Omit `file` when the photo did not change.
+    const form = new FormData();
+    appendField(form, 'name', payload.firstName.trim());
+    appendField(form, 'lname', payload.lastName.trim());
+    appendField(form, 'phone', payload.phone?.trim());
+    appendField(form, 'mobile', payload.mobile?.trim());
+    appendField(form, 'country', payload.country?.trim());
+    appendField(form, 'city', payload.city?.trim());
     if (payload.file) {
-      const form = new FormData();
-      appendField(form, 'name', fields.name);
-      appendField(form, 'lname', fields.lname);
-      appendField(form, 'phone', fields.phone);
-      appendField(form, 'mobile', fields.mobile);
-      appendField(form, 'country', fields.country);
-      appendField(form, 'city', fields.city);
       appendProfileFile(form, payload.file);
-      raw = await apiClient.patch<unknown>(`${AUTH_API_PREFIX}/updateUser`, form);
-    } else {
-      raw = await apiClient.patch<unknown>(`${AUTH_API_PREFIX}/updateUser`, fields);
     }
 
+    const raw = await apiClient.patch<unknown>(`${AUTH_API_PREFIX}/updateUser`, form);
     return userFromUpdateResponse(raw, '') ?? (await authApi.getUser());
   },
 

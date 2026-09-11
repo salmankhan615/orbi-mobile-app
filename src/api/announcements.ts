@@ -5,6 +5,7 @@ import {
   getMyAnnouncements,
   updateAnnouncement,
 } from '@/api/crm';
+import { stripHtml } from '@/utils/stripHtml';
 
 export type AnnouncementAudience = 'all' | 'students' | 'staff';
 
@@ -40,21 +41,6 @@ function idOf(value: unknown): string | null {
   if (record._id != null) return String(record._id);
   if (record.$oid != null) return String(record.$oid);
   return null;
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\s+\n/g, '\n')
-    .replace(/\n\s+/g, '\n')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
 }
 
 function mapAudience(raw: UnknownRecord): AnnouncementAudience {

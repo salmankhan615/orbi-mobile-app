@@ -2,6 +2,7 @@ import { getStudentCoursework } from '@/api/crm';
 import { requireUserId } from '@/api/sessionUser';
 import { unwrapList } from '@/api/unwrap';
 import type { CourseworkFeedback, CourseworkFile, CourseworkItem } from '@/api/staff';
+import { stripHtml } from '@/utils/stripHtml';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -96,7 +97,7 @@ function mapComments(raw: unknown): CourseworkFeedback[] {
   for (const item of asArray(raw)) {
     const row = asRecord(item);
     if (!row) continue;
-    const text = str(row.text, row.comment, row.message);
+    const text = stripHtml(str(row.text, row.comment, row.message));
     if (!text) continue;
     comments.push({
       id: idOf(row._id) ?? text.slice(0, 12),
@@ -141,7 +142,7 @@ export function mapStudentCoursework(raw: unknown): CourseworkItem[] {
       status: mapStatus(row),
       score: num(submission?.score),
       maxScore: num(row.maxScore),
-      instructions: str(row.instructions) || undefined,
+      instructions: stripHtml(str(row.instructions)) || undefined,
       attachments,
       submission: submission
         ? {

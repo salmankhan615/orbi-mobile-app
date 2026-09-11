@@ -106,9 +106,11 @@ export function CourseDetailScreen({ route, navigation }: Props) {
           }
           tone={course.accessExpired ? 'danger' : 'success'}
         />
-        <Text variant="bodySmall" color="onPrimary" style={styles.heroDesc}>
-          {course.description}
-        </Text>
+        {course.description !== course.title ? (
+          <Text variant="bodySmall" color="onPrimary" style={styles.heroDesc} numberOfLines={3}>
+            {course.description}
+          </Text>
+        ) : null}
         <Ionicons
           name="analytics-outline"
           size={48}

@@ -10,22 +10,11 @@ import { TextField } from '@/components/ui/TextField';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { StackScreen } from '@/components/custom/StackScreen';
 import type { ProfilePhotoFile } from '@/api/auth';
+import { jpegProfilePhoto } from '@/features/profile/jpegProfilePhoto';
 import { authErrorMessage, useUpdateProfile } from '@/queries/useAuth';
 import { useAuthStore, displayPhone } from '@/store/useAuthStore';
 import { useToastStore } from '@/store/useToastStore';
 import { haptics } from '@/utils/haptics';
-
-function photoFromAsset(asset: ImagePicker.ImagePickerAsset): ProfilePhotoFile {
-  const uri = asset.uri;
-  const ext = uri.split('.').pop()?.split('?')[0]?.toLowerCase() || 'jpg';
-  const mime = ext === 'jpg' ? 'jpeg' : ext;
-  return {
-    uri,
-    name: asset.fileName || `profile.${ext}`,
-    type: asset.mimeType || `image/${mime}`,
-    blob: asset.file ?? undefined,
-  };
-}
 
 export function EditProfileScreen() {
   const navigation = useNavigation();
@@ -39,6 +28,7 @@ export function EditProfileScreen() {
   const [country, setCountry] = useState(user?.country ?? '');
   const [city, setCity] = useState(user?.city ?? '');
   const [photo, setPhoto] = useState<ProfilePhotoFile | null>(null);
+  const [picking, setPicking] = useState(false);
 
   const previewUri = photo?.uri || user?.photoUrl;
   const initial = (firstName || user?.firstName || 'G').charAt(0).toUpperCase();
@@ -57,11 +47,21 @@ export function EditProfileScreen() {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 1,
+      preferredAssetRepresentationMode:
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
 
     if (result.canceled || !result.assets[0]) return;
-    setPhoto(photoFromAsset(result.assets[0]));
+
+    setPicking(true);
+    try {
+      setPhoto(await jpegProfilePhoto(result.assets[0]));
+    } catch {
+      showToast('Could not read that photo. Try a JPEG or PNG.', 'danger');
+    } finally {
+      setPicking(false);
+    }
   }
 
   function handleSave() {
@@ -105,7 +105,7 @@ export function EditProfileScreen() {
           </View>
         </View>
         <Text variant="caption" color="secondary" style={styles.photoHint}>
-          Optional — tap to change photo
+          {picking ? 'Preparing photo…' : photo ? 'New photo ready — tap to change' : 'Optional — tap to change photo'}
         </Text>
       </ScalePressable>
 
@@ -127,7 +127,7 @@ export function EditProfileScreen() {
         label="Save"
         loading={save.isPending}
         onPress={handleSave}
-        disabled={save.isPending || !firstName.trim()}
+        disabled={save.isPending || picking || !firstName.trim()}
         style={styles.save}
       />
     </StackScreen>
