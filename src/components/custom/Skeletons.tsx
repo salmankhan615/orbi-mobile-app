@@ -8,9 +8,15 @@ function RowCard({ children }: { children: ReactNode }) {
   return <View style={styles.rowCard}>{children}</View>;
 }
 
-export function EntityListSkeleton({ rows = 4 }: { rows?: number }) {
+export function EntityListSkeleton({
+  rows = 4,
+  flush = false,
+}: {
+  rows?: number;
+  flush?: boolean;
+}) {
   return (
-    <SkeletonStack>
+    <SkeletonStack style={flush ? undefined : styles.block}>
       {Array.from({ length: rows }, (_, index) => (
         <RowCard key={index}>
           <Skeleton circle height={40} />
@@ -26,7 +32,7 @@ export function EntityListSkeleton({ rows = 4 }: { rows?: number }) {
 
 export function CourseListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
-    <SkeletonStack>
+    <SkeletonStack style={styles.block}>
       {Array.from({ length: rows }, (_, index) => (
         <RowCard key={index}>
           <Skeleton width={52} height={52} radius={tokens.radius.md} />
@@ -43,7 +49,7 @@ export function CourseListSkeleton({ rows = 4 }: { rows?: number }) {
 
 export function ConversationListSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <SkeletonStack>
+    <SkeletonStack style={styles.block}>
       {Array.from({ length: rows }, (_, index) => (
         <RowCard key={index}>
           <Skeleton circle height={48} />
@@ -60,7 +66,7 @@ export function ConversationListSkeleton({ rows = 5 }: { rows?: number }) {
 
 export function CardListSkeleton({ rows = 3 }: { rows?: number }) {
   return (
-    <SkeletonStack>
+    <SkeletonStack style={styles.block}>
       {Array.from({ length: rows }, (_, index) => (
         <View key={index} style={styles.blockCard}>
           <Skeleton width="55%" height={12} />
@@ -74,7 +80,7 @@ export function CardListSkeleton({ rows = 3 }: { rows?: number }) {
 
 export function CourseCarouselSkeleton() {
   return (
-    <View style={styles.carousel}>
+    <View style={[styles.carousel, styles.block]}>
       {Array.from({ length: 3 }, (_, index) => (
         <View key={index} style={styles.courseCard}>
           <Skeleton width={42} height={42} radius={tokens.radius.md} />
@@ -125,7 +131,7 @@ export function HomeSkeleton() {
 
 export function CalendarSkeleton() {
   return (
-    <SkeletonStack gap={tokens.spacing.lg}>
+    <SkeletonStack gap={tokens.spacing.lg} style={styles.block}>
       <View style={styles.monthCard}>
         {Array.from({ length: 6 }, (_, row) => (
           <View key={row} style={styles.weekRow}>
@@ -137,14 +143,14 @@ export function CalendarSkeleton() {
           </View>
         ))}
       </View>
-      <EntityListSkeleton rows={3} />
+      <EntityListSkeleton rows={3} flush />
     </SkeletonStack>
   );
 }
 
 export function DashboardSkeleton() {
   return (
-    <SkeletonStack>
+    <SkeletonStack style={styles.block}>
       <View style={styles.blockCard}>
         <Skeleton width="48%" height={18} />
         <View style={styles.dashRow}>
@@ -168,6 +174,9 @@ export function DashboardSkeleton() {
 }
 
 const styles = StyleSheet.create({
+  block: {
+    marginVertical: tokens.spacing.xl,
+  },
   rowCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -193,7 +202,7 @@ const styles = StyleSheet.create({
     ...tokens.shadows.sm,
   },
   pulseWrap: {
-    marginBottom: tokens.spacing.xl,
+    marginVertical: tokens.spacing.xl,
     borderRadius: tokens.radius.xl,
     overflow: 'hidden',
     ...tokens.shadows.md,
@@ -229,7 +238,6 @@ const styles = StyleSheet.create({
   carousel: {
     flexDirection: 'row',
     gap: tokens.spacing.md,
-    paddingBottom: tokens.spacing.xl,
   },
   courseCard: {
     width: 160,
