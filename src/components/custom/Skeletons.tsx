@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { tokens } from '@/theme';
 import { Skeleton, SkeletonStack } from '@/components/ui/Skeleton';
 
@@ -75,7 +76,20 @@ export function CourseCarouselSkeleton() {
   return (
     <View style={styles.carousel}>
       {Array.from({ length: 3 }, (_, index) => (
-        <Skeleton key={index} width={160} height={170} radius={tokens.radius.xl} />
+        <View key={index} style={styles.courseCard}>
+          <Skeleton width={42} height={42} radius={tokens.radius.md} />
+          <View style={styles.courseCardCopy}>
+            <Skeleton width="92%" height={12} />
+            <Skeleton width="64%" height={12} />
+          </View>
+          <View style={styles.courseCardMeta}>
+            <Skeleton width="100%" height={4} radius={tokens.radius.full} />
+            <View style={styles.courseCardFooter}>
+              <Skeleton width={28} height={10} />
+              <Skeleton width={52} height={10} />
+            </View>
+          </View>
+        </View>
       ))}
     </View>
   );
@@ -83,14 +97,28 @@ export function CourseCarouselSkeleton() {
 
 export function HomeSkeleton() {
   return (
-    <View style={styles.pulse}>
-      <Skeleton width="28%" height={10} />
-      <Skeleton width="54%" height={20} />
-      <View style={styles.pulseRow}>
-        <Skeleton width="31%" height={36} radius={tokens.radius.md} />
-        <Skeleton width="31%" height={36} radius={tokens.radius.md} />
-        <Skeleton width="31%" height={36} radius={tokens.radius.md} />
-      </View>
+    <View style={styles.pulseWrap}>
+      <LinearGradient
+        colors={tokens.gradients.brand}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.pulse}
+      >
+        <View style={styles.pulseTop}>
+          <View style={styles.pulseCopy}>
+            <Skeleton width="28%" height={10} style={styles.pulseBone} />
+            <Skeleton width="62%" height={20} style={styles.pulseBone} />
+            <Skeleton width="48%" height={10} style={styles.pulseBone} />
+          </View>
+          <Skeleton width={28} height={28} radius={tokens.radius.md} style={styles.pulseBone} />
+        </View>
+        <View style={styles.pulseRow}>
+          <View style={styles.pulseMini} />
+          <View style={styles.pulseMini} />
+          <View style={styles.pulseMini} />
+        </View>
+        <Skeleton width="38%" height={14} style={styles.pulseBone} />
+      </LinearGradient>
     </View>
   );
 }
@@ -164,19 +192,67 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.md,
     ...tokens.shadows.sm,
   },
-  pulse: {
-    backgroundColor: tokens.colors.primaryMuted,
+  pulseWrap: {
+    marginBottom: tokens.spacing.xl,
     borderRadius: tokens.radius.xl,
+    overflow: 'hidden',
+    ...tokens.shadows.md,
+  },
+  pulse: {
     padding: tokens.spacing.lg,
     gap: tokens.spacing.md,
+  },
+  pulseTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.md,
+  },
+  pulseCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  pulseBone: {
+    backgroundColor: tokens.colors.glassTint,
   },
   pulseRow: {
     flexDirection: 'row',
     gap: tokens.spacing.sm,
   },
+  pulseMini: {
+    flex: 1,
+    height: 48,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.colors.glassTint,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.glassBorder,
+  },
   carousel: {
     flexDirection: 'row',
     gap: tokens.spacing.md,
+    paddingBottom: tokens.spacing.xl,
+  },
+  courseCard: {
+    width: 160,
+    minHeight: 170,
+    borderRadius: tokens.radius.xl,
+    backgroundColor: tokens.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
+    padding: tokens.spacing.lg,
+    justifyContent: 'space-between',
+    ...tokens.shadows.md,
+  },
+  courseCardCopy: {
+    gap: tokens.spacing.sm,
+    marginVertical: tokens.spacing.md,
+  },
+  courseCardMeta: {
+    gap: tokens.spacing.sm,
+  },
+  courseCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   monthCard: {
     backgroundColor: tokens.colors.surface,
