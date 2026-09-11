@@ -56,7 +56,7 @@ export function BookSlotList({ kind, title }: BookSlotListProps) {
         kicker={isClass ? 'Classroom' : 'Practical'}
         title={isClass ? 'Available classes' : 'Available training'}
         subtitle="Choose a slot with seats remaining, then confirm."
-        icon={isClass ? 'school-outline' : 'fitness-outline'}
+        icon={isClass ? 'school-outline' : 'people-outline'}
       />
 
       {isLoading ? (
@@ -74,7 +74,7 @@ export function BookSlotList({ kind, title }: BookSlotListProps) {
               <View style={styles.top}>
                 <View style={styles.iconChip}>
                   <Ionicons
-                    name={isClass ? 'book-outline' : 'barbell-outline'}
+                    name={isClass ? 'book-outline' : 'people-outline'}
                     size={18}
                     color={tokens.colors.secondary}
                   />

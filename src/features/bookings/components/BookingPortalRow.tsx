@@ -28,7 +28,7 @@ export function BookingPortalRow({ booking, index }: BookingPortalRowProps) {
         <View style={styles.header}>
           <View style={styles.iconChip}>
             <Ionicons
-              name={isTraining ? 'fitness-outline' : 'school-outline'}
+              name={isTraining ? 'people-outline' : 'school-outline'}
               size={18}
               color={tokens.colors.secondary}
             />

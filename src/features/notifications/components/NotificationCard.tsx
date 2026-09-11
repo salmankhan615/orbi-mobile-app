@@ -32,7 +32,7 @@ export const NOTIFICATION_META: Record<
     chipFg: 'secondary',
   },
   upcoming_training: {
-    icon: 'fitness-outline',
+    icon: 'people-outline',
     tone: 'warning',
     label: 'Training',
     chipBg: 'tertiaryMuted',

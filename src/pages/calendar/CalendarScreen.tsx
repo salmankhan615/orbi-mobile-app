@@ -263,7 +263,7 @@ export function CalendarScreen({ navigation }: Props) {
             {!isStaff ? (
               <Button
                 label="Book Practical Training"
-                icon="fitness-outline"
+                icon="people-outline"
                 variant="accent"
                 onPress={() => navigation.navigate('BookTraining', { date: selectedDate })}
                 style={styles.bookTrainingBtn}
@@ -359,7 +359,7 @@ export function CalendarScreen({ navigation }: Props) {
             {!isStaff ? (
               <Button
                 label="Book Practical Training"
-                icon="fitness-outline"
+                icon="people-outline"
                 variant="accent"
                 onPress={() => {
                   setSheetOpen(false);

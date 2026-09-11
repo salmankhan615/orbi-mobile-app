@@ -17,6 +17,8 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothScrollProps } from '@/utils/scroll';
 import { CourseSummaryCard } from '@/features/courses/components/CourseSummaryCard';
+import { CourseCard } from '@/features/courses/components/CourseCard';
+import { courseMatchesQuery } from '@/features/courses/searchCourses';
 import { HomeSkeleton, CourseCarouselSkeleton } from '@/components/custom/Skeletons';
 import type { MainTabScreenProps } from '@/navigation/types';
 
@@ -54,8 +56,10 @@ export function HomeScreen({ navigation }: Props) {
   }, [bootstrap, packsQuery.data, user?.id]);
 
   const firstName = bootstrap?.user.firstName ?? user?.firstName ?? 'there';
-  const filteredCourses = (courses ?? []).filter((course) =>
-    query.trim() ? course.title.toLowerCase().includes(query.trim().toLowerCase()) : true,
+  const needle = query.trim();
+  const filteredCourses = useMemo(
+    () => (courses ?? []).filter((course) => courseMatchesQuery(course, needle)),
+    [courses, needle],
   );
   const pendingAnnouncement = (announcements ?? []).find((item) => !item.isAcknowledged);
   const showHomeSkeleton =
@@ -69,7 +73,7 @@ export function HomeScreen({ navigation }: Props) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
         {...smoothScrollProps}
       >
         <View style={styles.greetingRow}>
@@ -97,25 +101,6 @@ export function HomeScreen({ navigation }: Props) {
           </>
         )}
 
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color={tokens.colors.textMuted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search courses..."
-            placeholderTextColor={tokens.colors.textMuted}
-            style={styles.searchInput}
-            returnKeyType="search"
-          />
-          <ScalePressable
-            onPress={() => navigation.navigate('Courses')}
-            haptic={false}
-            style={styles.filterBtn}
-          >
-            <Ionicons name="options-outline" size={18} color={tokens.colors.primary} />
-          </ScalePressable>
-        </View>
-
         <View style={styles.shortcuts}>
           <Shortcut
             icon="clipboard-outline"
@@ -138,28 +123,65 @@ export function HomeScreen({ navigation }: Props) {
           </ScalePressable>
         </View>
 
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={18} color={tokens.colors.textMuted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search my courses..."
+            placeholderTextColor={tokens.colors.textMuted}
+            style={styles.searchInput}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+            clearButtonMode="while-editing"
+          />
+          {query.length > 0 ? (
+            <ScalePressable onPress={() => setQuery('')} haptic={false} style={styles.filterBtn}>
+              <Ionicons name="close-circle" size={18} color={tokens.colors.textMuted} />
+            </ScalePressable>
+          ) : null}
+        </View>
+
         {showHomeSkeleton || (coursesLoading && !courses) ? (
           <CourseCarouselSkeleton />
+        ) : filteredCourses.length === 0 ? (
+          <EmptyState
+            icon="book-outline"
+            title={needle ? 'No matching courses' : 'No courses yet'}
+            message={
+              needle
+                ? `Nothing matches "${needle}". Try another title or module name.`
+                : 'Your allocated courses will show up here.'
+            }
+          />
+        ) : needle ? (
+          <View style={styles.searchResults}>
+            {filteredCourses.map((course, index) => (
+              <CourseCard
+                key={course.id}
+                course={course}
+                index={index}
+                onPress={() => navigation.navigate('CourseDetail', { courseId: course.id })}
+              />
+            ))}
+          </View>
         ) : (
-          <>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.courseRow}
-            >
-              {filteredCourses.map((course, index) => (
-                <CourseSummaryCard
-                  key={course.id}
-                  course={course}
-                  index={index}
-                  onPress={() => navigation.navigate('CourseDetail', { courseId: course.id })}
-                />
-              ))}
-            </ScrollView>
-            {filteredCourses.length === 0 ? (
-              <EmptyState icon="book-outline" message="No courses match your search." />
-            ) : null}
-          </>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="always"
+            contentContainerStyle={styles.courseRow}
+          >
+            {filteredCourses.map((course, index) => (
+              <CourseSummaryCard
+                key={course.id}
+                course={course}
+                index={index}
+                onPress={() => navigation.navigate('CourseDetail', { courseId: course.id })}
+              />
+            ))}
+          </ScrollView>
         )}
 
         <ScalePressable onPress={() => navigation.navigate('Calendar')} style={styles.banner}>
@@ -279,6 +301,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    height: '100%',
     fontSize: tokens.fontSize.md,
     fontFamily: tokens.fontFamily.regular,
     color: tokens.colors.textPrimary,
@@ -321,6 +344,9 @@ const styles = StyleSheet.create({
   },
   courseRow: {
     gap: tokens.spacing.md,
+    paddingBottom: tokens.spacing.xl,
+  },
+  searchResults: {
     paddingBottom: tokens.spacing.xl,
   },
   banner: {

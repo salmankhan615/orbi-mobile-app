@@ -11,6 +11,7 @@ import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothListProps } from '@/utils/scroll';
 import { CourseCard } from '@/features/courses/components/CourseCard';
 import { CourseListSkeleton } from '@/components/custom/Skeletons';
+import { courseMatchesQuery } from '@/features/courses/searchCourses';
 import type { Course, CourseStatus } from '@/api/courses';
 import type { MainTabScreenProps } from '@/navigation/types';
 
@@ -35,8 +36,7 @@ export function CoursesListScreen({ navigation }: Props) {
     const byStatus =
       activeFilter === 'all' ? courses : courses.filter((course) => course.status === activeFilter);
     if (!query.trim()) return byStatus;
-    const needle = query.trim().toLowerCase();
-    return byStatus.filter((course) => course.title.toLowerCase().includes(needle));
+    return byStatus.filter((course) => courseMatchesQuery(course, query));
   }, [courses, activeFilter, query]);
 
   return (

@@ -133,7 +133,7 @@ export function BookTrainingScreen({ route, navigation }: Props) {
             kicker={heroDate.weekday}
             title={heroDate.rest}
             subtitle="Pick a location, shift, and seat to confirm."
-            icon="fitness-outline"
+            icon="people-outline"
           />
 
           <View style={styles.steps}>
