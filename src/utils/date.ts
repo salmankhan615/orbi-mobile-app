@@ -56,6 +56,20 @@ export function formatFullDate(date: Date): string {
   });
 }
 
+/** Long display date from an ISO day, e.g. Monday · 14 September 2026. */
+export function formatHeroDate(iso: string): { weekday: string; rest: string } {
+  const date = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return { weekday: '', rest: iso };
+  return {
+    weekday: date.toLocaleDateString('en-US', { weekday: 'long' }),
+    rest: date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    }),
+  };
+}
+
 /** Portal-style date label, e.g. 13/10/2026. */
 export function formatPortalDate(value: string | Date | undefined | null): string {
   if (!value) return '—';

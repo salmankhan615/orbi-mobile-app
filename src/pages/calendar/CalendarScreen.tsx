@@ -16,6 +16,7 @@ import { MonthGrid } from '@/features/calendar/components/MonthGrid';
 import { WeekGrid } from '@/features/calendar/components/WeekGrid';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
 import { CalendarSkeleton, EntityListSkeleton } from '@/components/custom/Skeletons';
+import { EmptyState } from '@/components/custom/EmptyState';
 import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
 import {
   formatWeekRange,
@@ -238,7 +239,7 @@ export function CalendarScreen({ navigation }: Props) {
                 <View
                   style={[styles.legendDot, { backgroundColor: tokens.colors[SESSION_TYPE_COLOR.blue] }]}
                 />
-                <Text variant="caption" color="textMuted">
+                <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
                   Booked
                 </Text>
               </View>
@@ -249,7 +250,7 @@ export function CalendarScreen({ navigation }: Props) {
                     { backgroundColor: tokens.colors[SESSION_TYPE_COLOR.green] },
                   ]}
                 />
-                <Text variant="caption" color="textMuted">
+                <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
                   Open to book
                 </Text>
               </View>
@@ -283,10 +284,11 @@ export function CalendarScreen({ navigation }: Props) {
                 ))}
 
                 {sessionsForSelectedDate.length === 0 && (
-                  <Text variant="bodySmall" color="textMuted" style={styles.empty}>
-                    No sessions this day
-                    {selectedCalendarId !== 'all' ? ` in ${selectedCalendar?.name}` : ''}
-                  </Text>
+                  <EmptyState
+                    icon="calendar-outline"
+                    title="Free day"
+                    message={`No sessions on this date${selectedCalendarId !== 'all' ? ` in ${selectedCalendar?.name}` : ''}.`}
+                  />
                 )}
               </>
             )}
@@ -328,9 +330,11 @@ export function CalendarScreen({ navigation }: Props) {
               </View>
             ))}
             {groupedForList.length === 0 ? (
-              <Text variant="bodySmall" color="textMuted" style={styles.empty}>
-                No sessions in this calendar yet.
-              </Text>
+              <EmptyState
+                icon="calendar-outline"
+                title="No sessions"
+                message="Nothing in this calendar for the current period."
+              />
             ) : null}
           </>
         ) : null}
@@ -473,24 +477,32 @@ const styles = StyleSheet.create({
     borderColor: tokens.colors.border,
     padding: tokens.spacing.lg,
     paddingBottom: tokens.spacing.xl,
-    ...tokens.shadows.sm,
+    ...tokens.shadows.md,
   },
   legend: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: tokens.spacing.lg,
+    gap: tokens.spacing.sm,
     marginTop: tokens.spacing.md,
-    paddingHorizontal: tokens.spacing.xs,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing.xs,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
   },
   legendDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  legendLabel: {
+    fontFamily: tokens.fontFamily.medium,
   },
   sessionsHeader: {
     marginTop: tokens.spacing.xl,
@@ -498,10 +510,6 @@ const styles = StyleSheet.create({
   },
   bookTrainingBtn: {
     marginBottom: tokens.spacing.md,
-  },
-  empty: {
-    textAlign: 'center',
-    paddingVertical: tokens.spacing.xl,
   },
   viewFullDay: {
     marginTop: tokens.spacing.md,

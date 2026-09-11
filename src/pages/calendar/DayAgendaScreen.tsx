@@ -10,6 +10,7 @@ import { useSessions } from '@/queries/useSessions';
 import { useCalendar } from '@/queries/useCalendars';
 import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
+import { EmptyState } from '@/components/custom/EmptyState';
 import { getMonthDateRange } from '@/utils/date';
 import { smoothScrollProps } from '@/utils/scroll';
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -107,10 +108,11 @@ export function DayAgendaScreen({ route, navigation }: Props) {
         })}
 
         {daySessions.length === 0 && (
-          <Text variant="bodySmall" color="textMuted" style={styles.empty}>
-            No sessions this day
-            {calendar && calendarId && calendarId !== 'all' ? ` in ${calendar.name}` : ''}.
-          </Text>
+          <EmptyState
+            icon="calendar-outline"
+            title="Free day"
+            message={`No sessions this day${calendar && calendarId && calendarId !== 'all' ? ` in ${calendar.name}` : ''}.`}
+          />
         )}
           </>
         )}
@@ -178,7 +180,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radius.lg,
+    borderRadius: tokens.radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.border,
     padding: tokens.spacing.lg,
@@ -194,9 +196,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: tokens.spacing.xs,
-  },
-  empty: {
-    textAlign: 'center',
-    paddingTop: tokens.spacing.xl,
   },
 });

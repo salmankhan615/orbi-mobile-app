@@ -7,7 +7,7 @@ import { ScalePressable } from '@/components/custom/ScalePressable';
 import { FadeInView } from '@/components/custom/FadeInView';
 import { staggerDelay } from '@/utils/formatters';
 import { sessionStatusBadge, type Session } from '@/api/sessions';
-import { SESSION_TYPE_ICON, SESSION_TYPE_TINT } from '../sessionStyle';
+import { SESSION_TYPE_ICON, SESSION_TYPE_TINT, sessionAccentColor } from '../sessionStyle';
 
 interface SessionListItemProps {
   session: Session;
@@ -43,6 +43,7 @@ export function SessionListItem({
   return (
     <FadeInView delay={staggerDelay(index)} style={styles.wrapper}>
       <ScalePressable onPress={onPress} style={styles.card}>
+        <View style={[styles.accent, { backgroundColor: tokens.colors[sessionAccentColor(session)] }]} />
         {!hideDate && (
           <>
             <View style={styles.dateCol}>
@@ -100,9 +101,18 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.border,
     padding: tokens.spacing.md,
+    paddingLeft: tokens.spacing.md + 4,
     marginBottom: tokens.spacing.sm,
     gap: tokens.spacing.md,
+    overflow: 'hidden',
     ...tokens.shadows.sm,
+  },
+  accent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
   },
   dateCol: {
     width: 40,

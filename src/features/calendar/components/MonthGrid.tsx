@@ -3,7 +3,7 @@ import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import type { Session } from '@/api/sessions';
 import { SESSION_TYPE_COLOR } from '../sessionStyle';
-import { getMonthGrid, WEEKDAY_LABELS } from '@/utils/date';
+import { getMonthGrid, isSameDay, WEEKDAY_LABELS } from '@/utils/date';
 
 interface MonthGridProps {
   year: number;
@@ -22,6 +22,7 @@ export function MonthGrid({
   closedDates = [],
   onSelectDate,
 }: MonthGridProps) {
+  const today = new Date();
   const days = getMonthGrid(year, month);
   const weeks = Array.from({ length: days.length / 7 }, (_, index) =>
     days.slice(index * 7, index * 7 + 7),
@@ -44,11 +45,14 @@ export function MonthGrid({
             const isClosed = closedDates.includes(day.iso);
             const daySessions = sessionsByDate.get(day.iso) ?? [];
 
+            const isToday = isSameDay(day.iso, today);
+
             return (
               <Pressable key={day.iso} style={styles.dayCell} onPress={() => onSelectDate(day.iso)}>
                 <View
                   style={[
                     styles.dayCircle,
+                    isToday && !isSelected && styles.dayCircleToday,
                     isClosed && styles.dayCircleClosed,
                     isSelected && styles.dayCircleSelected,
                   ]}
@@ -111,8 +115,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  dayCircleToday: {
+    borderWidth: 1.5,
+    borderColor: tokens.colors.secondary,
+  },
   dayCircleSelected: {
     backgroundColor: tokens.colors.secondary,
+    ...tokens.shadows.sm,
   },
   dayCircleClosed: {
     backgroundColor: tokens.colors.tertiaryMuted,

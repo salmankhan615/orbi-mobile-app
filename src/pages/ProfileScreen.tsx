@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
@@ -15,6 +16,15 @@ import { haptics } from '@/utils/haptics';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Profile'>;
+
+const DETAIL_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Email: 'mail-outline',
+  Mobile: 'call-outline',
+  Company: 'business-outline',
+  Country: 'globe-outline',
+  City: 'location-outline',
+  Status: 'shield-checkmark-outline',
+};
 
 export function ProfileScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
@@ -74,36 +84,43 @@ export function ProfileScreen({ navigation }: Props) {
           Profile
         </Text>
 
-        <View style={styles.identityCard}>
-          <View style={styles.avatarWrap}>
-            {user?.photoUrl ? (
-              <Image source={{ uri: user.photoUrl }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatarFallback}>
-                <Text variant="heading" color="onPrimary">
-                  {initial}
-                </Text>
-              </View>
-            )}
-          </View>
+        <View style={styles.identityWrap}>
+          <LinearGradient
+            colors={tokens.gradients.brand}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.identityCard}
+          >
+            <View style={styles.avatarRing}>
+              {user?.photoUrl ? (
+                <Image source={{ uri: user.photoUrl }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text variant="heading" color="primary">
+                    {initial}
+                  </Text>
+                </View>
+              )}
+            </View>
 
-          <Text variant="title" style={styles.name}>
-            {name}
-          </Text>
-          <Text variant="bodySmall" color="textSecondary" style={styles.email}>
-            {user?.email ?? '—'}
-          </Text>
+            <Text variant="title" color="onPrimary" style={styles.name}>
+              {name}
+            </Text>
+            <Text variant="bodySmall" color="onPrimary" style={styles.email}>
+              {user?.email ?? '—'}
+            </Text>
 
-          <View style={styles.badges}>
-            <Badge label={roleLabel} tone="primary" style={styles.badge} />
-            {statusLabel ? (
-              <Badge
-                label={statusLabel}
-                tone={statusLabel.toLowerCase() === 'active' ? 'success' : 'neutral'}
-                style={styles.badge}
-              />
-            ) : null}
-          </View>
+            <View style={styles.badges}>
+              <Badge label={roleLabel} tone="neutral" style={styles.badge} />
+              {statusLabel ? (
+                <Badge
+                  label={statusLabel}
+                  tone={statusLabel.toLowerCase() === 'active' ? 'success' : 'neutral'}
+                  style={styles.badge}
+                />
+              ) : null}
+            </View>
+          </LinearGradient>
         </View>
 
         {details.length > 0 ? (
@@ -117,12 +134,21 @@ export function ProfileScreen({ navigation }: Props) {
                   key={row.label}
                   style={[styles.detailRow, index < details.length - 1 && styles.detailDivider]}
                 >
-                  <Text variant="caption" color="textMuted">
-                    {row.label}
-                  </Text>
-                  <Text variant="bodySmall" style={styles.detailValue} numberOfLines={2}>
-                    {row.value}
-                  </Text>
+                  <View style={styles.iconChip}>
+                    <Ionicons
+                      name={DETAIL_ICONS[row.label] ?? 'ellipse-outline'}
+                      size={16}
+                      color={tokens.colors.secondary}
+                    />
+                  </View>
+                  <View style={styles.detailCopy}>
+                    <Text variant="caption" color="textMuted">
+                      {row.label}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.detailValue} numberOfLines={2}>
+                      {row.value}
+                    </Text>
+                  </View>
                 </View>
               ))}
             </View>
@@ -137,9 +163,14 @@ export function ProfileScreen({ navigation }: Props) {
             <View style={styles.iconChip}>
               <Ionicons name="notifications" size={16} color={tokens.colors.secondary} />
             </View>
-            <Text variant="bodySmall" style={styles.toggleLabel}>
-              Push notifications
-            </Text>
+            <View style={styles.detailCopy}>
+              <Text variant="bodySmall" style={styles.toggleLabel}>
+                Push notifications
+              </Text>
+              <Text variant="caption" color="textMuted">
+                Class, training, and course alerts
+              </Text>
+            </View>
             <Switch
               value={notificationsOn}
               onValueChange={(value) => {
@@ -214,32 +245,41 @@ const styles = StyleSheet.create({
   pageTitle: {
     marginBottom: tokens.spacing.xl,
   },
+  identityWrap: {
+    marginBottom: tokens.spacing.xl,
+    borderRadius: tokens.radius.xl,
+    overflow: 'hidden',
+    ...tokens.shadows.md,
+  },
   identityCard: {
     alignItems: 'center',
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radius.xl,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.border,
     paddingVertical: tokens.spacing.xxl,
     paddingHorizontal: tokens.spacing.lg,
-    marginBottom: tokens.spacing.xl,
     gap: tokens.spacing.xs,
-    ...tokens.shadows.sm,
   },
-  avatarWrap: {
+  avatarRing: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    padding: 3,
+    backgroundColor: tokens.colors.glassTint,
+    borderWidth: 2,
+    borderColor: tokens.colors.glassBorder,
     marginBottom: tokens.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 78,
+    height: 78,
+    borderRadius: 39,
     backgroundColor: tokens.colors.surfaceAlt,
   },
   avatarFallback: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: tokens.colors.primary,
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: tokens.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -248,6 +288,7 @@ const styles = StyleSheet.create({
   },
   email: {
     textAlign: 'center',
+    opacity: 0.85,
   },
   badges: {
     flexDirection: 'row',
@@ -265,7 +306,7 @@ const styles = StyleSheet.create({
   },
   group: {
     backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radius.lg,
+    borderRadius: tokens.radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.border,
     marginBottom: tokens.spacing.xl,
@@ -273,13 +314,20 @@ const styles = StyleSheet.create({
     ...tokens.shadows.sm,
   },
   detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.md,
     paddingVertical: tokens.spacing.md,
     paddingHorizontal: tokens.spacing.lg,
-    gap: 2,
   },
   detailDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: tokens.colors.border,
+  },
+  detailCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
   },
   detailValue: {
     fontFamily: tokens.fontFamily.medium,
@@ -292,15 +340,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.lg,
   },
   iconChip: {
-    width: 32,
-    height: 32,
-    borderRadius: tokens.radius.sm,
+    width: 36,
+    height: 36,
+    borderRadius: tokens.radius.md,
     backgroundColor: tokens.colors.secondaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   toggleLabel: {
-    flex: 1,
     fontFamily: tokens.fontFamily.medium,
   },
 });

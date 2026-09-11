@@ -1,28 +1,16 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { tokens } from '@/theme';
 import { StackScreen } from '@/components/custom/StackScreen';
-import { EntityRow } from '@/components/custom/EntityRow';
+import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
+import { HeroBanner } from '@/components/custom/HeroBanner';
 import { Text } from '@/components/ui/Text';
 import { AnnouncementModal } from '@/features/announcements/components/AnnouncementModal';
+import { NotificationCard } from '@/features/notifications/components/NotificationCard';
 import { useNotifications } from '@/queries/useNotifications';
 import { useAnnouncements, useAcknowledgeAnnouncement } from '@/queries/useAnnouncements';
 import { useIsStaff } from '@/hooks/useHasPermission';
-import type { NotificationType } from '@/api/notifications';
-import type { BadgeTone } from '@/components/ui/Badge';
-
-const TYPE_META: Record<
-  NotificationType,
-  {
-    icon: 'megaphone-outline' | 'calendar-outline' | 'fitness-outline' | 'trending-up-outline';
-    tone: BadgeTone;
-    label: string;
-  }
-> = {
-  announcement: { icon: 'megaphone-outline', tone: 'warning', label: 'Announcement' },
-  upcoming_class: { icon: 'calendar-outline', tone: 'info', label: 'Class' },
-  upcoming_training: { icon: 'fitness-outline', tone: 'warning', label: 'Training' },
-  course_progress: { icon: 'trending-up-outline', tone: 'warning', label: 'Progress' },
-};
 
 export function NotificationsScreen() {
   const isStaff = useIsStaff();
@@ -32,7 +20,14 @@ export function NotificationsScreen() {
   const [openId, setOpenId] = useState<string | null>(null);
 
   const items = data ?? [];
+  const unreadCount = items.filter((item) => !item.read).length;
   const openAnnouncement = (announcements ?? []).find((item) => item.id === openId);
+
+  const { unread, earlier } = useMemo(() => {
+    const nextUnread = items.filter((item) => !item.read);
+    const nextEarlier = items.filter((item) => item.read);
+    return { unread: nextUnread, earlier: nextEarlier };
+  }, [items]);
 
   return (
     <StackScreen
@@ -50,27 +45,59 @@ export function NotificationsScreen() {
         ) : null
       }
     >
+      <HeroBanner
+        kicker="Inbox"
+        title={unreadCount > 0 ? `${unreadCount} new update${unreadCount === 1 ? '' : 's'}` : "You're all caught up"}
+        subtitle={
+          unreadCount > 0
+            ? 'Tap a card to read the announcement.'
+            : "We'll drop class, training, and course updates here."
+        }
+        icon="notifications-outline"
+      />
+
       {isLoading ? (
         <EntityListSkeleton />
       ) : items.length === 0 ? (
-        <Text variant="body" color="textMuted">
-          You are all caught up.
-        </Text>
+        <EmptyState
+          icon="notifications-off-outline"
+          title="Nothing yet"
+          message="You're all caught up. New announcements will appear here."
+        />
       ) : (
-        items.map((item) => (
-          <EntityRow
-            key={item.id}
-            icon={TYPE_META[item.type].icon}
-            title={item.title}
-            subtitle={item.body}
-            badge={{
-              label: item.read ? TYPE_META[item.type].label : 'New',
-              tone: item.read ? TYPE_META[item.type].tone : 'warning',
-            }}
-            onPress={() => setOpenId(item.id)}
-          />
-        ))
+        <>
+          {unread.length > 0 ? (
+            <View style={styles.section}>
+              <Text variant="overline" color="textMuted" style={styles.sectionLabel}>
+                New
+              </Text>
+              {unread.map((item) => (
+                <NotificationCard key={item.id} item={item} onPress={() => setOpenId(item.id)} />
+              ))}
+            </View>
+          ) : null}
+          {earlier.length > 0 ? (
+            <View style={styles.section}>
+              <Text variant="overline" color="textMuted" style={styles.sectionLabel}>
+                Earlier
+              </Text>
+              {earlier.map((item) => (
+                <NotificationCard key={item.id} item={item} onPress={() => setOpenId(item.id)} />
+              ))}
+            </View>
+          ) : null}
+        </>
       )}
     </StackScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  section: {
+    marginBottom: tokens.spacing.md,
+  },
+  sectionLabel: {
+    marginBottom: tokens.spacing.sm,
+    marginLeft: tokens.spacing.xs,
+  },
+});

@@ -30,7 +30,7 @@ export function FilterSelectRow({ label, value, options, onChange }: FilterSelec
             {selected?.label ?? '—'}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={tokens.colors.textMuted} />
+        <Ionicons name="chevron-down" size={18} color={tokens.colors.textMuted} />
       </ScalePressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -39,6 +39,7 @@ export function FilterSelectRow({ label, value, options, onChange }: FilterSelec
           <View
             style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, tokens.spacing.lg) }]}
           >
+            <View style={styles.sheetHandle} />
             <Text variant="title" style={styles.sheetTitle}>
               {label}
             </Text>
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
   segment: {
     flexDirection: 'row',
     backgroundColor: tokens.colors.surfaceAlt,
-    borderRadius: tokens.radius.md,
+    borderRadius: tokens.radius.full,
     padding: tokens.spacing.xxs,
     gap: tokens.spacing.xxs,
   },
@@ -122,7 +123,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: tokens.spacing.sm + 2,
-    borderRadius: tokens.radius.sm,
+    borderRadius: tokens.radius.full,
   },
   segmentItemActive: {
     backgroundColor: tokens.colors.secondary,
@@ -135,11 +136,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: tokens.spacing.md,
     backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radius.md,
+    borderRadius: tokens.radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.border,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.md,
+    ...tokens.shadows.sm,
   },
   copy: {
     flex: 1,
@@ -159,11 +161,19 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: tokens.colors.surface,
-    borderTopLeftRadius: tokens.radius.xl,
-    borderTopRightRadius: tokens.radius.xl,
+    borderTopLeftRadius: tokens.radius.xxl,
+    borderTopRightRadius: tokens.radius.xxl,
     maxHeight: '65%',
-    paddingTop: tokens.spacing.lg,
+    paddingTop: tokens.spacing.sm,
     ...tokens.shadows.md,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: tokens.colors.borderStrong,
+    marginBottom: tokens.spacing.md,
   },
   sheetTitle: {
     paddingHorizontal: tokens.spacing.lg,

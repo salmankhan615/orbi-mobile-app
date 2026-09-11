@@ -90,7 +90,7 @@ export function EditProfileScreen() {
   return (
     <StackScreen title="Edit Profile" keyboardAvoiding>
       <ScalePressable onPress={pickPhoto} style={styles.avatarPress}>
-        <View style={styles.avatarWrap}>
+        <View style={styles.avatarRing}>
           {previewUri ? (
             <Image source={{ uri: previewUri }} style={styles.avatarImage} />
           ) : (
@@ -109,18 +109,20 @@ export function EditProfileScreen() {
         </Text>
       </ScalePressable>
 
-      <TextField label="First name" value={firstName} onChangeText={setFirstName} />
-      <TextField label="Last name" value={lastName} onChangeText={setLastName} />
-      <TextField
-        label="Mobile"
-        value={mobile}
-        onChangeText={setMobile}
-        keyboardType="phone-pad"
-        icon="call-outline"
-      />
-      <TextField label="Country" value={country} onChangeText={setCountry} />
-      <TextField label="City" value={city} onChangeText={setCity} />
-      <TextField label="Email" value={user?.email ?? ''} editable={false} />
+      <View style={styles.formCard}>
+        <TextField label="First name" value={firstName} onChangeText={setFirstName} />
+        <TextField label="Last name" value={lastName} onChangeText={setLastName} />
+        <TextField
+          label="Mobile"
+          value={mobile}
+          onChangeText={setMobile}
+          keyboardType="phone-pad"
+          icon="call-outline"
+        />
+        <TextField label="Country" value={country} onChangeText={setCountry} />
+        <TextField label="City" value={city} onChangeText={setCity} />
+        <TextField label="Email" value={user?.email ?? ''} editable={false} />
+      </View>
       <Button
         label="Save"
         loading={save.isPending}
@@ -137,7 +139,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: tokens.spacing.xl,
   },
-  avatarWrap: {
+  avatarRing: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    padding: 3,
+    borderWidth: 2,
+    borderColor: tokens.colors.secondaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: tokens.spacing.sm,
   },
   avatarImage: {
@@ -169,6 +179,16 @@ const styles = StyleSheet.create({
   },
   photoHint: {
     fontFamily: tokens.fontFamily.semibold,
+  },
+  formCard: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
+    padding: tokens.spacing.lg,
+    paddingBottom: tokens.spacing.sm,
+    marginBottom: tokens.spacing.lg,
+    ...tokens.shadows.sm,
   },
   save: {
     marginTop: tokens.spacing.sm,

@@ -86,7 +86,11 @@ export function MyBookingsScreen() {
           Could not load bookings.
         </Text>
       ) : filtered.length === 0 ? (
-        <EmptyState icon="calendar-outline" message="No bookings match these filters." />
+        <EmptyState
+          icon="calendar-outline"
+          title="No matching bookings"
+          message="Try a different filter or book a class to get started."
+        />
       ) : (
         <View style={styles.list}>
           {filtered.map((booking, index) => (
@@ -101,10 +105,10 @@ export function MyBookingsScreen() {
 const styles = StyleSheet.create({
   filters: {
     gap: tokens.spacing.sm,
-    marginBottom: tokens.spacing.lg,
+    marginBottom: tokens.spacing.xl,
   },
   list: {
-    marginTop: tokens.spacing.lg,
+    marginTop: tokens.spacing.xl,
   },
   message: {
     marginTop: tokens.spacing.lg,

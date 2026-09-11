@@ -64,9 +64,9 @@ const styles = StyleSheet.create({
     borderBottomColor: tokens.colors.border,
   },
   iconChip: {
-    width: 32,
-    height: 32,
-    borderRadius: tokens.radius.sm,
+    width: 36,
+    height: 36,
+    borderRadius: tokens.radius.md,
     backgroundColor: tokens.colors.secondaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
