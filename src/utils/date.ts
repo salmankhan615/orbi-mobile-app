@@ -107,6 +107,20 @@ export function getWeekRange(date: Date): { start: Date; end: Date } {
   return { start, end };
 }
 
+/** Inclusive ISO day window around today — used by My Bookings / home bootstrap. */
+export function getRollingDateRange(
+  monthsBack: number,
+  monthsAhead: number,
+): { startDate: string; endDate: string } {
+  const start = new Date();
+  start.setHours(12, 0, 0, 0);
+  start.setMonth(start.getMonth() - monthsBack);
+  const end = new Date();
+  end.setHours(12, 0, 0, 0);
+  end.setMonth(end.getMonth() + monthsAhead);
+  return { startDate: toISODate(start), endDate: toISODate(end) };
+}
+
 /** First/last day of the month containing `date` (local). */
 export function getMonthDateRange(date: Date): { startDate: string; endDate: string } {
   const start = new Date(date.getFullYear(), date.getMonth(), 1);

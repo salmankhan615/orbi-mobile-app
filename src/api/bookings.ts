@@ -11,7 +11,7 @@ import {
   isSettingsActive,
 } from '@/api/crm';
 import { useAuthStore } from '@/store/useAuthStore';
-import { formatPortalDate } from '@/utils/date';
+import { formatPortalDate, getRollingDateRange } from '@/utils/date';
 
 export type BookingKind = 'class' | 'training';
 export type BookingStatus = 'confirmed' | 'attended' | 'cancelled' | 'available';
@@ -75,7 +75,9 @@ export interface Booking {
 type UnknownRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): UnknownRecord | null {
-  return value && typeof value === 'object' ? (value as UnknownRecord) : null;
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as UnknownRecord)
+    : null;
 }
 
 function asArray(value: unknown): unknown[] {
@@ -445,15 +447,32 @@ export const bookingsApi = {
     return [...classes, ...training];
   },
 
-  async listMine(studentId: string): Promise<Booking[]> {
-    const [calendarRaw, practicalRaw, settings] = await Promise.all([
-      getClassCalendar(studentId),
-      getMyPracticalBookings(studentId),
+  async listMineTraining(studentId: string): Promise<Booking[]> {
+    const [practicalRaw, settings] = await Promise.all([
+      getMyPracticalBookings().catch(() => ({ data: [] as unknown[] })),
       getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
     ]);
-    const maps = buildTitleMaps(settings);
-    const classBookings = mapClassBookings(asList(calendarRaw), studentId, maps);
-    const trainingBookings = mapPracticalBookings(practicalRaw, studentId, maps);
+    return mapPracticalBookings(practicalRaw, studentId, buildTitleMaps(settings));
+  },
+
+  async listMineClasses(studentId: string): Promise<Booking[]> {
+    const range = getRollingDateRange(6, 12);
+    const [calendarRaw, settings] = await Promise.all([
+      getClassCalendar({
+        viewAsStudentId: studentId,
+        startDate: range.startDate,
+        endDate: range.endDate,
+      }),
+      getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
+    ]);
+    return mapClassBookings(asList(calendarRaw), studentId, buildTitleMaps(settings));
+  },
+
+  async listMine(studentId: string): Promise<Booking[]> {
+    const [trainingBookings, classBookings] = await Promise.all([
+      bookingsApi.listMineTraining(studentId),
+      bookingsApi.listMineClasses(studentId).catch(() => [] as Booking[]),
+    ]);
     return [...classBookings, ...trainingBookings].sort(
       (a, b) => b.date.localeCompare(a.date) || b.bookingDate.localeCompare(a.bookingDate),
     );

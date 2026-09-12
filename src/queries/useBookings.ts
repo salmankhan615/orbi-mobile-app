@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { cancelClassBooking, cancelPracticalBooking, getClassAvailability } from '@/api/crm';
 import { bookingsApi, type BookingKind } from '@/api/bookings';
@@ -9,6 +10,8 @@ export const bookingKeys = {
   all: ['bookings'] as const,
   slots: (kind?: BookingKind) => ['bookings', 'slots', kind ?? 'all'] as const,
   mine: (studentId: string) => ['bookings', 'mine', studentId] as const,
+  mineTraining: (studentId: string) => ['bookings', 'mine', studentId, 'training'] as const,
+  mineClasses: (studentId: string) => ['bookings', 'mine', studentId, 'class'] as const,
   staff: ['bookings', 'staff'] as const,
   detail: (id: string) => ['bookings', id] as const,
   availability: (classId: string) => ['bookings', 'availability', classId] as const,
@@ -31,11 +34,32 @@ export function useBookableSlots(kind?: BookingKind) {
 }
 
 export function useMyBookings(studentId: string) {
-  return useQuery({
-    queryKey: bookingKeys.mine(studentId),
-    queryFn: () => bookingsApi.listMine(studentId),
-    enabled: Boolean(studentId),
+  const enabled = Boolean(studentId);
+  const training = useQuery({
+    queryKey: bookingKeys.mineTraining(studentId),
+    queryFn: () => bookingsApi.listMineTraining(studentId),
+    enabled,
   });
+  const classes = useQuery({
+    queryKey: bookingKeys.mineClasses(studentId),
+    queryFn: () => bookingsApi.listMineClasses(studentId),
+    enabled,
+  });
+
+  const data = useMemo(() => {
+    const list = [...(classes.data ?? []), ...(training.data ?? [])];
+    return list.sort(
+      (a, b) => b.date.localeCompare(a.date) || b.bookingDate.localeCompare(a.bookingDate),
+    );
+  }, [classes.data, training.data]);
+
+  const hasRows = data.length > 0;
+  return {
+    data,
+    isLoading: !hasRows && (training.isLoading || classes.isLoading),
+    isError: !hasRows && !training.isLoading && !classes.isLoading && training.isError && classes.isError,
+    refetch: () => Promise.all([training.refetch(), classes.refetch()]),
+  };
 }
 
 export function useStaffBookings() {

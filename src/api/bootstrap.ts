@@ -10,6 +10,7 @@ import {
 } from '@/api/crm';
 import { unwrapList } from '@/api/unwrap';
 import { useAuthStore, type AuthUser } from '@/store/useAuthStore';
+import { getRollingDateRange } from '@/utils/date';
 
 export interface StudentBootstrap {
   user: AuthUser;
@@ -88,8 +89,13 @@ export async function fetchStudentBootstrap(): Promise<StudentBootstrap> {
                   error: 'Missing companyId — cannot load allocated courses',
                 } as const),
           ),
-      settled(getClassCalendar(userId)),
-      settled(getMyPracticalBookings(userId)),
+      settled(
+        getClassCalendar({
+          viewAsStudentId: userId,
+          ...getRollingDateRange(6, 12),
+        }),
+      ),
+      settled(getMyPracticalBookings()),
       settled(getMyAnnouncements()),
     ]);
 

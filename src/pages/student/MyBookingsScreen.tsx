@@ -29,7 +29,7 @@ const KIND_OPTIONS = [
 
 export function MyBookingsScreen() {
   const user = useAuthStore((state) => state.user);
-  const { data: bookings, isPending, isError } = useMyBookings(user?.id ?? '');
+  const { data: bookings, isLoading, isError } = useMyBookings(user?.id ?? '');
   const { data: calendars } = useCalendars();
 
   const [kindFilter, setKindFilter] = useState<BookingKindFilter>('all');
@@ -79,7 +79,7 @@ export function MyBookingsScreen() {
 
       <BookingStatsBar stats={stats} />
 
-      {isPending ? (
+      {isLoading ? (
         <EntityListSkeleton rows={4} />
       ) : isError ? (
         <Text variant="body" color="danger" style={styles.message}>

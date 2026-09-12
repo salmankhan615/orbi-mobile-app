@@ -119,32 +119,49 @@ function isFormDataBody(body: unknown): body is FormData {
   return typeof (body as FormData).append === 'function';
 }
 
+const REQUEST_TIMEOUT_MS = 20_000;
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, headers, skipAuth, ...rest } = options;
+  const { body, headers, skipAuth, signal, ...rest } = options;
   const authHeaders: Record<string, string> = {};
 
   if (!skipAuth) {
-    // Ensure jar cannot override / duplicate Cookie on Android.
-    await clearNativeCookies();
+    // credentials: 'omit' — do not await jar clears here; that stalled every CRM call.
     const cookie = sessionCookie ?? (sessionToken ? `token=${sessionToken}` : null);
     if (cookie) authHeaders.Cookie = cookie;
   }
 
   const formData = isFormDataBody(body);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const onOuterAbort = () => controller.abort();
+  signal?.addEventListener('abort', onOuterAbort);
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...rest,
-    // omit — we send Cookie ourselves; include makes the native jar fight us.
-    credentials: 'omit',
-    headers: {
-      Accept: 'application/json',
-      // Let fetch set the multipart boundary; JSON is the default for object bodies.
-      ...(body !== undefined && !formData ? { 'Content-Type': 'application/json' } : {}),
-      ...authHeaders,
-      ...headers,
-    },
-    body: body === undefined ? undefined : formData ? body : JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...rest,
+      signal: controller.signal,
+      // omit — we send Cookie ourselves; include makes the native jar fight us.
+      credentials: 'omit',
+      headers: {
+        Accept: 'application/json',
+        // Let fetch set the multipart boundary; JSON is the default for object bodies.
+        ...(body !== undefined && !formData ? { 'Content-Type': 'application/json' } : {}),
+        ...authHeaders,
+        ...headers,
+      },
+      body: body === undefined ? undefined : formData ? body : JSON.stringify(body),
+    });
+  } catch (error) {
+    if (controller.signal.aborted && !signal?.aborted) {
+      throw new ApiError(`Request to ${path} timed out`, 408);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onOuterAbort);
+  }
 
   const setCookie = readSetCookie(response);
   if (setCookie) {

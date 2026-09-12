@@ -6,7 +6,9 @@
 type UnknownRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): UnknownRecord | null {
-  return value && typeof value === 'object' ? (value as UnknownRecord) : null;
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as UnknownRecord)
+    : null;
 }
 
 function asArray(value: unknown): unknown[] {
@@ -28,8 +30,10 @@ export type AllocatedCalendarScope = {
 };
 
 function addIds(target: Set<string>, values: unknown) {
-  for (const item of asArray(values)) {
-    const id = idOf(item) ?? (typeof item === 'string' ? item : null);
+  if (values == null || values === '') return;
+  const list = Array.isArray(values) ? values : [values];
+  for (const item of list) {
+    const id = idOf(item) ?? (typeof item === 'string' || typeof item === 'number' ? String(item) : null);
     if (id) target.add(id);
   }
 }

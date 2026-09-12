@@ -197,11 +197,14 @@ export async function getCalendarClosures(calendarId?: string) {
   return apiClient.get<unknown>(`/api/calendar-closure/crm/getClosures${query}`);
 }
 
-/** Practical training. */
-export async function getMyPracticalBookings(studentId?: string) {
-  const query = studentId ? `?studentId=${encodeURIComponent(studentId)}` : '';
-  return apiClient.get<{ data?: unknown[] }>(
-    `/api/practical-training/bookings/my-bookings${query}`,
+/**
+ * Practical training bookings for the signed-in student.
+ * Session cookie identifies the user — extra `studentId` query is omitted
+ * (same as CRM `GET /api/practical-training/bookings/my-bookings`).
+ */
+export async function getMyPracticalBookings(_studentId?: string) {
+  return apiClient.get<{ success?: boolean; count?: number; data?: unknown[] }>(
+    '/api/practical-training/bookings/my-bookings',
   );
 }
 
