@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -8,6 +8,8 @@ import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
+import { API_BASE_URL } from '@/api/config';
+import { getApiSession } from '@/api/client';
 import { crmMediaUrl } from '@/api/coursework';
 import type { RootStackScreenProps } from '@/navigation/types';
 
@@ -21,8 +23,16 @@ function isImageFile(type: string, name: string) {
   return type.toUpperCase() === 'IMAGE' || /\.(png|jpe?g|gif|webp)(\?|$)/i.test(name);
 }
 
-/** Office Online / Google Docs viewers for PPT, PDF, Word, etc. (file URL must be publicly reachable). */
+function isApiHosted(uri: string) {
+  return uri.startsWith(API_BASE_URL);
+}
+
+/**
+ * Public docs → Office Online / Google viewer.
+ * Authenticated CRM URLs must load directly (external viewers cannot see private files).
+ */
 function documentPreviewUri(fileUri: string, filename: string): string {
+  if (isApiHosted(fileUri)) return fileUri;
   const name = filename || fileUri;
   if (/\.(pptx?|ppsx?|docx?|xlsx?|xls)(\?|$)/i.test(name)) {
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUri)}`;
@@ -30,7 +40,6 @@ function documentPreviewUri(fileUri: string, filename: string): string {
   if (/\.(html?|txt|csv)(\?|$)/i.test(name)) {
     return fileUri;
   }
-  // PDF and other docs — Google viewer works cross-platform in WebView
   return `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fileUri)}`;
 }
 
@@ -38,13 +47,19 @@ export function CourseworkFileScreen({ navigation, route }: Props) {
   const { url, filename, type } = route.params;
   const insets = useSafeAreaInsets();
   const file = { url, filename, type };
-  const uri = crmMediaUrl(file);
+  const uri = /^https?:\/\//i.test(url) || url.startsWith(API_BASE_URL) ? url : crmMediaUrl(file);
   const name = filename || url;
   const isVideo = isVideoFile(type, name);
   const isImage = isImageFile(type, name);
   const previewUri = !isVideo && !isImage && uri ? documentPreviewUri(uri, name) : '';
   const [loading, setLoading] = useState(Boolean(previewUri));
   const [failed, setFailed] = useState(false);
+
+  const webHeaders = useMemo(() => {
+    if (!previewUri || !isApiHosted(previewUri)) return undefined;
+    const cookie = getApiSession().cookie;
+    return cookie ? { Cookie: cookie } : undefined;
+  }, [previewUri]);
 
   const player = useVideoPlayer(isVideo && uri ? uri : null, (instance) => {
     instance.loop = false;
@@ -82,7 +97,7 @@ export function CourseworkFileScreen({ navigation, route }: Props) {
         ) : previewUri && !failed ? (
           <>
             <WebView
-              source={{ uri: previewUri }}
+              source={{ uri: previewUri, headers: webHeaders }}
               style={styles.webview}
               originWhitelist={['*']}
               startInLoadingState

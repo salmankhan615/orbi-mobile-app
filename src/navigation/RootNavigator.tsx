@@ -44,6 +44,7 @@ import {
 } from '@/pages/staff/StaffOpsScreens';
 import { InvoiceDetailScreen } from '@/pages/staff/InvoiceDetailScreen';
 import { AgreementDetailScreen } from '@/pages/staff/AgreementDetailScreen';
+import { BookingShiftDetailScreen } from '@/pages/staff/BookingShiftDetailScreen';
 import { setUnauthorizedHandler } from '@/api/client';
 import { useAuthStore } from '@/store/useAuthStore';
 import { MainTabNavigator } from './MainTabNavigator';
@@ -116,6 +117,7 @@ export function RootNavigator() {
               <Stack.Screen name="AgreementDetail" component={AgreementDetailScreen} />
               <Stack.Screen name="CloseCalendar" component={CloseCalendarScreen} />
               <Stack.Screen name="BookingShifts" component={BookingShiftsScreen} />
+              <Stack.Screen name="BookingShiftDetail" component={BookingShiftDetailScreen} />
             </>
           ) : (
             <>

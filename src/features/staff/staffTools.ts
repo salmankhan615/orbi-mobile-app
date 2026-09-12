@@ -106,7 +106,7 @@ export const STAFF_TOOLS: StaffTool[] = [
   {
     id: 'shifts',
     label: 'Booking shifts',
-    description: 'Staff shift coverage for bookings',
+    description: 'Practical training seats by day',
     icon: 'time-outline',
     permission: 'view_shifts',
     route: 'BookingShifts',

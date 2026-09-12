@@ -1,5 +1,5 @@
 import { FlatList, StyleSheet, View } from 'react-native';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { StackScreen } from '@/components/custom/StackScreen';
@@ -18,13 +18,35 @@ import {
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useToastStore } from '@/store/useToastStore';
 import { toISODate } from '@/utils/date';
-import type { Agreement } from '@/api/staff';
+import type { Agreement, Invoice } from '@/api/staff';
 import type { RootStackScreenProps } from '@/navigation/types';
+
+type InvoiceFilter = 'all' | Invoice['status'];
+type AgreementFilter = 'all' | Agreement['status'];
+
+const INVOICE_FILTERS: { key: InvoiceFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'due', label: 'Due' },
+  { key: 'overdue', label: 'Overdue' },
+  { key: 'paid', label: 'Paid' },
+];
+
+const AGREEMENT_FILTERS: { key: AgreementFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'signed', label: 'Signed' },
+  { key: 'expired', label: 'Expired' },
+];
 
 export function InvoicesScreen({ navigation }: RootStackScreenProps<'Invoices'>) {
   const allowed = useHasPermission('view_invoices');
   const { data, isLoading } = useInvoices();
+  const [filter, setFilter] = useState<InvoiceFilter>('all');
   const invoices = data ?? [];
+  const visible = useMemo(
+    () => (filter === 'all' ? invoices : invoices.filter((item) => item.status === filter)),
+    [invoices, filter],
+  );
 
   if (!allowed) {
     return (
@@ -37,23 +59,50 @@ export function InvoicesScreen({ navigation }: RootStackScreenProps<'Invoices'>)
   }
   return (
     <StackScreen title="Invoices" scroll={false}>
+      <View style={styles.filters}>
+        {INVOICE_FILTERS.map((item) => {
+          const active = filter === item.key;
+          const count =
+            item.key === 'all'
+              ? invoices.length
+              : invoices.filter((row) => row.status === item.key).length;
+          return (
+            <ScalePressable
+              key={item.key}
+              haptic={false}
+              onPress={() => setFilter(item.key)}
+              style={active ? styles.chipActive : styles.chip}
+            >
+              <Text variant="caption" color={active ? 'onSecondary' : 'textSecondary'}>
+                {item.label}
+                {isLoading ? '' : ` · ${count}`}
+              </Text>
+            </ScalePressable>
+          );
+        })}
+      </View>
       {isLoading ? (
         <EntityListSkeleton />
-      ) : invoices.length === 0 ? (
-        <EmptyState icon="receipt-outline" message="No invoices yet." />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon="receipt-outline"
+          message={filter === 'all' ? 'No invoices yet.' : `No ${filter} invoices.`}
+        />
       ) : (
         <FlatList
-          data={invoices}
+          data={visible}
           keyExtractor={(item) => item.id}
           initialNumToRender={12}
           maxToRenderPerBatch={10}
           windowSize={7}
           removeClippedSubviews
+          contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <EntityRow
               icon="receipt-outline"
               title={item.studentName}
-              subtitle={item.issuedOn}
+              subtitle={item.planName || item.issuedOn}
+              meta={item.invoiceNumber ? `#${item.invoiceNumber}` : item.issuedOn}
               badge={{
                 label: `${item.amountLabel} · ${item.status}`,
                 tone:
@@ -67,9 +116,16 @@ export function InvoicesScreen({ navigation }: RootStackScreenProps<'Invoices'>)
                 navigation.navigate('InvoiceDetail', {
                   invoiceId: item.id,
                   studentName: item.studentName,
+                  studentEmail: item.studentEmail,
                   amountLabel: item.amountLabel,
                   status: item.status,
                   issuedOn: item.issuedOn,
+                  planName: item.planName,
+                  invoiceNumber: item.invoiceNumber,
+                  dueOn: item.dueOn,
+                  paidOn: item.paidOn,
+                  notes: item.notes,
+                  installments: item.installments,
                 })
               }
             />
@@ -80,14 +136,15 @@ export function InvoicesScreen({ navigation }: RootStackScreenProps<'Invoices'>)
   );
 }
 
-const AGREEMENT_FILTERS: (Agreement['status'] | 'all')[] = ['all', 'pending', 'signed', 'expired'];
-
 export function AgreementsScreen({ navigation }: RootStackScreenProps<'Agreements'>) {
   const allowed = useHasPermission('view_agreements');
   const { data, isLoading } = useAgreements();
-  const [filter, setFilter] = useState<(typeof AGREEMENT_FILTERS)[number]>('all');
-  const list =
-    filter === 'all' ? (data ?? []) : (data ?? []).filter((item) => item.status === filter);
+  const [filter, setFilter] = useState<AgreementFilter>('all');
+  const agreements = data ?? [];
+  const list = useMemo(
+    () => (filter === 'all' ? agreements : agreements.filter((item) => item.status === filter)),
+    [agreements, filter],
+  );
 
   if (!allowed) {
     return (
@@ -102,23 +159,34 @@ export function AgreementsScreen({ navigation }: RootStackScreenProps<'Agreement
   return (
     <StackScreen title="Agreements" scroll={false}>
       <View style={styles.filters}>
-        {AGREEMENT_FILTERS.map((item) => (
-          <ScalePressable
-            key={item}
-            haptic={false}
-            onPress={() => setFilter(item)}
-            style={filter === item ? styles.chipActive : styles.chip}
-          >
-            <Text variant="caption" color={filter === item ? 'onSecondary' : 'textSecondary'}>
-              {item}
-            </Text>
-          </ScalePressable>
-        ))}
+        {AGREEMENT_FILTERS.map((item) => {
+          const active = filter === item.key;
+          const count =
+            item.key === 'all'
+              ? agreements.length
+              : agreements.filter((row) => row.status === item.key).length;
+          return (
+            <ScalePressable
+              key={item.key}
+              haptic={false}
+              onPress={() => setFilter(item.key)}
+              style={active ? styles.chipActive : styles.chip}
+            >
+              <Text variant="caption" color={active ? 'onSecondary' : 'textSecondary'}>
+                {item.label}
+                {isLoading ? '' : ` · ${count}`}
+              </Text>
+            </ScalePressable>
+          );
+        })}
       </View>
       {isLoading ? (
         <EntityListSkeleton />
       ) : list.length === 0 ? (
-        <EmptyState icon="document-attach-outline" message="No agreements match this filter." />
+        <EmptyState
+          icon="document-attach-outline"
+          message={filter === 'all' ? 'No agreements yet.' : `No ${filter} agreements.`}
+        />
       ) : (
         <FlatList
           data={list}
@@ -127,14 +195,15 @@ export function AgreementsScreen({ navigation }: RootStackScreenProps<'Agreement
           maxToRenderPerBatch={10}
           windowSize={7}
           removeClippedSubviews
+          contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <EntityRow
               icon="document-attach-outline"
               title={item.title}
               subtitle={item.studentName}
-              meta={item.submittedOn}
+              meta={`${item.submittedOn}${item.artifacts?.length ? ` · ${item.artifacts.length} doc${item.artifacts.length === 1 ? '' : 's'}` : ''}`}
               badge={{
-                label: item.status,
+                label: item.statusLabel || item.status,
                 tone:
                   item.status === 'signed'
                     ? 'success'
@@ -147,8 +216,16 @@ export function AgreementsScreen({ navigation }: RootStackScreenProps<'Agreement
                   agreementId: item.id,
                   title: item.title,
                   studentName: item.studentName,
+                  studentEmail: item.studentEmail,
                   status: item.status,
+                  statusLabel: item.statusLabel,
                   submittedOn: item.submittedOn,
+                  signedOn: item.signedOn,
+                  expiresOn: item.expiresOn,
+                  senderName: item.senderName,
+                  deliveryMethod: item.deliveryMethod,
+                  agreementType: item.agreementType,
+                  artifacts: item.artifacts,
                 })
               }
             />
@@ -159,10 +236,17 @@ export function AgreementsScreen({ navigation }: RootStackScreenProps<'Agreement
   );
 }
 
-export function BookingShiftsScreen() {
+export function BookingShiftsScreen({ navigation }: RootStackScreenProps<'BookingShifts'>) {
   const allowed = useHasPermission('view_shifts');
-  const { data, isLoading } = useShifts();
+  const dateOptions = useMemo(() => upcomingDates(7), []);
+  const [iso, setIso] = useState(() => dateOptions[0] ?? toISODate(new Date()));
+  const [filter, setFilter] = useState<'all' | 'active' | 'cancelled'>('all');
+  const { data, isLoading } = useShifts(iso);
   const shifts = data ?? [];
+  const visible = useMemo(
+    () => (filter === 'all' ? shifts : shifts.filter((item) => item.status === filter)),
+    [shifts, filter],
+  );
 
   if (!allowed) {
     return (
@@ -175,24 +259,108 @@ export function BookingShiftsScreen() {
   }
   return (
     <StackScreen title="Booking shifts" scroll={false}>
+      <Text variant="bodySmall" color="textSecondary" style={styles.copy}>
+        Practical training seats booked for each day.
+      </Text>
+      <View style={styles.filters}>
+        {dateOptions.map((day) => (
+          <ScalePressable
+            key={day}
+            haptic={false}
+            onPress={() => setIso(day)}
+            style={iso === day ? styles.chipActive : styles.chip}
+          >
+            <Text variant="caption" color={iso === day ? 'onSecondary' : 'textSecondary'}>
+              {day === toISODate(new Date()) ? 'Today' : day.slice(5)}
+            </Text>
+          </ScalePressable>
+        ))}
+      </View>
+      <View style={styles.filters}>
+        {(
+          [
+            { key: 'all', label: 'All' },
+            { key: 'active', label: 'Active' },
+            { key: 'cancelled', label: 'Cancelled' },
+          ] as const
+        ).map((item) => {
+          const active = filter === item.key;
+          const count =
+            item.key === 'all' ? shifts.length : shifts.filter((row) => row.status === item.key).length;
+          return (
+            <ScalePressable
+              key={item.key}
+              haptic={false}
+              onPress={() => setFilter(item.key)}
+              style={active ? styles.chipActive : styles.chip}
+            >
+              <Text variant="caption" color={active ? 'onSecondary' : 'textSecondary'}>
+                {item.label}
+                {isLoading ? '' : ` · ${count}`}
+              </Text>
+            </ScalePressable>
+          );
+        })}
+      </View>
       {isLoading ? (
         <EntityListSkeleton />
-      ) : shifts.length === 0 ? (
-        <EmptyState icon="time-outline" message="No shifts scheduled." />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon="time-outline"
+          message={
+            filter === 'all'
+              ? 'No practical training bookings for this day.'
+              : `No ${filter} shift bookings for this day.`
+          }
+        />
       ) : (
         <FlatList
-          data={shifts}
+          data={visible}
           keyExtractor={(item) => item.id}
           initialNumToRender={12}
           maxToRenderPerBatch={10}
           windowSize={7}
           removeClippedSubviews
+          contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <EntityRow
               icon="time-outline"
-              title={item.studentName}
-              subtitle={`${item.date} · ${item.startTime}–${item.endTime}`}
-              meta={item.location}
+              title={item.shiftName}
+              subtitle={`${item.studentName}${item.seat != null ? ` · Seat ${item.seat}` : ''}`}
+              meta={`${item.startTime}–${item.endTime} · ${item.location}`}
+              badge={{
+                label: item.attendance || item.statusLabel,
+                tone:
+                  item.status === 'cancelled'
+                    ? 'danger'
+                    : item.attendance
+                      ? /absent/i.test(item.attendance)
+                        ? 'danger'
+                        : 'success'
+                      : 'warning',
+              }}
+              onPress={() =>
+                navigation.navigate('BookingShiftDetail', {
+                  dayId: item.dayId,
+                  bookingId: item.bookingId,
+                  studentId: item.studentId,
+                  studentName: item.studentName,
+                  studentEmail: item.studentEmail,
+                  shiftName: item.shiftName,
+                  date: item.date,
+                  startTime: item.startTime,
+                  endTime: item.endTime,
+                  location: item.location,
+                  seat: item.seat,
+                  status: item.status,
+                  statusLabel: item.statusLabel,
+                  attendance: item.attendance,
+                  bookedAt: item.bookedAt,
+                  bookedByName: item.bookedByName,
+                  cancelledAt: item.cancelledAt,
+                  isOverridden: item.isOverridden,
+                })
+              }
             />
           )}
         />
@@ -307,5 +475,8 @@ const styles = StyleSheet.create({
   section: {
     marginTop: tokens.spacing.lg,
     marginBottom: tokens.spacing.md,
+  },
+  list: {
+    paddingBottom: tokens.spacing.xl,
   },
 });

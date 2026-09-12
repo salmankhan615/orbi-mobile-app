@@ -13,6 +13,7 @@ import {
   getStaffGroups,
   getUsersByType,
 } from '@/api/crm';
+import { API_BASE_URL } from '@/api/config';
 import { formatCourseworkDate } from '@/api/coursework';
 import { requireStudentContext } from '@/api/sessionUser';
 import { unwrapList } from '@/api/unwrap';
@@ -105,30 +106,74 @@ export interface CourseworkSubmission {
   comments?: CourseworkFeedback[];
 }
 
+export interface InvoiceInstallment {
+  id: string;
+  label: string;
+  amountLabel: string;
+  dueDate: string;
+  status: string;
+}
+
 export interface Invoice {
   id: string;
   studentName: string;
+  studentEmail?: string;
   amountLabel: string;
   status: 'paid' | 'due' | 'overdue';
   issuedOn: string;
+  planName?: string;
+  invoiceNumber?: string;
+  dueOn?: string;
+  paidOn?: string;
+  notes?: string;
+  installments?: InvoiceInstallment[];
+}
+
+export interface AgreementArtifact {
+  id: string;
+  filename: string;
+  type: string;
+  url: string;
 }
 
 export interface Agreement {
   id: string;
   studentName: string;
+  studentEmail?: string;
   title: string;
   status: 'pending' | 'signed' | 'expired';
+  /** Raw CRM status (e.g. Sent, Completed). */
+  statusLabel?: string;
   submittedOn: string;
+  signedOn?: string;
+  expiresOn?: string;
+  senderName?: string;
+  deliveryMethod?: string;
+  agreementType?: string;
+  recipientId?: string;
+  artifacts?: AgreementArtifact[];
 }
 
 export interface BookingShift {
   id: string;
-  /** Student on the practical-training booking. */
+  dayId: string;
+  bookingId: string;
+  studentId?: string;
   studentName: string;
+  studentEmail?: string;
+  shiftName: string;
   date: string;
   startTime: string;
   endTime: string;
   location: string;
+  seat?: number;
+  status: 'active' | 'cancelled';
+  statusLabel: string;
+  attendance?: string;
+  bookedAt?: string;
+  bookedByName?: string;
+  cancelledAt?: string;
+  isOverridden?: boolean;
 }
 
 type UnknownRecord = Record<string, unknown>;
@@ -264,19 +309,64 @@ function mapStaffCourseworkItem(raw: unknown): CourseworkItem | null {
   };
 }
 
-function mapInvoiceAmount(raw: UnknownRecord): string {
-  const total = num(raw.totalAmount) || num(raw.amount) || num(raw.total);
-  if (!total) return '—';
-  const currency = str(raw.currency, '£');
+function moneyLabel(amount: number, currencyRaw?: string): string {
+  if (!amount) return '—';
+  const currency = str(currencyRaw, '£');
   const symbol = currency.length === 1 ? currency : `${currency} `;
-  return `${symbol}${total.toFixed(2)}`;
+  return `${symbol}${amount.toFixed(2)}`;
+}
+
+function mapInvoiceAmount(raw: UnknownRecord): string {
+  const total =
+    num(raw.totalAmount) ||
+    num(raw.amount) ||
+    num(raw.total) ||
+    asArray(raw.installments ?? raw.invoices).reduce<number>((sum, item) => {
+      const row = asRecord(item);
+      return sum + num(row?.amount ?? row?.total);
+    }, 0);
+  return moneyLabel(total, str(raw.currency));
 }
 
 function mapInvoiceStatus(raw: UnknownRecord): Invoice['status'] {
   const status = str(raw.status, raw.paymentStatus, raw.planStatus).toLowerCase();
   if (status.includes('paid') || status.includes('complete')) return 'paid';
   if (status.includes('overdue') || status.includes('late')) return 'overdue';
+  const installments = asArray(raw.installments ?? raw.invoices);
+  if (installments.length > 0) {
+    const allPaid = installments.every((item) => {
+      const row = asRecord(item);
+      const s = str(row?.status, row?.paymentStatus).toLowerCase();
+      return s.includes('paid') || s.includes('complete');
+    });
+    if (allPaid) return 'paid';
+    const anyOverdue = installments.some((item) => {
+      const row = asRecord(item);
+      const s = str(row?.status, row?.paymentStatus).toLowerCase();
+      return s.includes('overdue') || s.includes('late');
+    });
+    if (anyOverdue) return 'overdue';
+  }
   return 'due';
+}
+
+function mapInstallments(raw: UnknownRecord): InvoiceInstallment[] {
+  const currency = str(raw.currency, '£');
+  const out: InvoiceInstallment[] = [];
+  for (const [index, item] of asArray(raw.installments ?? raw.invoices).entries()) {
+    const row = asRecord(item);
+    if (!row) continue;
+    const id = idOf(row._id ?? row.id) ?? `installment-${index}`;
+    const amount = num(row.amount ?? row.total);
+    out.push({
+      id,
+      label: str(row.label, row.name, row.title, `Installment ${index + 1}`),
+      amountLabel: moneyLabel(amount, currency),
+      dueDate: formatCourseworkDate(row.dueDate ?? row.date ?? row.paymentDate),
+      status: str(row.status, row.paymentStatus, 'due') || 'due',
+    });
+  }
+  return out;
 }
 
 function mapAgreementStatus(raw: string): Agreement['status'] {
@@ -293,6 +383,32 @@ function mapAgreementStatus(raw: string): Agreement['status'] {
     return 'expired';
   }
   return 'pending';
+}
+
+function absoluteMediaUrl(raw: string): string {
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('/')) return `${API_BASE_URL}${raw}`;
+  return raw;
+}
+
+function mapAgreementArtifacts(raw: unknown, recipientId?: string): AgreementArtifact[] {
+  const out: AgreementArtifact[] = [];
+  for (const [index, item] of asArray(raw).entries()) {
+    const row = asRecord(item);
+    if (!row) continue;
+    const id = idOf(row._id ?? row.id ?? row.artifactId) ?? `artifact-${index}`;
+    const filename = str(row.filename, row.name, row.label, row.title, 'Document');
+    const type = str(row.type, row.mimeType, row.contentType, 'FILE').toUpperCase();
+    let url = str(row.url, row.downloadUrl, row.fileUrl, row.key, row.path);
+    if (!url && recipientId) {
+      url = `${API_BASE_URL}/api/agreements/submissions/${encodeURIComponent(recipientId)}/artifacts/${encodeURIComponent(id)}`;
+    }
+    url = absoluteMediaUrl(url);
+    if (!url) continue;
+    out.push({ id, filename, type, url });
+  }
+  return out;
 }
 
 function mapClosureDates(raw: unknown): { id: string; date: string }[] {
@@ -320,17 +436,13 @@ export const staffApi = {
       if (!row) continue;
       const id = idOf(row._id ?? row.id);
       if (!id) continue;
-      const students = asArray(row.students ?? row.members);
-      const studentCount =
-        num(row.studentCount) ||
-        num(row.studentsCount) ||
-        (students.length > 0 ? students.length : num(asRecord(row.pagination)?.total));
       out.push({
         id,
         name: str(row.groupName, row.name, row.title, 'Group'),
         courseTitle: str(row.courseTitle, row.courseName, asRecord(row.course)?.title, 'Course'),
-        studentCount,
-        nextSession: toISODay(row.nextSession ?? row.nextClassDate) || '—',
+        // Roster size is not on the list payload — shown inside group detail only.
+        studentCount: 0,
+        nextSession: toISODay(row.nextSession ?? row.nextClassDate ?? row.nextSessionDate) || '—',
       });
     }
     return out;
@@ -472,65 +584,114 @@ export const staffApi = {
       const id = idOf(row._id ?? row.id);
       if (!id) continue;
       const student = asRecord(row.studentId) ?? asRecord(row.student) ?? asRecord(row.user);
+      const installments = mapInstallments(row);
       out.push({
         id,
         studentName: personName(student) || str(row.studentName, 'Student'),
+        studentEmail: str(student?.email, row.studentEmail) || undefined,
         amountLabel: mapInvoiceAmount(row),
         status: mapInvoiceStatus(row),
         issuedOn: formatCourseworkDate(row.createdAt ?? row.issuedOn ?? row.startDate),
+        planName: str(row.planName, row.name, row.title, row.courseName) || undefined,
+        invoiceNumber: str(row.invoiceNumber, row.invoiceNo, row.number) || undefined,
+        dueOn: formatCourseworkDate(row.dueDate ?? row.nextDueDate) || undefined,
+        paidOn: formatCourseworkDate(row.paidAt ?? row.paidOn) || undefined,
+        notes: stripHtml(str(row.notes, row.description)) || undefined,
+        installments: installments.length > 0 ? installments : undefined,
       });
     }
     return out;
   },
 
   async agreements(): Promise<Agreement[]> {
-    const raw = await getAgreementSubmissions({ limit: 30 });
+    const raw = await getAgreementSubmissions({ limit: 50 });
     const out: Agreement[] = [];
     for (const item of unwrapList(raw)) {
-      if (out.length >= 30) break;
+      if (out.length >= 50) break;
       const row = asRecord(item);
       if (!row) continue;
       const id = idOf(row._id ?? row.id);
       if (!id) continue;
       const agreement = asRecord(row.agreement);
+      const sender = asRecord(row.sender);
+      const recipientId =
+        idOf(row.recipientId ?? asRecord(row.recipient)?._id ?? row.recipient) ?? undefined;
+      const statusRaw = str(row.status);
+      const artifacts = mapAgreementArtifacts(row.artifacts, recipientId ?? id);
       out.push({
         id,
         studentName: str(row.recipientName, personName(row.recipient), 'Recipient'),
+        studentEmail: str(row.recipientEmail, asRecord(row.recipient)?.email) || undefined,
         title: str(agreement?.title, row.title, 'Agreement'),
-        status: mapAgreementStatus(str(row.status)),
-        submittedOn: formatCourseworkDate(row.signedAt ?? row.createdAt),
+        status: mapAgreementStatus(statusRaw),
+        statusLabel: statusRaw || undefined,
+        submittedOn: formatCourseworkDate(row.createdAt ?? row.signedAt),
+        signedOn: formatCourseworkDate(row.signedAt) || undefined,
+        expiresOn: formatCourseworkDate(row.expiresAt) || undefined,
+        senderName: str(sender?.name, personName(sender)) || undefined,
+        deliveryMethod: str(row.deliveryMethod) || undefined,
+        agreementType: str(agreement?.type, row.type) || undefined,
+        recipientId,
+        artifacts: artifacts.length > 0 ? artifacts : undefined,
       });
     }
     return out;
   },
 
-  async shifts(): Promise<BookingShift[]> {
-    // One dated admin call — multi-day fan-out freezes the staff UI.
-    const date = toISODate(new Date());
-    const raw = await getAdminPracticalBookings({ date, status: 'Active' });
+  async shifts(date?: string): Promise<BookingShift[]> {
+    // Always scope by date — unfiltered admin/bookings loads every training day ever.
+    const day = date || toISODate(new Date());
+    const raw = await getAdminPracticalBookings({ date: day });
     const out: BookingShift[] = [];
     const seen = new Set<string>();
     for (const item of unwrapList(raw)) {
       const row = asRecord(item);
       if (!row) continue;
       const bookingId = idOf(row.bookingId ?? row._id ?? row.id);
-      const dayId = idOf(row.dayId ?? row.day);
-      const id = `${dayId ?? ''}:${bookingId ?? ''}`;
-      if (!bookingId || seen.has(id)) continue;
-      seen.add(id);
+      const dayId = idOf(row.dayId ?? row.day ?? row.practicalDay) ?? '';
+      if (!bookingId || seen.has(`${dayId}:${bookingId}`)) continue;
+      seen.add(`${dayId}:${bookingId}`);
       const shift = asRecord(row.shift);
-      const student = asRecord(row.student);
+      const student = asRecord(row.student) ?? asRecord(row.user);
       const location = asRecord(row.location);
+      const bookedBy = asRecord(row.bookedBy);
+      const statusRaw = str(row.status).toLowerCase();
+      const cancelled = statusRaw.includes('cancel');
+      const seat = Number(row.seat);
+      const shiftTime = str(row.shiftTime);
+      let startTime = formatClock(shift?.startTime ?? row.startTime);
+      let endTime = formatClock(shift?.endTime ?? row.endTime);
+      if ((startTime === '—' || endTime === '—') && shiftTime.includes('-')) {
+        const [start = '', end = ''] = shiftTime.split('-').map((part) => part.trim());
+        if (start) startTime = formatClock(start);
+        if (end) endTime = formatClock(end);
+      }
       out.push({
-        id,
+        id: `training:${dayId || day}:${bookingId}`,
+        dayId,
+        bookingId,
+        studentId: idOf(student?._id ?? student?.id ?? row.studentId) ?? undefined,
         studentName: personName(student) || str(row.studentName, 'Student'),
-        date: toISODay(row.date) || date,
-        startTime: formatClock(shift?.startTime ?? row.startTime),
-        endTime: formatClock(shift?.endTime ?? row.endTime),
+        studentEmail: str(student?.email, row.studentEmail) || undefined,
+        shiftName: str(shift?.name, shift?.title, row.shiftName, row.shift, 'Training shift'),
+        date: toISODay(row.date) || day,
+        startTime,
+        endTime,
         location: str(row.locationName, location?.title, location?.name, row.location) || '—',
+        seat: Number.isFinite(seat) ? seat : undefined,
+        status: cancelled ? 'cancelled' : 'active',
+        statusLabel: str(row.status, cancelled ? 'Cancelled' : 'Active'),
+        attendance: str(row.attendance) || undefined,
+        bookedAt: formatCourseworkDate(row.bookedAt ?? row.createdAt) || undefined,
+        bookedByName: personName(bookedBy) !== '—' ? personName(bookedBy) : undefined,
+        cancelledAt: formatCourseworkDate(row.cancelledAt) || undefined,
+        isOverridden: Boolean(shift?.isOverridden ?? row.isOverridden),
       });
     }
-    return out.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    return out.sort(
+      (a, b) =>
+        a.startTime.localeCompare(b.startTime) || a.studentName.localeCompare(b.studentName),
+    );
   },
 
   async closedDays(): Promise<string[]> {

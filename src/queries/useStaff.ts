@@ -104,11 +104,12 @@ export function useAgreements() {
   });
 }
 
-export function useShifts() {
+export function useShifts(date?: string) {
   const ready = useAfterInteractions();
+  const day = date || new Date().toISOString().slice(0, 10);
   return useQuery({
-    queryKey: staffKeys.shifts,
-    queryFn: staffApi.shifts,
+    queryKey: [...staffKeys.shifts, day],
+    queryFn: () => staffApi.shifts(day),
     enabled: ready,
     ...STAFF_QUERY,
   });

@@ -64,20 +64,61 @@ export type RootStackParamList = {
   InvoiceDetail: {
     invoiceId: string;
     studentName: string;
+    studentEmail?: string;
     amountLabel: string;
     status: 'paid' | 'due' | 'overdue';
     issuedOn: string;
+    planName?: string;
+    invoiceNumber?: string;
+    dueOn?: string;
+    paidOn?: string;
+    notes?: string;
+    installments?: {
+      id: string;
+      label: string;
+      amountLabel: string;
+      dueDate: string;
+      status: string;
+    }[];
   };
   Agreements: undefined;
   AgreementDetail: {
     agreementId: string;
     title: string;
     studentName: string;
+    studentEmail?: string;
     status: 'pending' | 'signed' | 'expired';
+    statusLabel?: string;
     submittedOn: string;
+    signedOn?: string;
+    expiresOn?: string;
+    senderName?: string;
+    deliveryMethod?: string;
+    agreementType?: string;
+    artifacts?: { id: string; filename: string; type: string; url: string }[];
   };
   CloseCalendar: undefined;
   BookingShifts: undefined;
+  BookingShiftDetail: {
+    dayId: string;
+    bookingId: string;
+    studentId?: string;
+    studentName: string;
+    studentEmail?: string;
+    shiftName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    location: string;
+    seat?: number;
+    status: 'active' | 'cancelled';
+    statusLabel: string;
+    attendance?: string;
+    bookedAt?: string;
+    bookedByName?: string;
+    cancelledAt?: string;
+    isOverridden?: boolean;
+  };
 };
 
 export type MainTabParamList = {

@@ -44,7 +44,7 @@ export function StaffGroupsScreen({ navigation }: Props) {
               icon="people-outline"
               title={group.name}
               subtitle={group.courseTitle}
-              meta={`${group.studentCount} students · next ${group.nextSession}`}
+              meta={group.nextSession !== '—' ? `Next ${group.nextSession}` : undefined}
               onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
             />
           )}
