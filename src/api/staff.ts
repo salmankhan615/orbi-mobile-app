@@ -6,6 +6,16 @@ export interface StaffGroup {
   nextSession: string;
 }
 
+export interface GroupSession {
+  id: string;
+  groupId: string;
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+}
+
 export interface GroupStudent {
   id: string;
   name: string;
@@ -123,6 +133,40 @@ const groupStudents: Record<string, GroupStudent[]> = {
   g2: [{ id: 'user-4', name: 'Fatima Noor', email: 'fatima@kbm.com', progress: 72 }],
 };
 
+const groupSessions: Record<string, GroupSession[]> = {
+  g1: [
+    {
+      id: 'gs1',
+      groupId: 'g1',
+      title: 'Financial reporting workshop',
+      date: '2026-08-04',
+      startTime: '09:00',
+      endTime: '12:00',
+      location: 'Online',
+    },
+    {
+      id: 'gs2',
+      groupId: 'g1',
+      title: 'Mock exam briefing',
+      date: '2026-08-11',
+      startTime: '09:00',
+      endTime: '11:00',
+      location: 'Park Royal',
+    },
+  ],
+  g2: [
+    {
+      id: 'gs3',
+      groupId: 'g2',
+      title: 'Service recovery role-play',
+      date: '2026-08-06',
+      startTime: '14:00',
+      endTime: '17:00',
+      location: 'Manchester',
+    },
+  ],
+};
+
 const directory: DirectoryUser[] = [
   { id: 'user-1', name: 'Sidra Khan', email: 'sidra@kbm.com', role: 'student', status: 'active' },
   { id: 'user-3', name: 'Hassan Ali', email: 'hassan@kbm.com', role: 'student', status: 'active' },
@@ -233,6 +277,8 @@ export const staffApi = {
   groups: (): Promise<StaffGroup[]> => mockDelay(groups),
   groupStudents: (groupId: string): Promise<GroupStudent[]> =>
     mockDelay(groupStudents[groupId] ?? []),
+  groupSessions: (groupId: string): Promise<GroupSession[]> =>
+    mockDelay(groupSessions[groupId] ?? []),
   directory: (): Promise<DirectoryUser[]> => mockDelay(directory),
   coursework: (): Promise<CourseworkItem[]> => mockDelay(coursework),
   submissions: (assignmentId?: string): Promise<CourseworkSubmission[]> =>

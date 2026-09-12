@@ -27,9 +27,14 @@ export function useCrmUser() {
 
 async function hydrateAfterSignIn(
   queryClient: ReturnType<typeof useQueryClient>,
-  user: { id: string; companyId?: string },
+  user: { id: string; role: string; companyId?: string },
 ) {
   await queryClient.invalidateQueries({ queryKey: ['courses'] });
+  queryClient.removeQueries({ queryKey: authKeys.user });
+
+  // Staff tools do not use allocate-course / student home bootstrap.
+  if (user.role !== 'student') return;
+
   if (user.companyId) {
     await queryClient.prefetchQuery({
       queryKey: coursesKeys.allocatedPacks(user.id, user.companyId),
@@ -57,6 +62,7 @@ export function useLogin() {
     mutationFn: authApi.login,
     onSuccess: async ({ user, sessionExpiresAt, cookie, token }) => {
       signIn(user, sessionExpiresAt, { cookie, token });
+      queryClient.setQueryData(authKeys.user, user);
       await hydrateAfterSignIn(queryClient, user);
     },
   });
@@ -70,7 +76,24 @@ export function useSignup() {
     mutationFn: authApi.signup,
     onSuccess: async ({ user, sessionExpiresAt, cookie, token }) => {
       signIn(user, sessionExpiresAt, { cookie, token });
+      queryClient.setQueryData(authKeys.user, user);
       await hydrateAfterSignIn(queryClient, user);
+    },
+  });
+}
+
+export function useLogout() {
+  const signOut = useAuthStore((state) => state.signOut);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      try {
+        await authApi.logout();
+      } finally {
+        signOut();
+        queryClient.clear();
+      }
     },
   });
 }

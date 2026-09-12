@@ -13,12 +13,23 @@ import type { RootStackScreenProps } from '@/navigation/types';
 type Props = RootStackScreenProps<'StaffBookingDetail'>;
 
 export function StaffBookingDetailScreen({ route, navigation }: Props) {
+  const canView = useHasPermission('view_bookings');
   const { data, isLoading } = useBooking(route.params.bookingId);
   const canAttend = useHasPermission('mark_attendance');
   const canCancel = useHasPermission('cancel_booking');
   const mark = useMarkAttendance();
   const cancel = useCancelBooking();
   const showToast = useToastStore((state) => state.show);
+
+  if (!canView) {
+    return (
+      <StackScreen title="Booking">
+        <Text variant="body" color="textMuted">
+          You do not have permission to view bookings.
+        </Text>
+      </StackScreen>
+    );
+  }
 
   if (isLoading || !data) {
     return (

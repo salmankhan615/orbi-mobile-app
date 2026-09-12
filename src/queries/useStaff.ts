@@ -6,7 +6,8 @@ import { getCalendarClosures } from '@/api/crm';
 
 export const staffKeys = {
   groups: ['staff', 'groups'] as const,
-  groupStudents: (id: string) => ['staff', 'groups', id] as const,
+  groupStudents: (id: string) => ['staff', 'groups', id, 'students'] as const,
+  groupSessions: (id: string) => ['staff', 'groups', id, 'sessions'] as const,
   directory: ['staff', 'directory'] as const,
   coursework: ['staff', 'coursework'] as const,
   submissions: (id?: string) => ['staff', 'submissions', id ?? 'all'] as const,
@@ -24,6 +25,14 @@ export function useGroupStudents(groupId: string) {
   return useQuery({
     queryKey: staffKeys.groupStudents(groupId),
     queryFn: () => staffApi.groupStudents(groupId),
+    enabled: Boolean(groupId),
+  });
+}
+
+export function useGroupSessions(groupId: string) {
+  return useQuery({
+    queryKey: staffKeys.groupSessions(groupId),
+    queryFn: () => staffApi.groupSessions(groupId),
     enabled: Boolean(groupId),
   });
 }

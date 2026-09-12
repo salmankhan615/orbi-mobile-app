@@ -48,8 +48,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const role = useAuthStore((state) => state.user?.role ?? 'student');
   const sessionExpiresAt = useAuthStore((state) => state.sessionExpiresAt);
   const signOut = useAuthStore((state) => state.signOut);
+  const isStaff = role === 'staff';
 
   // CRM rejects an expired/revoked token with 401 — drop the local session too.
   useEffect(() => {
@@ -70,6 +72,7 @@ export function RootNavigator() {
 
   return (
     <Stack.Navigator
+      key={isAuthenticated ? `app-${role}` : 'auth'}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: tokens.colors.background },
@@ -78,36 +81,44 @@ export function RootNavigator() {
       {isAuthenticated ? (
         <>
           <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
-          <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
-          <Stack.Screen name="LessonPlayer" component={LessonPlayerScreen} />
-          <Stack.Screen name="DayAgenda" component={DayAgendaScreen} />
-          <Stack.Screen name="SessionDetails" component={SessionDetailsScreen} />
-          <Stack.Screen name="ChatThread" component={ChatThreadScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
           <Stack.Screen name="Announcements" component={AnnouncementsScreen} />
           <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} />
-          <Stack.Screen name="AnnouncementEditor" component={AnnouncementEditorScreen} />
-          <Stack.Screen name="BookClass" component={BookClassScreen} />
-          <Stack.Screen name="BookTraining" component={BookTrainingScreen} />
-          <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
-          <Stack.Screen name="Coursework" component={StudentCourseworkScreen} />
-          <Stack.Screen name="CourseworkDetail" component={CourseworkDetailScreen} />
-          <Stack.Screen name="CourseworkFile" component={CourseworkFileScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
           <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
           <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
           <Stack.Screen name="AboutKbm" component={AboutKbmScreen} />
-          <Stack.Screen name="StaffBookingDetail" component={StaffBookingDetailScreen} />
-          <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
-          <Stack.Screen name="UserDirectory" component={UserDirectoryScreen} />
-          <Stack.Screen name="StaffCoursework" component={StaffCourseworkScreen} />
-          <Stack.Screen name="CourseworkSubmissions" component={CourseworkSubmissionsScreen} />
-          <Stack.Screen name="Invoices" component={InvoicesScreen} />
-          <Stack.Screen name="Agreements" component={AgreementsScreen} />
-          <Stack.Screen name="CloseCalendar" component={CloseCalendarScreen} />
-          <Stack.Screen name="BookingShifts" component={BookingShiftsScreen} />
+
+          {isStaff ? (
+            <>
+              <Stack.Screen name="AnnouncementEditor" component={AnnouncementEditorScreen} />
+              <Stack.Screen name="StaffBookingDetail" component={StaffBookingDetailScreen} />
+              <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
+              <Stack.Screen name="UserDirectory" component={UserDirectoryScreen} />
+              <Stack.Screen name="StaffCoursework" component={StaffCourseworkScreen} />
+              <Stack.Screen name="CourseworkSubmissions" component={CourseworkSubmissionsScreen} />
+              <Stack.Screen name="Invoices" component={InvoicesScreen} />
+              <Stack.Screen name="Agreements" component={AgreementsScreen} />
+              <Stack.Screen name="CloseCalendar" component={CloseCalendarScreen} />
+              <Stack.Screen name="BookingShifts" component={BookingShiftsScreen} />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="Dashboard" component={DashboardScreen} />
+              <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
+              <Stack.Screen name="LessonPlayer" component={LessonPlayerScreen} />
+              <Stack.Screen name="DayAgenda" component={DayAgendaScreen} />
+              <Stack.Screen name="SessionDetails" component={SessionDetailsScreen} />
+              <Stack.Screen name="ChatThread" component={ChatThreadScreen} />
+              <Stack.Screen name="BookClass" component={BookClassScreen} />
+              <Stack.Screen name="BookTraining" component={BookTrainingScreen} />
+              <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
+              <Stack.Screen name="Coursework" component={StudentCourseworkScreen} />
+              <Stack.Screen name="CourseworkDetail" component={CourseworkDetailScreen} />
+              <Stack.Screen name="CourseworkFile" component={CourseworkFileScreen} />
+            </>
+          )}
         </>
       ) : (
         <>

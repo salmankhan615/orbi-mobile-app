@@ -1,85 +1,26 @@
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { tokens } from '@/theme';
 import { Screen } from '@/components/custom/Screen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { MenuRow } from '@/features/profile/components/MenuRow';
+import { toolsForPermissions } from '@/features/staff/staffTools';
+import { openStaffTool } from '@/features/staff/openStaffTool';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothScrollProps } from '@/utils/scroll';
 import type { MainTabScreenProps } from '@/navigation/types';
-import type { StaffPermission } from '@/features/auth/permissions';
 
 type Props = MainTabScreenProps<'More'>;
-
-const ITEMS: {
-  label: string;
-  icon:
-    | 'people-outline'
-    | 'document-text-outline'
-    | 'receipt-outline'
-    | 'document-attach-outline'
-    | 'megaphone-outline'
-    | 'close-circle-outline'
-    | 'time-outline';
-  permission: StaffPermission;
-  route:
-    | 'UserDirectory'
-    | 'StaffCoursework'
-    | 'Invoices'
-    | 'Agreements'
-    | 'Announcements'
-    | 'CloseCalendar'
-    | 'BookingShifts';
-}[] = [
-  {
-    label: 'Users directory',
-    icon: 'people-outline',
-    permission: 'view_users',
-    route: 'UserDirectory',
-  },
-  {
-    label: 'Coursework',
-    icon: 'document-text-outline',
-    permission: 'view_coursework',
-    route: 'StaffCoursework',
-  },
-  {
-    label: 'Invoices',
-    icon: 'receipt-outline',
-    permission: 'view_invoices',
-    route: 'Invoices',
-  },
-  {
-    label: 'Agreements',
-    icon: 'document-attach-outline',
-    permission: 'view_agreements',
-    route: 'Agreements',
-  },
-  {
-    label: 'Announcements',
-    icon: 'megaphone-outline',
-    permission: 'view_announcements',
-    route: 'Announcements',
-  },
-  {
-    label: 'Close calendar day',
-    icon: 'close-circle-outline',
-    permission: 'close_calendar',
-    route: 'CloseCalendar',
-  },
-  {
-    label: 'Booking shifts',
-    icon: 'time-outline',
-    permission: 'view_shifts',
-    route: 'BookingShifts',
-  },
-];
 
 export function StaffMoreScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const permissions = useAuthStore((state) => state.user?.permissions ?? []);
-  const visible = ITEMS.filter((item) => permissions.includes(item.permission));
+  const tools = useMemo(
+    () => toolsForPermissions(permissions).filter((tool) => tool.route || tool.tab),
+    [permissions],
+  );
 
   return (
     <Screen style={styles.screen}>
@@ -88,19 +29,25 @@ export function StaffMoreScreen({ navigation }: Props) {
         contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
         {...smoothScrollProps}
       >
-        <PageHeader title="More" subtitle="Tools available for your role." />
-        {visible.length === 0 ? (
-          <EmptyState icon="grid-outline" message="No tools available for your role." />
+        <PageHeader
+          title="Staff tools"
+          subtitle="Only modules allowed for your role are listed."
+        />
+        {tools.length === 0 ? (
+          <EmptyState
+            icon="grid-outline"
+            title="No tools available"
+            message="Ask an admin to grant staff module permissions."
+          />
         ) : (
           <View style={styles.group}>
-            {visible.map((item, index) => (
+            {tools.map((item, index) => (
               <MenuRow
-                key={item.route}
+                key={item.id}
                 icon={item.icon}
                 label={item.label}
-                isFirst={index === 0}
-                isLast={index === visible.length - 1}
-                onPress={() => navigation.navigate(item.route)}
+                isLast={index === tools.length - 1}
+                onPress={() => openStaffTool(navigation, item)}
               />
             ))}
           </View>
@@ -122,7 +69,7 @@ const styles = StyleSheet.create({
   content: {},
   group: {
     backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radius.lg,
+    borderRadius: tokens.radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.border,
     overflow: 'hidden',

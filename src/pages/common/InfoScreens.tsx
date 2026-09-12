@@ -2,6 +2,7 @@ import { StyleSheet } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { StackScreen } from '@/components/custom/StackScreen';
+import { useIsStaff } from '@/hooks/useHasPermission';
 
 export function PrivacySecurityScreen() {
   return (
@@ -31,21 +32,39 @@ export function PrivacySecurityScreen() {
 }
 
 export function HelpSupportScreen() {
+  const isStaff = useIsStaff();
+
   return (
     <StackScreen title="Help & Support">
       <Text variant="title" style={styles.h}>
         Contact
       </Text>
       <Text variant="body" color="textSecondary" style={styles.p}>
-        Email support@kbmtraining.com or use Chat for instructor questions.
+        Email support@kbmtraining.com
+        {isStaff ? ' or your CRM administrator for module access.' : ' or use Chat for instructor questions.'}
       </Text>
-      <Text variant="title" style={styles.h}>
-        Booking a class
-      </Text>
-      <Text variant="body" color="textSecondary">
-        Open Book Class from Home, pick a slot, and confirm. Cancel from My Bookings while the
-        status is confirmed.
-      </Text>
+      {isStaff ? (
+        <>
+          <Text variant="title" style={styles.h}>
+            Staff tools
+          </Text>
+          <Text variant="body" color="textSecondary">
+            Overview lists every tool your role allows — bookings, groups, directory, coursework,
+            invoices, agreements, announcements, closing calendar days, and shifts. Missing a tool?
+            Your account needs that permission in CRM.
+          </Text>
+        </>
+      ) : (
+        <>
+          <Text variant="title" style={styles.h}>
+            Booking a class
+          </Text>
+          <Text variant="body" color="textSecondary">
+            Open Book Class from Home, pick a slot, and confirm. Cancel from My Bookings while the
+            status is confirmed.
+          </Text>
+        </>
+      )}
     </StackScreen>
   );
 }

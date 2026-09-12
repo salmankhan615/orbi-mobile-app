@@ -8,7 +8,7 @@ import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
 import { MenuRow } from '@/features/profile/components/MenuRow';
-import { useCrmUser } from '@/queries/useAuth';
+import { useCrmUser, useLogout } from '@/queries/useAuth';
 import { useAuthStore, displayName, displayPhone } from '@/store/useAuthStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothScrollProps } from '@/utils/scroll';
@@ -24,12 +24,13 @@ const DETAIL_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Country: 'globe-outline',
   City: 'location-outline',
   Status: 'shield-checkmark-outline',
+  Role: 'ribbon-outline',
 };
 
 export function ProfileScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const storeUser = useAuthStore((state) => state.user);
-  const signOut = useAuthStore((state) => state.signOut);
+  const logout = useLogout();
   const { data: crmUser, refetch } = useCrmUser();
   const [notificationsOn, setNotificationsOn] = useState(true);
 
@@ -44,6 +45,7 @@ export function ProfileScreen({ navigation }: Props) {
   const phone = displayPhone(user);
   const initial = (user?.firstName ?? 'G').charAt(0).toUpperCase();
   const roleLabel = user?.roleLabel || (user?.role === 'staff' ? 'Staff' : 'Student');
+  const appRoleLabel = user?.role === 'staff' ? 'Staff app' : 'Student app';
   const statusLabel = user?.status
     ? user.status.charAt(0).toUpperCase() + user.status.slice(1).toLowerCase()
     : undefined;
@@ -53,11 +55,12 @@ export function ProfileScreen({ navigation }: Props) {
     if (user?.email) rows.push({ label: 'Email', value: user.email });
     if (phone) rows.push({ label: 'Mobile', value: phone });
     if (user?.companyName) rows.push({ label: 'Company', value: user.companyName });
+    rows.push({ label: 'Role', value: `${roleLabel} · ${appRoleLabel}` });
     if (user?.country) rows.push({ label: 'Country', value: user.country });
     if (user?.city) rows.push({ label: 'City', value: user.city });
     if (statusLabel) rows.push({ label: 'Status', value: statusLabel });
     return rows;
-  }, [user, phone, statusLabel]);
+  }, [user, phone, statusLabel, roleLabel, appRoleLabel]);
 
   function handleSignOut() {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -67,7 +70,7 @@ export function ProfileScreen({ navigation }: Props) {
         style: 'destructive',
         onPress: () => {
           haptics.warning();
-          signOut();
+          logout.mutate();
         },
       },
     ]);
@@ -111,7 +114,11 @@ export function ProfileScreen({ navigation }: Props) {
             </Text>
 
             <View style={styles.badges}>
-              <Badge label={roleLabel} tone="neutral" style={styles.badge} />
+              <Badge
+                label={roleLabel}
+                tone={user?.role === 'staff' ? 'primary' : 'neutral'}
+                style={styles.badge}
+              />
               {statusLabel ? (
                 <Badge
                   label={statusLabel}
@@ -168,7 +175,9 @@ export function ProfileScreen({ navigation }: Props) {
                 Push notifications
               </Text>
               <Text variant="caption" color="textMuted">
-                Class, training, and course alerts
+                {user?.role === 'staff'
+                  ? 'Booking, agreement, and announcement alerts'
+                  : 'Class, training, and course alerts'}
               </Text>
             </View>
             <Switch

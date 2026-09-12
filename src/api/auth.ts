@@ -2,11 +2,12 @@ import { apiClient, clearApiSession, getApiSession, setApiSession } from '@/api/
 import { AUTH_API_PREFIX } from '@/api/config';
 import { crmCourseMediaUrl } from '@/api/crmMedia';
 import { Platform } from 'react-native';
+import { SESSION_DURATION_MS } from '@/features/auth/permissions';
 import {
-  ALL_STAFF_PERMISSIONS,
-  SESSION_DURATION_MS,
-  type UserRole,
-} from '@/features/auth/permissions';
+  formatRoleLabel,
+  mapCrmRole,
+  permissionsForRole,
+} from '@/features/auth/mapCrmRole';
 import type { AuthUser } from '@/store/useAuthStore';
 
 export interface LoginPayload {
@@ -61,6 +62,7 @@ interface CrmUser {
   mobile?: string;
   role?: string;
   type?: string;
+  roleId?: string | null;
   token?: string;
   profile?: string;
   profileId?: string | null;
@@ -152,21 +154,6 @@ function expiresAt() {
   return Date.now() + SESSION_DURATION_MS;
 }
 
-function mapRole(role?: string): UserRole {
-  const normalized = (role ?? '').trim().toLowerCase();
-  // Only treat known staff labels as staff — CRM often uses other strings for students.
-  if (
-    normalized === 'staff' ||
-    normalized === 'admin' ||
-    normalized === 'trainer' ||
-    normalized === 'instructor' ||
-    normalized.includes('staff')
-  ) {
-    return 'staff';
-  }
-  return 'student';
-}
-
 function titleCase(value?: string): string | undefined {
   const raw = (value ?? '').trim();
   if (!raw) return undefined;
@@ -176,11 +163,22 @@ function titleCase(value?: string): string | undefined {
     .join(' ');
 }
 
+function optionalId(value: unknown): string | undefined {
+  if (value == null) return undefined;
+  const id = asObjectId(value) ?? (typeof value === 'string' ? value.trim() : '');
+  return id || undefined;
+}
+
 function mapCrmUser(raw: CrmUser, fallbackEmail: string): AuthUser {
-  const role = mapRole(raw.role ?? raw.type);
+  const role = mapCrmRole({
+    role: raw.role,
+    type: raw.type,
+    roleId: optionalId(raw.roleId),
+    profileId: optionalId(raw.profileId),
+    emsProfileId: optionalId(raw.emsProfileId),
+  });
   const firstName = (raw.firstName ?? raw.name ?? '').trim() || 'User';
   const lastName = (raw.lastName ?? raw.lname ?? '').trim();
-  const roleLabel = (raw.role || raw.type || (role === 'staff' ? 'Staff' : 'Student')).trim();
 
   return {
     id: String(raw._id ?? raw.id ?? fallbackEmail),
@@ -194,7 +192,11 @@ function mapCrmUser(raw: CrmUser, fallbackEmail: string): AuthUser {
     companyPhotoUrl: resolveCompanyPhoto(raw),
     photoUrl: firstPhotoUrl(raw.photo),
     role,
-    roleLabel,
+    roleLabel: formatRoleLabel(raw.role || raw.type, role),
+    crmType: (raw.type || '').trim() || undefined,
+    roleId: optionalId(raw.roleId),
+    profileId: optionalId(raw.profileId),
+    emsProfileId: optionalId(raw.emsProfileId),
     status: (raw.status || '').trim() || undefined,
     country: titleCase(raw.country),
     city: titleCase(raw.city),
@@ -204,7 +206,7 @@ function mapCrmUser(raw: CrmUser, fallbackEmail: string): AuthUser {
     dateOfBirth: (raw.dateOfBirth || '').trim() || undefined,
     website: (raw.website || '').trim() || undefined,
     isVerified: Boolean(raw.isVerified),
-    permissions: role === 'staff' ? ALL_STAFF_PERMISSIONS : [],
+    permissions: permissionsForRole(role),
   };
 }
 
@@ -272,8 +274,16 @@ export const authApi = {
     // Always synthesize Cookie: token=<jwt> — CRM requires it; RN often cannot read Set-Cookie.
     setApiSession(null, token);
 
+    // Login payload is thin — getUser has type / roleId / profileIds for reliable RBAC.
+    let user = mapCrmUser(userPayload, email.trim().toLowerCase());
+    try {
+      user = await authApi.getUser();
+    } catch {
+      // Keep mapped login user if getUser fails (cookie timing / network).
+    }
+
     return {
-      user: mapCrmUser(userPayload, email.trim().toLowerCase()),
+      user,
       sessionExpiresAt: expiresAt(),
       cookie: getApiSession().cookie,
       token,
@@ -336,13 +346,19 @@ export const authApi = {
       { skipAuth: true },
     );
 
-    const user = mapCrmUser(raw, email.trim().toLowerCase());
+    const mapped = mapCrmUser(raw, email.trim().toLowerCase());
     const { cookie } = getApiSession();
     // Prefer JWT cookie synthesis after register too when token present.
     setApiSession(cookie, typeof raw.token === 'string' ? raw.token : null);
 
     return {
-      user: { ...user, role: 'student', permissions: [] },
+      // Self-serve signup is always a student LMS account.
+      user: {
+        ...mapped,
+        role: 'student',
+        roleLabel: 'Student',
+        permissions: [],
+      },
       sessionExpiresAt: expiresAt(),
       cookie: getApiSession().cookie,
       token: typeof raw.token === 'string' ? raw.token : null,

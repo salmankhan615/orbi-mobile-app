@@ -16,17 +16,21 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabNavigator() {
   const role = useAuthStore((state) => state.user?.role ?? 'student');
+  const permissions = useAuthStore((state) => state.user?.permissions ?? []);
+  const canBookings = role === 'staff' && permissions.includes('view_bookings');
+  const canGroups = role === 'staff' && permissions.includes('view_groups');
 
   if (role === 'staff') {
     return (
       <Tab.Navigator
+        key={`staff-tabs-${canBookings ? 'b' : ''}${canGroups ? 'g' : ''}`}
         screenOptions={{ headerShown: false }}
         tabBar={(props) => <CustomTabBar {...props} />}
       >
         <Tab.Screen name="Home" component={StaffHomeScreen} options={{ title: 'Overview' }} />
-        <Tab.Screen name="Bookings" component={StaffBookingsScreen} />
-        <Tab.Screen name="Groups" component={StaffGroupsScreen} />
-        <Tab.Screen name="More" component={StaffMoreScreen} />
+        {canBookings ? <Tab.Screen name="Bookings" component={StaffBookingsScreen} /> : null}
+        {canGroups ? <Tab.Screen name="Groups" component={StaffGroupsScreen} /> : null}
+        <Tab.Screen name="More" component={StaffMoreScreen} options={{ title: 'Tools' }} />
         <Tab.Screen name="Profile" component={ProfileScreen} />
       </Tab.Navigator>
     );
@@ -34,6 +38,7 @@ export function MainTabNavigator() {
 
   return (
     <Tab.Navigator
+      key="student-tabs"
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <CustomTabBar {...props} />}
     >
