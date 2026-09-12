@@ -9,6 +9,8 @@ import {
   getCourseSettings,
   getMyPracticalBookings,
   isSettingsActive,
+  markClassAttendance,
+  type TrainingShiftRaw,
 } from '@/api/crm';
 import { useAuthStore } from '@/store/useAuthStore';
 import { formatPortalDate, getRollingDateRange } from '@/utils/date';
@@ -148,15 +150,31 @@ function seatsLeftForClass(row: UnknownRecord): { left: number; nextSeat: number
   return { left: available.length, nextSeat: available[0] ?? 1 };
 }
 
+/** Occurrence day — prefer classDate/startTime; `date` is often the series start. */
+function occurrenceDate(row: UnknownRecord): string {
+  for (const value of [row.classDate, row.startTime, row.date]) {
+    const iso = toISODate(value);
+    if (iso) return iso;
+  }
+  return '';
+}
+
+/** Student already holds an active seat on this class (full `myBookings[]` or slim `myBooking`). */
+function hasActiveMyBooking(row: UnknownRecord): boolean {
+  const candidates = [asRecord(row.myBooking), ...asArray(row.myBookings).map(asRecord)];
+  return candidates.some((item) => item && !/cancel/i.test(str(item.status)));
+}
+
 function mapClassSlot(raw: unknown, classTitles: Map<string, string>): BookableSlot | null {
   const row = asRecord(raw);
   if (!row) return null;
   const id = idOf(row._id ?? row.id);
   if (!id) return null;
-  const date = toISODate(row.classDate ?? row.date);
+  const date = occurrenceDate(row);
   if (!date || date < new Date().toISOString().slice(0, 10)) return null;
   const status = str(row.status, row.classStatus).toLowerCase();
   if (status.includes('cancel') || status === 'inactive') return null;
+  if (hasActiveMyBooking(row)) return null;
   const { left, nextSeat } = seatsLeftForClass(row);
   if (left <= 0) return null;
   const classTypeId = idOf(row.classType) ?? str(row.classType);
@@ -186,6 +204,19 @@ function nextDates(days: number): string[] {
   return out;
 }
 
+/** Free seat numbers for a shift — `bookedSeats` on shifts is a count, use `bookedSeatNumbers`. */
+function freeTrainingSeats(shift: UnknownRecord): number[] {
+  const typed = shift as TrainingShiftRaw;
+  const limit = Number(typed.currentLimit ?? typed.defaultLimit ?? 0);
+  if (!Number.isFinite(limit) || limit <= 0) return [];
+  const booked = new Set(
+    asArray(typed.bookedSeatNumbers)
+      .map(Number)
+      .filter((n) => Number.isFinite(n)),
+  );
+  return Array.from({ length: limit }, (_, i) => i + 1).filter((n) => !booked.has(n));
+}
+
 async function listTrainingSlots(): Promise<BookableSlot[]> {
   const settings = await getCourseSettings();
   const locations = (settings.locations ?? [])
@@ -210,7 +241,10 @@ async function listTrainingSlots(): Promise<BookableSlot[]> {
             if (!shift) continue;
             const shiftId = idOf(shift._id ?? shift.id);
             if (!shiftId) continue;
-            const left = Number(shift.availableSeats ?? shift.seatsLeft ?? shift.remaining ?? 1);
+            const freeSeats = freeTrainingSeats(shift);
+            const reported = Number(shift.availableSeats ?? shift.seatsLeft ?? shift.remaining);
+            const left = Number.isFinite(reported) ? reported : freeSeats.length;
+            if (left <= 0) continue;
             slots.push({
               id: `training:${location._id}:${shiftId}:${date}`,
               kind: 'training',
@@ -219,9 +253,9 @@ async function listTrainingSlots(): Promise<BookableSlot[]> {
               startTime: formatClock(shift.startTime ?? shift.start),
               endTime: formatClock(shift.endTime ?? shift.end),
               instructor: str(shift.instructor, shift.trainer, 'Trainer'),
-              seatsLeft: Number.isFinite(left) ? left : 1,
+              seatsLeft: left,
               mode: 'In-Person',
-              seat: Number(shift.nextSeat ?? 1) || 1,
+              seat: freeSeats[0] ?? (Number(shift.nextSeat) || 1),
               locationId: location._id,
               shiftId,
             });
@@ -359,15 +393,19 @@ function mapClassBookings(calendarRows: unknown[], studentId: string, maps: Titl
     const row = asRecord(day);
     if (!row) continue;
 
-    const myBookings = asArray(row.myBookings);
-    if (myBookings.length > 0) {
-      for (const bookingRaw of myBookings) {
+    // `viewAsStudentId` responses carry the student's own seats in `myBookings[]`
+    // (slim: single `myBooking`). When either is present it is authoritative —
+    // an empty `myBookings` means no booking, so never fall through to `bookings`.
+    if (Array.isArray(row.myBookings)) {
+      for (const bookingRaw of row.myBookings) {
         const booking = asRecord(bookingRaw);
-        if (!booking) continue;
-        const userId = str(booking.user, booking.userId, idOf(booking.user));
-        if (userId && userId !== studentId) continue;
-        pushClassBooking(bookings, row, booking, studentId, maps);
+        if (booking) pushClassBooking(bookings, row, booking, studentId, maps);
       }
+      continue;
+    }
+    const single = asRecord(row.myBooking);
+    if (single) {
+      pushClassBooking(bookings, row, single, studentId, maps);
       continue;
     }
 
@@ -382,34 +420,53 @@ function mapClassBookings(calendarRows: unknown[], studentId: string, maps: Titl
   return bookings;
 }
 
+/** `shiftTime` arrives as "09:00 - 13:00" on flattened practical rows. */
+function splitShiftTime(value: unknown): [string, string] {
+  const raw = str(value);
+  if (!raw.includes('-')) return ['', ''];
+  const [start = '', end = ''] = raw.split('-').map((part) => part.trim());
+  return [start, end];
+}
+
+/**
+ * Practical rows come in two shapes:
+ * - flattened (`my-bookings` / `calendar`): `bookingId`, `dayId`, `shift` (name),
+ *   `shiftTime`, `locationName`, `date`, `seat`, `status`, `attendance`
+ * - populated (`{ _id, day, shift: { _id, name, startTime, endTime }, location: { _id, title } }`)
+ */
 function mapPracticalBookings(raw: unknown, studentId: string, maps: TitleMaps): Booking[] {
   return asList(raw).map((item, index) => {
     const row = asRecord(item) ?? {};
-    const bookingId = idOf(row._id ?? row.bookingId) ?? `pt-${index}`;
-    const dayId = str(row.dayId, idOf(row.day), idOf(row.practicalDay));
-    const locationId = idOf(row.location) ?? str(row.location);
-    const shift = asRecord(row.shift);
-    const shiftId = idOf(shift?._id ?? shift?.id);
-    const shiftName = str(shift?.title, shift?.name);
-    const date = toISODate(row.date ?? row.classDate ?? row.bookingDate);
+    const bookingId = idOf(row.bookingId ?? row._id ?? row.id) ?? `pt-${index}`;
+    const dayId = idOf(row.dayId ?? row.day ?? row.practicalDay) ?? '';
+    const shiftRecord = asRecord(row.shift);
+    const shiftId = idOf(shiftRecord?._id ?? shiftRecord?.id ?? row.shiftId) ?? '';
+    const shiftName = str(shiftRecord?.name, shiftRecord?.title, row.shiftName, row.shift);
+    const [shiftStart, shiftEnd] = splitShiftTime(row.shiftTime);
+    const locationRecord = asRecord(row.location);
+    const locationId = idOf(row.location ?? row.locationId) ?? '';
+    const locationLabel =
+      str(row.locationName, locationRecord?.title, locationRecord?.name) ||
+      maps.locations.get(locationId) ||
+      '—';
+    const date = toISODate(row.date ?? row.classDate ?? row.trainingDate);
     const bookingDate = toISODate(row.bookedAt ?? row.bookingDate ?? row.createdAt);
     const seat = Number(row.seat);
     const attendanceRaw = str(row.attendance);
-    const locationLabel =
-      maps.locations.get(locationId) || str(asRecord(row.location)?.title, row.locationName) || '—';
+    const studentRecord = asRecord(row.student) ?? asRecord(row.user);
 
     return {
-      id: `training:${dayId || bookingId}:${bookingId}`,
-      slotId: shiftId ?? bookingId,
-      studentName: str(asRecord(row.student)?.name, 'Student'),
+      id: `training:${dayId || date || bookingId}:${bookingId}`,
+      slotId: shiftId || bookingId,
+      studentName: str(studentRecord?.name, row.studentName, 'Student'),
       studentId,
       kind: 'training' as const,
       typeLabel: 'Practical Training',
       title: shiftName || locationLabel || 'Training',
       date,
       dateLabel: formatPortalDate(date),
-      startTime: formatClock(shift?.startTime ?? row.startTime),
-      endTime: formatClock(shift?.endTime ?? row.endTime),
+      startTime: formatClock(shiftRecord?.startTime ?? (shiftStart || row.startTime)),
+      endTime: formatClock(shiftRecord?.endTime ?? (shiftEnd || row.endTime)),
       locationLabel,
       bookingDate,
       bookingDateLabel: formatPortalDate(bookingDate),
@@ -430,7 +487,15 @@ export const bookingsApi = {
   async listSlots(kind?: BookingKind): Promise<BookableSlot[]> {
     if (kind === 'training') return listTrainingSlots();
     if (kind === 'class') {
-      const [raw, settings] = await Promise.all([getClassCalendar(), getCourseSettings()]);
+      const range = getRollingDateRange(0, 3);
+      const [raw, settings] = await Promise.all([
+        getClassCalendar({
+          viewAsStudentId: useAuthStore.getState().user?.id,
+          startDate: range.startDate,
+          endDate: range.endDate,
+        }),
+        getCourseSettings(),
+      ]);
       const classTitles = new Map(
         (settings.classes ?? []).map((item) => [String(item._id), item.title]),
       );
@@ -449,7 +514,7 @@ export const bookingsApi = {
 
   async listMineTraining(studentId: string): Promise<Booking[]> {
     const [practicalRaw, settings] = await Promise.all([
-      getMyPracticalBookings().catch(() => ({ data: [] as unknown[] })),
+      getMyPracticalBookings(),
       getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
     ]);
     return mapPracticalBookings(practicalRaw, studentId, buildTitleMaps(settings));
@@ -468,11 +533,19 @@ export const bookingsApi = {
     return mapClassBookings(asList(calendarRaw), studentId, buildTitleMaps(settings));
   },
 
+  /** Both kinds merged; throws only when neither list could be loaded. */
   async listMine(studentId: string): Promise<Booking[]> {
-    const [trainingBookings, classBookings] = await Promise.all([
+    const results = await Promise.allSettled([
+      bookingsApi.listMineClasses(studentId),
       bookingsApi.listMineTraining(studentId),
-      bookingsApi.listMineClasses(studentId).catch(() => [] as Booking[]),
     ]);
+    if (results.every((result) => result.status === 'rejected')) {
+      const first = results[0] as PromiseRejectedResult;
+      throw first.reason instanceof Error ? first.reason : new Error('Could not load bookings');
+    }
+    const [classBookings, trainingBookings] = results.map((result) =>
+      result.status === 'fulfilled' ? result.value : ([] as Booking[]),
+    );
     return [...classBookings, ...trainingBookings].sort(
       (a, b) => b.date.localeCompare(a.date) || b.bookingDate.localeCompare(a.bookingDate),
     );
@@ -580,7 +653,15 @@ export const bookingsApi = {
   ): Promise<Booking | undefined> {
     const booking = await bookingsApi.getById(id);
     if (!booking) return undefined;
-    // Staff attendance endpoints differ per kind; keep status locally for now when CRM call unavailable.
+    if (booking.kind === 'class' && (booking.classId ?? booking.slotId)) {
+      const label = (attendance.charAt(0).toUpperCase() + attendance.slice(1)) as
+        'Present' | 'Absent' | 'Late';
+      await markClassAttendance(booking.classId ?? booking.slotId, {
+        user: booking.studentId,
+        attendance: label,
+      });
+    }
+    // Practical-training attendance has no CRM endpoint yet — keep it local.
     return { ...booking, attendance, status: 'attended' };
   },
 };

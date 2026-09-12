@@ -39,6 +39,7 @@ import {
   BookingShiftsScreen,
   CloseCalendarScreen,
 } from '@/pages/staff/StaffOpsScreens';
+import { setUnauthorizedHandler } from '@/api/client';
 import { useAuthStore } from '@/store/useAuthStore';
 import { MainTabNavigator } from './MainTabNavigator';
 import type { RootStackParamList } from './types';
@@ -49,6 +50,12 @@ export function RootNavigator() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const sessionExpiresAt = useAuthStore((state) => state.sessionExpiresAt);
   const signOut = useAuthStore((state) => state.signOut);
+
+  // CRM rejects an expired/revoked token with 401 — drop the local session too.
+  useEffect(() => {
+    setUnauthorizedHandler(signOut);
+    return () => setUnauthorizedHandler(null);
+  }, [signOut]);
 
   useEffect(() => {
     if (!isAuthenticated || !sessionExpiresAt) return;

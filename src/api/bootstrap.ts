@@ -64,8 +64,7 @@ export async function fetchStudentBootstrap(): Promise<StudentBootstrap> {
   }
 
   const userId = user.id;
-  const companyId =
-    resolveCompanyId(user) || resolveCompanyId(useAuthStore.getState().user) || '';
+  const companyId = resolveCompanyId(user) || resolveCompanyId(useAuthStore.getState().user) || '';
 
   const [loginStatusRes, modulesRes, announcementsRes, settingsRes] = await Promise.all([
     settled(authApi.getLoginStatus()),
@@ -74,48 +73,39 @@ export async function fetchStudentBootstrap(): Promise<StudentBootstrap> {
     settled(getCourseSettings()),
   ]);
 
-  const [allocationsRes, allocatedCoursesRes, calendarRes, bookingsRes, announcementsAgainRes] =
-    await Promise.all([
-      userId
-        ? settled(getAllocationsByUser(userId))
-        : Promise.resolve({ ok: true as const, value: { data: [] } }),
-      userId && companyId
-        ? settled(getAllocatedCourses(userId, companyId))
-        : Promise.resolve(
-            companyId
-              ? ({ ok: true as const, value: { data: [] } } as const)
-              : ({
-                  ok: false as const,
-                  error: 'Missing companyId — cannot load allocated courses',
-                } as const),
-          ),
-      settled(
-        getClassCalendar({
-          viewAsStudentId: userId,
-          ...getRollingDateRange(6, 12),
-        }),
-      ),
-      settled(getMyPracticalBookings()),
-      settled(getMyAnnouncements()),
-    ]);
+  const [allocationsRes, allocatedCoursesRes, calendarRes, bookingsRes] = await Promise.all([
+    userId
+      ? settled(getAllocationsByUser(userId))
+      : Promise.resolve({ ok: true as const, value: { data: [] } }),
+    userId && companyId
+      ? settled(getAllocatedCourses(userId, companyId))
+      : Promise.resolve(
+          companyId
+            ? ({ ok: true as const, value: { data: [] } } as const)
+            : ({
+                ok: false as const,
+                error: 'Missing companyId — cannot load allocated courses',
+              } as const),
+        ),
+    settled(
+      getClassCalendar({
+        viewAsStudentId: userId,
+        ...getRollingDateRange(6, 12),
+      }),
+    ),
+    settled(getMyPracticalBookings()),
+  ]);
 
   if (!loginStatusRes.ok) errors.loginStatus = loginStatusRes.error;
   if (!modulesRes.ok) errors.modules = modulesRes.error;
-  if (!announcementsRes.ok && !announcementsAgainRes.ok) {
-    errors.announcements =
-      announcementsRes.ok === false ? announcementsRes.error : announcementsAgainRes.error;
-  }
+  if (!announcementsRes.ok) errors.announcements = announcementsRes.error;
   if (!settingsRes.ok) errors.settings = settingsRes.error;
   if (!allocationsRes.ok) errors.allocations = allocationsRes.error;
   if (!allocatedCoursesRes.ok) errors.allocatedCourses = allocatedCoursesRes.error;
   if (!calendarRes.ok) errors.classCalendar = calendarRes.error;
   if (!bookingsRes.ok) errors.practicalBookings = bookingsRes.error;
 
-  const announcementsRaw = announcementsAgainRes.ok
-    ? announcementsAgainRes.value
-    : announcementsRes.ok
-      ? announcementsRes.value
-      : [];
+  const announcementsRaw = announcementsRes.ok ? announcementsRes.value : [];
 
   return {
     user,

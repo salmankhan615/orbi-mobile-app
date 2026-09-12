@@ -54,10 +54,14 @@ export function useMyBookings(studentId: string) {
   }, [classes.data, training.data]);
 
   const hasRows = data.length > 0;
+  const settled = !training.isLoading && !classes.isLoading;
   return {
     data,
     isLoading: !hasRows && (training.isLoading || classes.isLoading),
-    isError: !hasRows && !training.isLoading && !classes.isLoading && training.isError && classes.isError,
+    // Show an error only when nothing could be listed — one failed list with
+    // rows from the other still renders those rows.
+    isError: !hasRows && settled && (training.isError || classes.isError),
+    error: classes.error ?? training.error,
     refetch: () => Promise.all([training.refetch(), classes.refetch()]),
   };
 }

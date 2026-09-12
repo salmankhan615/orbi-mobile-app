@@ -22,6 +22,12 @@ type RequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
 
 let sessionCookie: string | null = null;
 let sessionToken: string | null = null;
+let unauthorizedHandler: (() => void) | null = null;
+
+/** Called once per 401 on an authenticated call — the auth store signs out here. */
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
 
 /**
  * CRM auth is cookie-based (`Set-Cookie: token=<jwt>; HttpOnly`).
@@ -164,12 +170,18 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   const setCookie = readSetCookie(response);
-  if (setCookie) {
-    // Prefer server cookie when visible; keep JWT cookie fallback.
+  // Prefer server cookie when visible; keep JWT cookie fallback. Skip a
+  // `token=` deletion (logout / expiry) so a valid session is not wiped, and
+  // skip unchanged cookies so the native jar is not cleared on every call.
+  if (setCookie && setCookie !== sessionCookie && !/(^|;\s*)token=(;|$)/.test(setCookie)) {
     setApiSession(setCookie, sessionToken);
   }
 
   const parsed = await parseBody(response);
+
+  if (response.status === 401 && !skipAuth && (sessionCookie || sessionToken)) {
+    unauthorizedHandler?.();
+  }
 
   if (!response.ok) {
     throw new ApiError(

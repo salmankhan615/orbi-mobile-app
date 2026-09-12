@@ -7,10 +7,16 @@ export const announcementKeys = {
   detail: (id: string) => ['announcements', id] as const,
 };
 
-export function useAnnouncements(audience?: AnnouncementAudience) {
+/** Home banner polls `announcements/my` so a new announcement appears without a restart. */
+export const ANNOUNCEMENT_POLL_MS = 60_000;
+
+export function useAnnouncements(audience?: AnnouncementAudience, options?: { pollMs?: number }) {
   return useQuery({
     queryKey: announcementKeys.list(audience),
     queryFn: () => announcementsApi.list(audience),
+    refetchInterval: options?.pollMs,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: Boolean(options?.pollMs),
   });
 }
 
