@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { cancelClassBooking, cancelPracticalBooking, getClassAvailability } from '@/api/crm';
 import { bookingsApi, type BookingKind } from '@/api/bookings';
@@ -33,37 +32,13 @@ export function useBookableSlots(kind?: BookingKind) {
   });
 }
 
+/** Classes + practical training in one query so the list renders both together. */
 export function useMyBookings(studentId: string) {
-  const enabled = Boolean(studentId);
-  const training = useQuery({
-    queryKey: bookingKeys.mineTraining(studentId),
-    queryFn: () => bookingsApi.listMineTraining(studentId),
-    enabled,
+  return useQuery({
+    queryKey: bookingKeys.mine(studentId),
+    queryFn: () => bookingsApi.listMine(studentId),
+    enabled: Boolean(studentId),
   });
-  const classes = useQuery({
-    queryKey: bookingKeys.mineClasses(studentId),
-    queryFn: () => bookingsApi.listMineClasses(studentId),
-    enabled,
-  });
-
-  const data = useMemo(() => {
-    const list = [...(classes.data ?? []), ...(training.data ?? [])];
-    return list.sort(
-      (a, b) => b.date.localeCompare(a.date) || b.bookingDate.localeCompare(a.bookingDate),
-    );
-  }, [classes.data, training.data]);
-
-  const hasRows = data.length > 0;
-  const settled = !training.isLoading && !classes.isLoading;
-  return {
-    data,
-    isLoading: !hasRows && (training.isLoading || classes.isLoading),
-    // Show an error only when nothing could be listed — one failed list with
-    // rows from the other still renders those rows.
-    isError: !hasRows && settled && (training.isError || classes.isError),
-    error: classes.error ?? training.error,
-    refetch: () => Promise.all([training.refetch(), classes.refetch()]),
-  };
 }
 
 export function useStaffBookings() {

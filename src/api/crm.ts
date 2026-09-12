@@ -197,14 +197,36 @@ export async function getCalendarClosures(calendarId?: string) {
   return apiClient.get<unknown>(`/api/calendar-closure/crm/getClosures${query}`);
 }
 
+export type PracticalBookingsPage = {
+  success?: boolean;
+  /** Total bookings for the student (not the page length). */
+  count?: number;
+  total?: number;
+  page?: number;
+  pages?: number;
+  totalPages?: number;
+  data?: unknown[];
+};
+
 /**
- * Practical training bookings for the signed-in student.
- * Session cookie identifies the user — extra `studentId` query is omitted
- * (same as CRM `GET /api/practical-training/bookings/my-bookings`).
+ * Practical training bookings for the signed-in student — paginated.
+ * `GET /api/practical-training/bookings/my-bookings?page=&limit=`
+ * Rows: `{ _id, date, location: <id>, shift: { _id, name, startTime, endTime } | null,
+ *         seat, status: 'Active' | 'Cancelled', attendance?, bookedAt }`.
+ * Session cookie identifies the user; `studentId` is optional.
  */
-export async function getMyPracticalBookings(_studentId?: string) {
-  return apiClient.get<{ success?: boolean; count?: number; data?: unknown[] }>(
-    '/api/practical-training/bookings/my-bookings',
+export async function getMyPracticalBookings(params?: {
+  studentId?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.studentId) qs.set('studentId', params.studentId);
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.limit) qs.set('limit', String(params.limit));
+  const query = qs.toString() ? `?${qs.toString()}` : '';
+  return apiClient.get<PracticalBookingsPage>(
+    `/api/practical-training/bookings/my-bookings${query}`,
   );
 }
 

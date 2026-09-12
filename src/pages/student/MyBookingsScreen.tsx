@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
+import { Button } from '@/components/ui/Button';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { BookingPortalRow } from '@/features/bookings/components/BookingPortalRow';
@@ -21,6 +22,9 @@ import { useMyBookings } from '@/queries/useBookings';
 import { useCalendars } from '@/queries/useCalendars';
 import { useAuthStore } from '@/store/useAuthStore';
 
+/** Rows shown per page — matches the portal table page size. */
+const PAGE_SIZE = 10;
+
 const KIND_OPTIONS = [
   { id: 'all', label: 'All' },
   { id: 'class', label: 'Classes' },
@@ -35,6 +39,7 @@ export function MyBookingsScreen() {
   const [kindFilter, setKindFilter] = useState<BookingKindFilter>('all');
   const [calendarFilter, setCalendarFilter] = useState('all');
   const [shiftFilter, setShiftFilter] = useState('all');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const calendarOptions = useMemo(() => calendarFilterOptions(calendars ?? []), [calendars]);
   const shiftOptions = useMemo(() => shiftFilterOptions(bookings ?? []), [bookings]);
@@ -47,12 +52,25 @@ export function MyBookingsScreen() {
   }, [bookings, kindFilter, calendarFilter, shiftFilter]);
 
   const stats = useMemo(() => computeBookingStats(filtered), [filtered]);
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
 
   function handleKindChange(id: string) {
     const next = id as BookingKindFilter;
     setKindFilter(next);
     if (next === 'training') setCalendarFilter('all');
     if (next === 'class') setShiftFilter('all');
+    setVisibleCount(PAGE_SIZE);
+  }
+
+  function handleCalendarChange(id: string) {
+    setCalendarFilter(id);
+    setVisibleCount(PAGE_SIZE);
+  }
+
+  function handleShiftChange(id: string) {
+    setShiftFilter(id);
+    setVisibleCount(PAGE_SIZE);
   }
 
   return (
@@ -64,7 +82,7 @@ export function MyBookingsScreen() {
             label="Calendar"
             value={calendarFilter}
             options={calendarOptions}
-            onChange={setCalendarFilter}
+            onChange={handleCalendarChange}
           />
         ) : null}
         {kindFilter !== 'class' ? (
@@ -72,7 +90,7 @@ export function MyBookingsScreen() {
             label="Shift"
             value={shiftFilter}
             options={shiftOptions}
-            onChange={setShiftFilter}
+            onChange={handleShiftChange}
           />
         ) : null}
       </View>
@@ -93,9 +111,19 @@ export function MyBookingsScreen() {
         />
       ) : (
         <View style={styles.list}>
-          {filtered.map((booking, index) => (
+          {visible.map((booking, index) => (
             <BookingPortalRow key={booking.id} booking={booking} index={index} />
           ))}
+          <Text variant="caption" color="textMuted" style={styles.pageInfo}>
+            Showing {visible.length} of {filtered.length}
+          </Text>
+          {hasMore ? (
+            <Button
+              label="Load more"
+              variant="outline"
+              onPress={() => setVisibleCount((count) => count + PAGE_SIZE)}
+            />
+          ) : null}
         </View>
       )}
     </StackScreen>
@@ -112,5 +140,9 @@ const styles = StyleSheet.create({
   },
   message: {
     marginTop: tokens.spacing.lg,
+  },
+  pageInfo: {
+    textAlign: 'center',
+    marginVertical: tokens.spacing.md,
   },
 });

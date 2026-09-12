@@ -483,6 +483,44 @@ function mapPracticalBookings(raw: unknown, studentId: string, maps: TitleMaps):
   });
 }
 
+const PRACTICAL_PAGE_SIZE = 50;
+const PRACTICAL_MAX_PAGES = 20;
+
+/**
+ * `my-bookings` is paginated — walk every page so the list and filters see all
+ * rows. Stops on `count`/`totalPages` when the server reports them, otherwise on
+ * a short page. Rows are de-duplicated by `_id` in case paging is ignored.
+ */
+async function fetchAllPracticalBookings(): Promise<unknown[]> {
+  const rows: unknown[] = [];
+  const seen = new Set<string>();
+  for (let page = 1; page <= PRACTICAL_MAX_PAGES; page += 1) {
+    const response = await getMyPracticalBookings({ page, limit: PRACTICAL_PAGE_SIZE });
+    const list = asList(response);
+    let added = 0;
+    for (const item of list) {
+      const id = idOf(asRecord(item)?._id ?? asRecord(item)?.bookingId);
+      if (id && seen.has(id)) continue;
+      if (id) seen.add(id);
+      rows.push(item);
+      added += 1;
+    }
+    const total = Number(response?.count ?? response?.total);
+    const totalPages = Number(response?.totalPages ?? response?.pages);
+    if (list.length === 0 || added === 0) break;
+    if (Number.isFinite(totalPages) && page >= totalPages) break;
+    if (Number.isFinite(total) && rows.length >= total) break;
+    if (
+      !Number.isFinite(total) &&
+      !Number.isFinite(totalPages) &&
+      list.length < PRACTICAL_PAGE_SIZE
+    ) {
+      break;
+    }
+  }
+  return rows;
+}
+
 export const bookingsApi = {
   async listSlots(kind?: BookingKind): Promise<BookableSlot[]> {
     if (kind === 'training') return listTrainingSlots();
@@ -513,11 +551,11 @@ export const bookingsApi = {
   },
 
   async listMineTraining(studentId: string): Promise<Booking[]> {
-    const [practicalRaw, settings] = await Promise.all([
-      getMyPracticalBookings(),
+    const [practicalRows, settings] = await Promise.all([
+      fetchAllPracticalBookings(),
       getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
     ]);
-    return mapPracticalBookings(practicalRaw, studentId, buildTitleMaps(settings));
+    return mapPracticalBookings(practicalRows, studentId, buildTitleMaps(settings));
   },
 
   async listMineClasses(studentId: string): Promise<Booking[]> {
