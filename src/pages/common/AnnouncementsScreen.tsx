@@ -85,7 +85,13 @@ export function AnnouncementsScreen({ navigation }: Props) {
               title={item.title}
               subtitle={item.body}
               meta={`${item.author} · ${item.audience === 'students' ? 'Students' : item.audience === 'staff' ? 'Staff' : 'Everyone'}`}
-              badge={item.pinned ? { label: 'Pinned', tone: 'warning' } : undefined}
+              badge={
+                item.pinned
+                  ? { label: 'Pinned', tone: 'warning' }
+                  : item.status
+                    ? { label: item.status, tone: 'primary' }
+                    : undefined
+              }
               onPress={() =>
                 navigation.navigate('AnnouncementDetail', { announcementId: item.id })
               }

@@ -1,7 +1,9 @@
 import {
   acknowledgeAnnouncement,
   createAnnouncement,
+  deleteAnnouncement,
   getAnnouncementById,
+  getAnnouncements,
   getMyAnnouncements,
   updateAnnouncement,
 } from '@/api/crm';
@@ -19,6 +21,8 @@ export interface Announcement {
   pinned: boolean;
   /** CRM flag — preferred over local ack store when present. */
   isAcknowledged?: boolean;
+  /** Staff manage list — Draft / Published / Scheduled / … */
+  status?: string;
 }
 
 type UnknownRecord = Record<string, unknown>;
@@ -44,10 +48,23 @@ function idOf(value: unknown): string | null {
 }
 
 function mapAudience(raw: UnknownRecord): AnnouncementAudience {
-  const value = String(raw.audience ?? raw.targetAudience ?? raw.for ?? '').toLowerCase();
-  if (value.includes('staff')) return 'staff';
-  if (value.includes('student')) return 'students';
+  const value = raw.audience;
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const audience = value as UnknownRecord;
+    if (audience.staff && !audience.students && !audience.all) return 'staff';
+    if (audience.students && !audience.staff && !audience.all) return 'students';
+    return 'all';
+  }
+  const text = String(value ?? raw.targetAudience ?? raw.for ?? '').toLowerCase();
+  if (text.includes('staff')) return 'staff';
+  if (text.includes('student')) return 'students';
   return 'all';
+}
+
+function audiencePayload(audience: AnnouncementAudience): Record<string, boolean> {
+  if (audience === 'staff') return { staff: true };
+  if (audience === 'students') return { students: true };
+  return { all: true };
 }
 
 export function mapCrmAnnouncement(raw: unknown): Announcement | null {
@@ -66,6 +83,7 @@ export function mapCrmAnnouncement(raw: unknown): Announcement | null {
     audience: mapAudience(row),
     pinned: Boolean(row.pinned ?? row.isPinned ?? row.type === 'Urgent'),
     isAcknowledged: Boolean(row.isAcknowledged),
+    status: String(row.status ?? '').trim() || undefined,
   };
 }
 
@@ -75,6 +93,7 @@ function filterAudience(list: Announcement[], audience?: AnnouncementAudience) {
 }
 
 export const announcementsApi = {
+  /** Student / personal feed (`GET /api/announcements/my`). */
   async list(audience?: AnnouncementAudience): Promise<Announcement[]> {
     const raw = await getMyAnnouncements();
     const mapped = asList(raw)
@@ -85,13 +104,32 @@ export const announcementsApi = {
     );
   },
 
+  /** Staff management list (`GET /api/announcements`). */
+  async listManage(): Promise<Announcement[]> {
+    const raw = await getAnnouncements({ limit: 25 });
+    return asList(raw)
+      .map(mapCrmAnnouncement)
+      .filter((item): item is Announcement => Boolean(item))
+      .slice(0, 25)
+      .sort(
+        (a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt),
+      );
+  },
+
   async getById(id: string): Promise<Announcement | undefined> {
     try {
       const raw = await getAnnouncementById(id);
       const mapped = mapCrmAnnouncement(asRecord(raw)?.data ?? raw);
       if (mapped) return mapped;
     } catch {
-      // fall through to list lookup
+      // fall through
+    }
+    try {
+      const managed = await announcementsApi.listManage();
+      const found = managed.find((item) => item.id === id);
+      if (found) return found;
+    } catch {
+      // fall through
     }
     const all = await announcementsApi.list();
     return all.find((item) => item.id === id);
@@ -105,8 +143,13 @@ export const announcementsApi = {
     const raw = await createAnnouncement({
       title: payload.title,
       announcement: payload.body,
+      type: payload.pinned ? 'Urgent' : 'General',
+      priority: payload.pinned ? 'High' : 'Normal',
       pinned: payload.pinned,
-      audience: payload.audience,
+      status: 'Published',
+      sendEmail: false,
+      attachments: [],
+      audience: audiencePayload(payload.audience),
     });
     return (
       mapCrmAnnouncement(asRecord(raw)?.data ?? raw) ?? {
@@ -118,12 +161,20 @@ export const announcementsApi = {
   },
 
   async update(id: string, patch: Partial<Announcement>): Promise<Announcement | undefined> {
-    const raw = await updateAnnouncement(id, {
-      title: patch.title,
-      announcement: patch.body,
-      pinned: patch.pinned,
-      audience: patch.audience,
-    });
+    const body: Record<string, unknown> = {};
+    if (patch.title != null) body.title = patch.title;
+    if (patch.body != null) body.announcement = patch.body;
+    if (patch.pinned != null) {
+      body.pinned = patch.pinned;
+      body.type = patch.pinned ? 'Urgent' : 'General';
+      body.priority = patch.pinned ? 'High' : 'Normal';
+    }
+    if (patch.audience != null) body.audience = audiencePayload(patch.audience);
+    const raw = await updateAnnouncement(id, body);
     return mapCrmAnnouncement(asRecord(raw)?.data ?? raw) ?? announcementsApi.getById(id);
+  },
+
+  async remove(id: string): Promise<void> {
+    await deleteAnnouncement(id);
   },
 };

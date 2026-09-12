@@ -30,15 +30,20 @@ import {
 } from '@/pages/common/InfoScreens';
 import { StaffBookingDetailScreen } from '@/pages/staff/StaffBookingDetailScreen';
 import { GroupDetailScreen } from '@/pages/staff/GroupDetailScreen';
+import { GroupSessionDetailScreen } from '@/pages/staff/GroupSessionDetailScreen';
 import { UserDirectoryScreen } from '@/pages/staff/UserDirectoryScreen';
+import { UserDetailScreen } from '@/pages/staff/UserDetailScreen';
 import { StaffCourseworkScreen } from '@/pages/staff/StaffCourseworkScreen';
 import { CourseworkSubmissionsScreen } from '@/pages/staff/CourseworkSubmissionsScreen';
+import { CourseworkSubmissionDetailScreen } from '@/pages/staff/CourseworkSubmissionDetailScreen';
 import {
   InvoicesScreen,
   AgreementsScreen,
   BookingShiftsScreen,
   CloseCalendarScreen,
 } from '@/pages/staff/StaffOpsScreens';
+import { InvoiceDetailScreen } from '@/pages/staff/InvoiceDetailScreen';
+import { AgreementDetailScreen } from '@/pages/staff/AgreementDetailScreen';
 import { setUnauthorizedHandler } from '@/api/client';
 import { useAuthStore } from '@/store/useAuthStore';
 import { MainTabNavigator } from './MainTabNavigator';
@@ -84,6 +89,7 @@ export function RootNavigator() {
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
           <Stack.Screen name="Announcements" component={AnnouncementsScreen} />
           <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} />
+          <Stack.Screen name="CourseworkFile" component={CourseworkFileScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
           <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
@@ -95,11 +101,19 @@ export function RootNavigator() {
               <Stack.Screen name="AnnouncementEditor" component={AnnouncementEditorScreen} />
               <Stack.Screen name="StaffBookingDetail" component={StaffBookingDetailScreen} />
               <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
+              <Stack.Screen name="GroupSessionDetail" component={GroupSessionDetailScreen} />
               <Stack.Screen name="UserDirectory" component={UserDirectoryScreen} />
+              <Stack.Screen name="UserDetail" component={UserDetailScreen} />
               <Stack.Screen name="StaffCoursework" component={StaffCourseworkScreen} />
               <Stack.Screen name="CourseworkSubmissions" component={CourseworkSubmissionsScreen} />
+              <Stack.Screen
+                name="CourseworkSubmissionDetail"
+                component={CourseworkSubmissionDetailScreen}
+              />
               <Stack.Screen name="Invoices" component={InvoicesScreen} />
+              <Stack.Screen name="InvoiceDetail" component={InvoiceDetailScreen} />
               <Stack.Screen name="Agreements" component={AgreementsScreen} />
+              <Stack.Screen name="AgreementDetail" component={AgreementDetailScreen} />
               <Stack.Screen name="CloseCalendar" component={CloseCalendarScreen} />
               <Stack.Screen name="BookingShifts" component={BookingShiftsScreen} />
             </>
@@ -116,7 +130,6 @@ export function RootNavigator() {
               <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
               <Stack.Screen name="Coursework" component={StudentCourseworkScreen} />
               <Stack.Screen name="CourseworkDetail" component={CourseworkDetailScreen} />
-              <Stack.Screen name="CourseworkFile" component={CourseworkFileScreen} />
             </>
           )}
         </>

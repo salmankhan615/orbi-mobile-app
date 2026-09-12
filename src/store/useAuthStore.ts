@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   sessionExpiresAt: null,
   signIn: (user, sessionExpiresAt, session) => {
     if (session) {
-      setApiSession(session.cookie ?? null, session.token ?? null);
+      setApiSession(session.cookie ?? null, session.token ?? null, { clearJar: true });
     }
     set({ user, isAuthenticated: true, sessionExpiresAt });
   },

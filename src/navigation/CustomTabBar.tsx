@@ -13,7 +13,6 @@ const TAB_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   Chat: 'chatbubbles',
   Bookings: 'clipboard',
   Groups: 'people',
-  More: 'grid',
   Profile: 'person',
 };
 

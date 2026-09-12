@@ -7,7 +7,6 @@ import { ProfileScreen } from '@/pages/ProfileScreen';
 import { StaffHomeScreen } from '@/pages/staff/StaffHomeScreen';
 import { StaffBookingsScreen } from '@/pages/staff/StaffBookingsScreen';
 import { StaffGroupsScreen } from '@/pages/staff/StaffGroupsScreen';
-import { StaffMoreScreen } from '@/pages/staff/StaffMoreScreen';
 import { useAuthStore } from '@/store/useAuthStore';
 import { CustomTabBar } from './CustomTabBar';
 import type { MainTabParamList } from './types';
@@ -30,7 +29,6 @@ export function MainTabNavigator() {
         <Tab.Screen name="Home" component={StaffHomeScreen} options={{ title: 'Overview' }} />
         {canBookings ? <Tab.Screen name="Bookings" component={StaffBookingsScreen} /> : null}
         {canGroups ? <Tab.Screen name="Groups" component={StaffGroupsScreen} /> : null}
-        <Tab.Screen name="More" component={StaffMoreScreen} options={{ title: 'Tools' }} />
         <Tab.Screen name="Profile" component={ProfileScreen} />
       </Tab.Navigator>
     );

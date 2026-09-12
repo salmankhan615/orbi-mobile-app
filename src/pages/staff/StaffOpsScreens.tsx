@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { useState } from 'react';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
@@ -19,10 +19,13 @@ import { useHasPermission } from '@/hooks/useHasPermission';
 import { useToastStore } from '@/store/useToastStore';
 import { toISODate } from '@/utils/date';
 import type { Agreement } from '@/api/staff';
+import type { RootStackScreenProps } from '@/navigation/types';
 
-export function InvoicesScreen() {
+export function InvoicesScreen({ navigation }: RootStackScreenProps<'Invoices'>) {
   const allowed = useHasPermission('view_invoices');
   const { data, isLoading } = useInvoices();
+  const invoices = data ?? [];
+
   if (!allowed) {
     return (
       <StackScreen title="Invoices">
@@ -33,29 +36,45 @@ export function InvoicesScreen() {
     );
   }
   return (
-    <StackScreen title="Invoices">
+    <StackScreen title="Invoices" scroll={false}>
       {isLoading ? (
         <EntityListSkeleton />
-      ) : (data ?? []).length === 0 ? (
+      ) : invoices.length === 0 ? (
         <EmptyState icon="receipt-outline" message="No invoices yet." />
       ) : (
-        (data ?? []).map((item) => (
-          <EntityRow
-            key={item.id}
-            icon="receipt-outline"
-            title={item.studentName}
-            subtitle={item.issuedOn}
-            badge={{
-              label: `${item.amountLabel} · ${item.status}`,
-              tone:
-                item.status === 'paid'
-                  ? 'success'
-                  : item.status === 'overdue'
-                    ? 'danger'
-                    : 'warning',
-            }}
-          />
-        ))
+        <FlatList
+          data={invoices}
+          keyExtractor={(item) => item.id}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
+          renderItem={({ item }) => (
+            <EntityRow
+              icon="receipt-outline"
+              title={item.studentName}
+              subtitle={item.issuedOn}
+              badge={{
+                label: `${item.amountLabel} · ${item.status}`,
+                tone:
+                  item.status === 'paid'
+                    ? 'success'
+                    : item.status === 'overdue'
+                      ? 'danger'
+                      : 'warning',
+              }}
+              onPress={() =>
+                navigation.navigate('InvoiceDetail', {
+                  invoiceId: item.id,
+                  studentName: item.studentName,
+                  amountLabel: item.amountLabel,
+                  status: item.status,
+                  issuedOn: item.issuedOn,
+                })
+              }
+            />
+          )}
+        />
       )}
     </StackScreen>
   );
@@ -63,7 +82,7 @@ export function InvoicesScreen() {
 
 const AGREEMENT_FILTERS: (Agreement['status'] | 'all')[] = ['all', 'pending', 'signed', 'expired'];
 
-export function AgreementsScreen() {
+export function AgreementsScreen({ navigation }: RootStackScreenProps<'Agreements'>) {
   const allowed = useHasPermission('view_agreements');
   const { data, isLoading } = useAgreements();
   const [filter, setFilter] = useState<(typeof AGREEMENT_FILTERS)[number]>('all');
@@ -81,7 +100,7 @@ export function AgreementsScreen() {
   }
 
   return (
-    <StackScreen title="Agreements">
+    <StackScreen title="Agreements" scroll={false}>
       <View style={styles.filters}>
         {AGREEMENT_FILTERS.map((item) => (
           <ScalePressable
@@ -101,24 +120,40 @@ export function AgreementsScreen() {
       ) : list.length === 0 ? (
         <EmptyState icon="document-attach-outline" message="No agreements match this filter." />
       ) : (
-        list.map((item) => (
-          <EntityRow
-            key={item.id}
-            icon="document-attach-outline"
-            title={item.title}
-            subtitle={item.studentName}
-            meta={item.submittedOn}
-            badge={{
-              label: item.status,
-              tone:
-                item.status === 'signed'
-                  ? 'success'
-                  : item.status === 'pending'
-                    ? 'warning'
-                    : 'danger',
-            }}
-          />
-        ))
+        <FlatList
+          data={list}
+          keyExtractor={(item) => item.id}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
+          renderItem={({ item }) => (
+            <EntityRow
+              icon="document-attach-outline"
+              title={item.title}
+              subtitle={item.studentName}
+              meta={item.submittedOn}
+              badge={{
+                label: item.status,
+                tone:
+                  item.status === 'signed'
+                    ? 'success'
+                    : item.status === 'pending'
+                      ? 'warning'
+                      : 'danger',
+              }}
+              onPress={() =>
+                navigation.navigate('AgreementDetail', {
+                  agreementId: item.id,
+                  title: item.title,
+                  studentName: item.studentName,
+                  status: item.status,
+                  submittedOn: item.submittedOn,
+                })
+              }
+            />
+          )}
+        />
       )}
     </StackScreen>
   );
@@ -127,6 +162,8 @@ export function AgreementsScreen() {
 export function BookingShiftsScreen() {
   const allowed = useHasPermission('view_shifts');
   const { data, isLoading } = useShifts();
+  const shifts = data ?? [];
+
   if (!allowed) {
     return (
       <StackScreen title="Shifts">
@@ -137,21 +174,28 @@ export function BookingShiftsScreen() {
     );
   }
   return (
-    <StackScreen title="Booking shifts">
+    <StackScreen title="Booking shifts" scroll={false}>
       {isLoading ? (
         <EntityListSkeleton />
-      ) : (data ?? []).length === 0 ? (
+      ) : shifts.length === 0 ? (
         <EmptyState icon="time-outline" message="No shifts scheduled." />
       ) : (
-        (data ?? []).map((item) => (
-          <EntityRow
-            key={item.id}
-            icon="time-outline"
-            title={item.staffName}
-            subtitle={`${item.date} · ${item.startTime}–${item.endTime}`}
-            meta={item.location}
-          />
-        ))
+        <FlatList
+          data={shifts}
+          keyExtractor={(item) => item.id}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
+          renderItem={({ item }) => (
+            <EntityRow
+              icon="time-outline"
+              title={item.studentName}
+              subtitle={`${item.date} · ${item.startTime}–${item.endTime}`}
+              meta={item.location}
+            />
+          )}
+        />
       )}
     </StackScreen>
   );

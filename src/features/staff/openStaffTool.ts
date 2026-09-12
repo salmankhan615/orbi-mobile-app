@@ -4,7 +4,7 @@ import type { RootStackParamList, MainTabParamList } from '@/navigation/types';
 
 type StaffNav = NavigationProp<RootStackParamList & MainTabParamList>;
 
-/** Open a staff tool from Overview / Tools — typed per route. */
+/** Open a staff tool from Overview — typed per route. */
 export function openStaffTool(navigation: StaffNav, tool: StaffTool) {
   if (tool.tab) {
     navigation.navigate(tool.tab);

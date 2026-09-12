@@ -8,7 +8,10 @@ import {
   mapCrmRole,
   permissionsForRole,
 } from '@/features/auth/mapCrmRole';
+import { mapStaffPermissions } from '@/features/auth/mapStaffPermissions';
+import { getCrmModulePermissions, getEmsProfile } from '@/api/crm';
 import type { AuthUser } from '@/store/useAuthStore';
+import type { StaffPermission } from '@/features/auth/permissions';
 
 export interface LoginPayload {
   email: string;
@@ -169,7 +172,11 @@ function optionalId(value: unknown): string | undefined {
   return id || undefined;
 }
 
-function mapCrmUser(raw: CrmUser, fallbackEmail: string): AuthUser {
+function mapCrmUser(
+  raw: CrmUser,
+  fallbackEmail: string,
+  permissions?: StaffPermission[],
+): AuthUser {
   const role = mapCrmRole({
     role: raw.role,
     type: raw.type,
@@ -206,8 +213,38 @@ function mapCrmUser(raw: CrmUser, fallbackEmail: string): AuthUser {
     dateOfBirth: (raw.dateOfBirth || '').trim() || undefined,
     website: (raw.website || '').trim() || undefined,
     isVerified: Boolean(raw.isVerified),
-    permissions: permissionsForRole(role),
+    permissions: permissions ?? permissionsForRole(role),
   };
+}
+
+/** Load EMS + CRM module permissions and map onto staff tool flags. */
+async function resolveStaffPermissions(raw: CrmUser): Promise<StaffPermission[]> {
+  const role = mapCrmRole({
+    role: raw.role,
+    type: raw.type,
+    roleId: optionalId(raw.roleId),
+    profileId: optionalId(raw.profileId),
+    emsProfileId: optionalId(raw.emsProfileId),
+  });
+  if (role !== 'staff') return [];
+
+  const emsProfileId = optionalId(raw.emsProfileId);
+  const profileId = optionalId(raw.profileId);
+  const [emsResult, crmResult] = await Promise.allSettled([
+    emsProfileId ? getEmsProfile(emsProfileId) : Promise.resolve(null),
+    profileId ? getCrmModulePermissions(profileId) : Promise.resolve(null),
+  ]);
+
+  const emsProfile = emsResult.status === 'fulfilled' ? emsResult.value : null;
+  const crmModulePermissions = crmResult.status === 'fulfilled' ? crmResult.value : null;
+
+  return mapStaffPermissions({
+    role: raw.role,
+    type: raw.type,
+    emsProfile,
+    crmModulePermissions,
+    hasEmsProfile: Boolean(emsProfileId && emsProfile),
+  });
 }
 
 function isCrmUser(value: unknown): value is CrmUser {
@@ -272,7 +309,7 @@ export const authApi = {
         ? raw.token
         : null);
     // Always synthesize Cookie: token=<jwt> — CRM requires it; RN often cannot read Set-Cookie.
-    setApiSession(null, token);
+    setApiSession(null, token, { clearJar: true });
 
     // Login payload is thin — getUser has type / roleId / profileIds for reliable RBAC.
     let user = mapCrmUser(userPayload, email.trim().toLowerCase());
@@ -305,7 +342,8 @@ export const authApi = {
   async getUser(): Promise<AuthUser> {
     const raw = await apiClient.get<unknown>(`${AUTH_API_PREFIX}/getUser`);
     const userPayload = unwrapUserPayload(raw);
-    return mapCrmUser(userPayload, userPayload.email ?? '');
+    const permissions = await resolveStaffPermissions(userPayload);
+    return mapCrmUser(userPayload, userPayload.email ?? '', permissions);
   },
 
   async updateProfile(payload: UpdateProfilePayload): Promise<AuthUser> {
@@ -349,7 +387,7 @@ export const authApi = {
     const mapped = mapCrmUser(raw, email.trim().toLowerCase());
     const { cookie } = getApiSession();
     // Prefer JWT cookie synthesis after register too when token present.
-    setApiSession(cookie, typeof raw.token === 'string' ? raw.token : null);
+    setApiSession(cookie, typeof raw.token === 'string' ? raw.token : null, { clearJar: true });
 
     return {
       // Self-serve signup is always a student LMS account.

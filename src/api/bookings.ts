@@ -3,13 +3,17 @@ import {
   bookPracticalTraining,
   cancelClassBooking,
   cancelPracticalBooking,
+  getAdminPracticalBookings,
   getAvailableTrainingShifts,
+  getCalendarUsersLite,
   getClassAvailability,
   getClassCalendar,
+  getClassCalendarById,
   getCourseSettings,
   getMyPracticalBookings,
   isSettingsActive,
   markClassAttendance,
+  markPracticalAttendance,
   type TrainingShiftRaw,
 } from '@/api/crm';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -109,8 +113,57 @@ function str(...values: unknown[]): string {
   return '';
 }
 
+function personName(raw: unknown): string {
+  const row = asRecord(raw);
+  if (!row) return '';
+  const first = str(row.name, row.firstName);
+  const last = str(row.lname, row.lastName);
+  return `${first} ${last}`.trim() || str(row.email);
+}
+
+function buildUserNameMap(raw: unknown): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const item of asList(raw)) {
+    const row = asRecord(item);
+    if (!row) continue;
+    const id = idOf(row._id ?? row.id);
+    if (!id) continue;
+    const label = personName(row);
+    if (label) map.set(id, label);
+  }
+  return map;
+}
+
+function bookingStudentName(
+  booking: UnknownRecord,
+  studentId: string,
+  nameById?: Map<string, string>,
+): string {
+  const user =
+    asRecord(booking.user) ??
+    asRecord(booking.student) ??
+    asRecord(booking.userId) ??
+    asRecord(booking.studentId);
+  const fromUser = personName(user);
+  if (fromUser) return fromUser;
+  const fromFields = str(booking.studentName, booking.traineeName, booking.fullName);
+  if (fromFields) return fromFields;
+  const first = str(booking.name, booking.firstName);
+  const last = str(booking.lname, booking.lastName);
+  const combined = `${first} ${last}`.trim();
+  if (combined) return combined;
+  if (studentId && nameById?.get(studentId)) return nameById.get(studentId)!;
+  const userId = str(idOf(booking.user), booking.userId);
+  if (userId && nameById?.get(userId)) return nameById.get(userId)!;
+  return 'Student';
+}
+
+/** Local helper — do not import `toISODate` from `@/utils/date` (name clash). */
 function toISODate(value: unknown): string {
   if (!value) return '';
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
   if (typeof value === 'string') {
     if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
     const parsed = new Date(value);
@@ -352,6 +405,7 @@ function pushClassBooking(
   booking: UnknownRecord,
   studentId: string,
   maps: TitleMaps,
+  nameById?: Map<string, string>,
 ) {
   const classId = idOf(row._id ?? row.id) ?? '';
   const calendarId = calendarIdForRow(row, maps);
@@ -361,9 +415,9 @@ function pushClassBooking(
   const seat = Number(booking.seat);
   const attendanceRaw = str(booking.attendance);
   bookings.push({
-    id: `class:${bookingId}`,
+    id: `class:${classId}:${bookingId}`,
     slotId: classId,
-    studentName: str(asRecord(booking.user)?.name, booking.name, 'Student'),
+    studentName: bookingStudentName(booking, studentId, nameById),
     studentId,
     kind: 'class',
     typeLabel: 'Class',
@@ -387,7 +441,12 @@ function pushClassBooking(
   });
 }
 
-function mapClassBookings(calendarRows: unknown[], studentId: string, maps: TitleMaps): Booking[] {
+function mapClassBookings(
+  calendarRows: unknown[],
+  studentId: string,
+  maps: TitleMaps,
+  nameById?: Map<string, string>,
+): Booking[] {
   const bookings: Booking[] = [];
   for (const day of calendarRows) {
     const row = asRecord(day);
@@ -399,25 +458,128 @@ function mapClassBookings(calendarRows: unknown[], studentId: string, maps: Titl
     if (Array.isArray(row.myBookings)) {
       for (const bookingRaw of row.myBookings) {
         const booking = asRecord(bookingRaw);
-        if (booking) pushClassBooking(bookings, row, booking, studentId, maps);
+        if (booking) pushClassBooking(bookings, row, booking, studentId, maps, nameById);
       }
       continue;
     }
     const single = asRecord(row.myBooking);
     if (single) {
-      pushClassBooking(bookings, row, single, studentId, maps);
+      pushClassBooking(bookings, row, single, studentId, maps, nameById);
       continue;
     }
 
     for (const bookingRaw of asArray(row.bookings)) {
       const booking = asRecord(bookingRaw);
       if (!booking) continue;
-      const userId = str(booking.user, booking.userId, idOf(booking.user));
+      const userId = str(idOf(booking.user), booking.userId, booking.user);
       if (userId && userId !== studentId) continue;
-      pushClassBooking(bookings, row, booking, studentId, maps);
+      pushClassBooking(bookings, row, booking, studentId, maps, nameById);
     }
   }
   return bookings;
+}
+
+/** Staff roster: every seat on classes in range (no `viewAsStudentId` / slim). */
+function mapStaffClassBookings(
+  calendarRows: unknown[],
+  maps: TitleMaps,
+  nameById?: Map<string, string>,
+): Booking[] {
+  const bookings: Booking[] = [];
+  for (const day of calendarRows) {
+    const row = asRecord(day);
+    if (!row) continue;
+    for (const bookingRaw of asArray(row.bookings)) {
+      const booking = asRecord(bookingRaw);
+      if (!booking) continue;
+      const user = asRecord(booking.user) ?? asRecord(booking.student);
+      const studentId = str(idOf(booking.user), idOf(user), booking.userId, booking.user);
+      if (!studentId) continue;
+      pushClassBooking(
+        bookings,
+        row,
+        { ...booking, user: user ?? booking.user },
+        studentId,
+        maps,
+        nameById,
+      );
+    }
+  }
+  return bookings;
+}
+
+async function listStaffClassBookings(): Promise<Booking[]> {
+  // Today only — multi-day full rosters freeze staff tools.
+  const day = toISODate(new Date());
+  const [calendarRaw, settings, usersLite] = await Promise.all([
+    getClassCalendar({ startDate: day, endDate: day }),
+    getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
+    getCalendarUsersLite().catch(() => []),
+  ]);
+  const nameById = buildUserNameMap(usersLite);
+  const mapped = mapStaffClassBookings(asList(calendarRaw), buildTitleMaps(settings), nameById);
+  return mapped.slice(0, 60);
+}
+
+async function listStaffTrainingBookings(): Promise<Booking[]> {
+  // Optional / secondary — keep off the critical path of listAll.
+  const date = toISODate(new Date());
+  const [raw, settings] = await Promise.all([
+    getAdminPracticalBookings({ date }),
+    getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
+  ]);
+  return mapAdminPracticalBookings(raw, buildTitleMaps(settings)).slice(0, 40);
+}
+
+/** Fix student id/name on admin practical rows (student populated). */
+function mapAdminPracticalBookings(raw: unknown, maps: TitleMaps): Booking[] {
+  return asList(raw).map((item, index) => {
+    const row = asRecord(item) ?? {};
+    const bookingId = idOf(row.bookingId ?? row._id ?? row.id) ?? `pt-${index}`;
+    const dayId = idOf(row.dayId ?? row.day ?? row.practicalDay) ?? '';
+    const shiftRecord = asRecord(row.shift);
+    const shiftId = idOf(shiftRecord?._id ?? shiftRecord?.id ?? row.shiftId) ?? '';
+    const shiftName = str(shiftRecord?.name, shiftRecord?.title, row.shiftName, row.shift);
+    const [shiftStart, shiftEnd] = splitShiftTime(row.shiftTime);
+    const locationRecord = asRecord(row.location);
+    const locationId = idOf(row.location ?? row.locationId) ?? '';
+    const locationLabel =
+      str(row.locationName, locationRecord?.title, locationRecord?.name) ||
+      maps.locations.get(locationId) ||
+      '—';
+    const date = toISODate(row.date ?? row.classDate ?? row.trainingDate);
+    const bookingDate = toISODate(row.bookedAt ?? row.bookingDate ?? row.createdAt);
+    const seat = Number(row.seat);
+    const attendanceRaw = str(row.attendance);
+    const studentRecord = asRecord(row.student) ?? asRecord(row.user);
+    const studentId = str(idOf(studentRecord), idOf(row.student), row.studentId);
+
+    return {
+      id: `training:${dayId || date || bookingId}:${bookingId}`,
+      slotId: shiftId || bookingId,
+      studentName: bookingStudentName(row, studentId),
+      studentId: studentId || 'unknown',
+      kind: 'training' as const,
+      typeLabel: 'Practical Training',
+      title: shiftName || locationLabel || 'Training',
+      date,
+      dateLabel: formatPortalDate(date),
+      startTime: formatClock(shiftRecord?.startTime ?? (shiftStart || row.startTime)),
+      endTime: formatClock(shiftRecord?.endTime ?? (shiftEnd || row.endTime)),
+      locationLabel,
+      bookingDate,
+      bookingDateLabel: formatPortalDate(bookingDate),
+      seat: Number.isFinite(seat) ? seat : undefined,
+      status: mapStatus(row.status),
+      statusLabel: mapStatusLabel(row.status),
+      attendance: mapAttendance(attendanceRaw),
+      attendanceLabel: attendanceRaw || undefined,
+      shiftId: shiftId || undefined,
+      shiftName: shiftName || undefined,
+      dayId: dayId || undefined,
+      bookingId,
+    };
+  });
 }
 
 /** `shiftTime` arrives as "09:00 - 13:00" on flattened practical rows. */
@@ -590,11 +752,67 @@ export const bookingsApi = {
   },
 
   async listAll(): Promise<Booking[]> {
-    const userId = useAuthStore.getState().user?.id ?? '';
-    return bookingsApi.listMine(userId);
+    // Classes first — training is a separate, lighter follow-up so the list can paint.
+    try {
+      const classBookings = await listStaffClassBookings();
+      const training = await listStaffTrainingBookings().catch(() => [] as Booking[]);
+      return [...classBookings, ...training].sort(
+        (a, b) => b.date.localeCompare(a.date) || b.bookingDate.localeCompare(a.bookingDate),
+      );
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Could not load bookings');
+    }
   },
 
   async getById(id: string): Promise<Booking | undefined> {
+    const role = useAuthStore.getState().user?.role;
+    if (role === 'staff') {
+      // Prefer a single class fetch — never re-run the full roster list here.
+      if (id.startsWith('class:')) {
+        const parts = id.split(':');
+        const classId = parts.length >= 3 ? parts[1] : parts[1];
+        const bookingKey = parts.length >= 3 ? parts.slice(2).join(':') : parts[1];
+        if (!classId) return undefined;
+        try {
+          const [raw, settings, usersLite] = await Promise.all([
+            getClassCalendarById(classId),
+            getCourseSettings().catch(() => ({
+              classes: [],
+              locations: [],
+              categories: [],
+            })),
+            getCalendarUsersLite().catch(() => []),
+          ]);
+          const roster = mapStaffClassBookings(
+            [raw],
+            buildTitleMaps(settings),
+            buildUserNameMap(usersLite),
+          );
+          return (
+            roster.find((item) => item.id === id || item.bookingId === bookingKey) ?? roster[0]
+          );
+        } catch {
+          return undefined;
+        }
+      }
+      if (id.startsWith('training:')) {
+        const [, dayId, bookingId] = id.split(':');
+        if (!dayId || !bookingId) return undefined;
+        // Admin list needs a date; dayId is not always a date — try today.
+        const raw = await getAdminPracticalBookings({ date: toISODate(new Date()) });
+        const maps = buildTitleMaps(
+          await getCourseSettings().catch(() => ({
+            classes: [],
+            locations: [],
+            categories: [],
+          })),
+        );
+        return mapAdminPracticalBookings(raw, maps).find(
+          (item) => item.id === id || (item.dayId === dayId && item.bookingId === bookingId),
+        );
+      }
+      return undefined;
+    }
     const userId = useAuthStore.getState().user?.id ?? '';
     const mine = await bookingsApi.listMine(userId);
     return mine.find((item) => item.id === id);
@@ -614,6 +832,7 @@ export const bookingsApi = {
         shift: shiftId,
         date,
         seat,
+        studentId: student.id,
       });
       return {
         id: `training:${date}:${shiftId}`,
@@ -668,13 +887,15 @@ export const bookingsApi = {
   },
 
   async cancel(id: string): Promise<Booking | undefined> {
-    const userId = useAuthStore.getState().user?.id ?? '';
     const booking = await bookingsApi.getById(id);
     if (!booking) throw new Error('Booking not found');
+    const selfId = useAuthStore.getState().user?.id ?? '';
+    const targetUserId =
+      useAuthStore.getState().user?.role === 'staff' ? booking.studentId : selfId;
 
     if (booking.kind === 'class') {
       const classId = booking.classId ?? booking.slotId;
-      await cancelClassBooking(classId, userId);
+      await cancelClassBooking(classId, targetUserId);
     } else {
       const dayId = booking.dayId;
       const bookingId = booking.bookingId;
@@ -691,15 +912,27 @@ export const bookingsApi = {
   ): Promise<Booking | undefined> {
     const booking = await bookingsApi.getById(id);
     if (!booking) return undefined;
+    // CRM class + PT attendance accept Present | Absent only.
+    const crmLabel: 'Present' | 'Absent' =
+      attendance === 'absent' ? 'Absent' : 'Present';
+
     if (booking.kind === 'class' && (booking.classId ?? booking.slotId)) {
-      const label = (attendance.charAt(0).toUpperCase() + attendance.slice(1)) as
-        'Present' | 'Absent' | 'Late';
       await markClassAttendance(booking.classId ?? booking.slotId, {
         user: booking.studentId,
-        attendance: label,
+        attendance: crmLabel,
       });
+    } else if (booking.kind === 'training') {
+      const dayId = booking.dayId;
+      const bookingId = booking.bookingId;
+      if (!dayId || !bookingId) throw new Error('Missing training booking ids');
+      await markPracticalAttendance(dayId, bookingId, crmLabel);
     }
-    // Practical-training attendance has no CRM endpoint yet — keep it local.
-    return { ...booking, attendance, status: 'attended' };
+
+    return {
+      ...booking,
+      attendance,
+      attendanceLabel: crmLabel,
+      status: 'attended',
+    };
   },
 };

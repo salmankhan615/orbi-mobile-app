@@ -29,7 +29,8 @@ Staff screens check `user.permissions` (`src/features/auth/permissions.ts`). Sig
   Coursework.
 - **Staff extras** (`src/pages/staff/`): bookings + attendance, groups, directory,
   coursework/submissions, invoices, agreements-by-status, announcements editor,
-  close calendar, booking shifts. Gated by permissions; More tab lists only allowed tools.
+  close calendar, booking shifts. Gated by permissions; Overview lists only allowed tools.
+  Staff tabs: Overview (+ Bookings/Groups when permitted), Profile — no separate Tools tab.
 - **Common** (`src/pages/common/`): Notifications, Announcements, Edit Profile,
   Privacy & Security, Help & Support, About KBM.
 - **Profile** (`src/pages/ProfileScreen.tsx`): identity + role badge, notification
@@ -37,7 +38,7 @@ Staff screens check `user.permissions` (`src/features/auth/permissions.ts`). Sig
 
 Navigation is a single root native-stack (`RootNavigator.tsx`) that swaps Auth vs
 authenticated stacks. `MainTabs` is student (Home, Courses, Calendar, Chat, Profile)
-or staff (Overview, Bookings, Groups, More, Profile). Detail screens are pushed at
+or staff (Overview, Bookings, Groups, Profile). Detail screens are pushed at
 the root-stack level.
 
 ## Feedback & touch feel

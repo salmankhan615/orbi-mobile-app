@@ -31,11 +31,51 @@ export type RootStackParamList = {
   AboutKbm: undefined;
   StaffBookingDetail: { bookingId: string };
   GroupDetail: { groupId: string };
+  GroupSessionDetail: {
+    groupId: string;
+    classId: string;
+    title: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    location: string;
+  };
   UserDirectory: undefined;
+  UserDetail: {
+    userId: string;
+    name?: string;
+    email?: string;
+    role?: string;
+    status?: string;
+  };
   StaffCoursework: undefined;
   CourseworkSubmissions: { assignmentId: string };
+  CourseworkSubmissionDetail: {
+    assignmentId: string;
+    submissionId: string;
+    studentName: string;
+    submittedAt: string;
+    status: string;
+    grade?: string;
+    files?: { url: string; filename: string; type: string }[];
+    comments?: { id: string; text: string; authorRole?: string; createdAt?: string }[];
+  };
   Invoices: undefined;
+  InvoiceDetail: {
+    invoiceId: string;
+    studentName: string;
+    amountLabel: string;
+    status: 'paid' | 'due' | 'overdue';
+    issuedOn: string;
+  };
   Agreements: undefined;
+  AgreementDetail: {
+    agreementId: string;
+    title: string;
+    studentName: string;
+    status: 'pending' | 'signed' | 'expired';
+    submittedOn: string;
+  };
   CloseCalendar: undefined;
   BookingShifts: undefined;
 };
@@ -47,7 +87,6 @@ export type MainTabParamList = {
   Chat: undefined;
   Bookings: undefined;
   Groups: undefined;
-  More: undefined;
   Profile: undefined;
 };
 

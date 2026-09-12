@@ -39,20 +39,34 @@ export function StaffBookingDetailScreen({ route, navigation }: Props) {
     );
   }
 
+  const marked = Boolean(data.attendance);
+  const showAttendanceActions = canAttend && data.status !== 'cancelled' && !marked;
+  const showCancel = canCancel && data.status === 'confirmed' && !marked;
+
   return (
     <StackScreen title="Booking">
       <Text variant="heading">{data.title}</Text>
       <Text variant="bodySmall" color="textSecondary" style={styles.meta}>
-        {data.studentName}
+        {data.studentName || 'Student'}
+        {data.seat != null ? ` · Seat ${data.seat}` : ''}
       </Text>
       <Text variant="bodySmall" color="textMuted">
         {data.date} · {data.startTime}–{data.endTime}
       </Text>
-      <View style={styles.badge}>
-        <Badge label={data.status} tone={data.status === 'cancelled' ? 'danger' : 'success'} />
+      <View style={styles.badges}>
+        <Badge
+          label={data.statusLabel || data.status}
+          tone={data.status === 'cancelled' ? 'danger' : 'success'}
+        />
+        {marked ? (
+          <Badge
+            label={data.attendanceLabel || data.attendance || 'Marked'}
+            tone={data.attendance === 'absent' ? 'danger' : 'success'}
+          />
+        ) : null}
       </View>
 
-      {canAttend && data.status !== 'cancelled' ? (
+      {showAttendanceActions ? (
         <View style={styles.actions}>
           <Button
             label="Present"
@@ -62,17 +76,6 @@ export function StaffBookingDetailScreen({ route, navigation }: Props) {
               mark.mutate(
                 { id: data.id, attendance: 'present' },
                 { onSuccess: () => showToast('Marked present', 'success') },
-              )
-            }
-          />
-          <Button
-            label="Late"
-            variant="secondary"
-            loading={mark.isPending}
-            onPress={() =>
-              mark.mutate(
-                { id: data.id, attendance: 'late' },
-                { onSuccess: () => showToast('Marked late', 'success') },
               )
             }
           />
@@ -90,7 +93,13 @@ export function StaffBookingDetailScreen({ route, navigation }: Props) {
         </View>
       ) : null}
 
-      {canCancel && data.status === 'confirmed' ? (
+      {marked && data.status !== 'cancelled' ? (
+        <Text variant="bodySmall" color="textMuted" style={styles.markedNote}>
+          Attendance recorded as {data.attendanceLabel || data.attendance}.
+        </Text>
+      ) : null}
+
+      {showCancel ? (
         <Button
           label="Cancel booking"
           variant="outline"
@@ -122,12 +131,18 @@ const styles = StyleSheet.create({
     marginTop: tokens.spacing.sm,
     marginBottom: tokens.spacing.xs,
   },
-  badge: {
+  badges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.sm,
     marginTop: tokens.spacing.md,
     marginBottom: tokens.spacing.xl,
   },
   actions: {
     gap: tokens.spacing.sm,
+  },
+  markedNote: {
+    marginTop: tokens.spacing.md,
   },
   cancel: {
     marginTop: tokens.spacing.lg,

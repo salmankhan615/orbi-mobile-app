@@ -35,7 +35,11 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
  * conflict with a manual Cookie header — clear native cookies and always
  * synthesize `Cookie: token=<jwt>` from the login body token.
  */
-export function setApiSession(cookie: string | null, token: string | null = null) {
+export function setApiSession(
+  cookie: string | null,
+  token: string | null = null,
+  options?: { clearJar?: boolean },
+) {
   sessionToken = token;
   if (token) {
     const tokenCookie = `token=${token}`;
@@ -49,7 +53,11 @@ export function setApiSession(cookie: string | null, token: string | null = null
   } else {
     sessionCookie = cookie;
   }
-  void clearNativeCookies();
+  // Only clear the native jar on login/logout. Doing it on every Set-Cookie
+  // response floods the RN bridge and freezes taps while staff APIs run.
+  if (options?.clearJar) {
+    void clearNativeCookies();
+  }
 }
 
 export function clearApiSession() {

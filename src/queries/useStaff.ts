@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchStudentCoursework } from '@/api/coursework';
 import { staffApi } from '@/api/staff';
 import { useAuthStore } from '@/store/useAuthStore';
-import { getCalendarClosures } from '@/api/crm';
+import { useAfterInteractions } from '@/hooks/useAfterInteractions';
 
 export const staffKeys = {
   groups: ['staff', 'groups'] as const,
@@ -17,87 +17,110 @@ export const staffKeys = {
   closedDays: ['staff', 'closedDays'] as const,
 };
 
+const STAFF_QUERY = {
+  staleTime: 60_000,
+  retry: 1 as const,
+};
+
 export function useStaffGroups() {
-  return useQuery({ queryKey: staffKeys.groups, queryFn: staffApi.groups });
+  const ready = useAfterInteractions();
+  return useQuery({
+    queryKey: staffKeys.groups,
+    queryFn: staffApi.groups,
+    enabled: ready,
+    ...STAFF_QUERY,
+  });
 }
 
 export function useGroupStudents(groupId: string) {
+  const ready = useAfterInteractions();
   return useQuery({
     queryKey: staffKeys.groupStudents(groupId),
     queryFn: () => staffApi.groupStudents(groupId),
-    enabled: Boolean(groupId),
+    enabled: ready && Boolean(groupId),
+    ...STAFF_QUERY,
   });
 }
 
 export function useGroupSessions(groupId: string) {
+  const ready = useAfterInteractions();
   return useQuery({
     queryKey: staffKeys.groupSessions(groupId),
     queryFn: () => staffApi.groupSessions(groupId),
-    enabled: Boolean(groupId),
+    enabled: ready && Boolean(groupId),
+    ...STAFF_QUERY,
   });
 }
 
 export function useDirectory() {
-  return useQuery({ queryKey: staffKeys.directory, queryFn: staffApi.directory });
+  const ready = useAfterInteractions();
+  return useQuery({
+    queryKey: staffKeys.directory,
+    queryFn: staffApi.directory,
+    enabled: ready,
+    ...STAFF_QUERY,
+  });
 }
 
 export function useStaffCoursework() {
+  const ready = useAfterInteractions();
   const role = useAuthStore((state) => state.user?.role ?? 'student');
   const userId = useAuthStore((state) => state.user?.id ?? '');
   return useQuery({
     queryKey: [...staffKeys.coursework, role, userId || 'none'],
     queryFn: () => (role === 'student' ? fetchStudentCoursework() : staffApi.coursework()),
-    enabled: role !== 'student' || Boolean(userId),
-    staleTime: 60_000,
-    retry: 1,
+    enabled: ready && (role !== 'student' || Boolean(userId)),
+    ...STAFF_QUERY,
   });
 }
 
 export function useSubmissions(assignmentId?: string) {
+  const ready = useAfterInteractions();
   return useQuery({
     queryKey: staffKeys.submissions(assignmentId),
     queryFn: () => staffApi.submissions(assignmentId),
+    enabled: ready && Boolean(assignmentId),
+    ...STAFF_QUERY,
   });
 }
 
 export function useInvoices() {
-  return useQuery({ queryKey: staffKeys.invoices, queryFn: staffApi.invoices });
+  const ready = useAfterInteractions();
+  return useQuery({
+    queryKey: staffKeys.invoices,
+    queryFn: staffApi.invoices,
+    enabled: ready,
+    ...STAFF_QUERY,
+  });
 }
 
 export function useAgreements() {
-  return useQuery({ queryKey: staffKeys.agreements, queryFn: staffApi.agreements });
+  const ready = useAfterInteractions();
+  return useQuery({
+    queryKey: staffKeys.agreements,
+    queryFn: staffApi.agreements,
+    enabled: ready,
+    ...STAFF_QUERY,
+  });
 }
 
 export function useShifts() {
-  return useQuery({ queryKey: staffKeys.shifts, queryFn: staffApi.shifts });
+  const ready = useAfterInteractions();
+  return useQuery({
+    queryKey: staffKeys.shifts,
+    queryFn: staffApi.shifts,
+    enabled: ready,
+    ...STAFF_QUERY,
+  });
 }
 
 export function useClosedDays() {
+  const ready = useAfterInteractions();
   return useQuery({
     queryKey: staffKeys.closedDays,
-    queryFn: async () => {
-      try {
-        const raw = await getCalendarClosures();
-        const list = Array.isArray(raw)
-          ? raw
-          : Array.isArray((raw as { data?: unknown[] })?.data)
-            ? ((raw as { data: unknown[] }).data ?? [])
-            : [];
-        return list
-          .map((item) => {
-            if (typeof item === 'string') return item.slice(0, 10);
-            if (item && typeof item === 'object') {
-              const row = item as Record<string, unknown>;
-              const value = row.date ?? row.closedDate ?? row.day;
-              return typeof value === 'string' ? value.slice(0, 10) : '';
-            }
-            return '';
-          })
-          .filter(Boolean);
-      } catch {
-        return staffApi.closedDays();
-      }
-    },
+    queryFn: staffApi.closedDays,
+    enabled: ready,
+    ...STAFF_QUERY,
   });
 }
 

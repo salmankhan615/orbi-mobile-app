@@ -17,7 +17,7 @@ import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'GroupDetail'>;
 
-export function GroupDetailScreen({ route }: Props) {
+export function GroupDetailScreen({ route, navigation }: Props) {
   const canSessions = useHasPermission('view_group_sessions');
   const { data: groups, isLoading: groupsLoading } = useStaffGroups();
   const group = groups?.find((item) => item.id === route.params.groupId);
@@ -56,6 +56,17 @@ export function GroupDetailScreen({ route }: Props) {
               title={session.title}
               subtitle={`${session.date} · ${session.startTime}–${session.endTime}`}
               meta={session.location}
+              onPress={() =>
+                navigation.navigate('GroupSessionDetail', {
+                  groupId: route.params.groupId,
+                  classId: session.id,
+                  title: session.title,
+                  date: session.date,
+                  startTime: session.startTime,
+                  endTime: session.endTime,
+                  location: session.location,
+                })
+              }
             />
           ))
         )}
@@ -74,7 +85,14 @@ export function GroupDetailScreen({ route }: Props) {
               icon="person-outline"
               title={student.name}
               subtitle={student.email}
-              badge={{ label: `${student.progress}%`, tone: 'primary' }}
+              onPress={() =>
+                navigation.navigate('UserDetail', {
+                  userId: student.id,
+                  name: student.name,
+                  email: student.email,
+                  role: 'student',
+                })
+              }
             />
           ))
         )}

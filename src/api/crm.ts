@@ -96,6 +96,23 @@ export async function getMyAnnouncements() {
   return apiClient.get<{ data?: unknown[] } | unknown[]>('/api/announcements/my');
 }
 
+/** Staff management list — company-wide, all statuses (Draft included). */
+export async function getAnnouncements(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+}) {
+  const qs = new URLSearchParams();
+  qs.set('limit', String(params?.limit ?? 50));
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.search) qs.set('search', params.search);
+  if (params?.status) qs.set('status', params.status);
+  return apiClient.get<{ success?: boolean; data?: unknown[]; pagination?: unknown }>(
+    `/api/announcements?${qs.toString()}`,
+  );
+}
+
 export async function getAnnouncementById(id: string) {
   return apiClient.get<unknown>(`/api/announcements/${encodeURIComponent(id)}`);
 }
@@ -110,6 +127,10 @@ export async function createAnnouncement(payload: unknown) {
 
 export async function updateAnnouncement(id: string, payload: unknown) {
   return apiClient.put<unknown>(`/api/announcements/${encodeURIComponent(id)}`, payload);
+}
+
+export async function deleteAnnouncement(id: string) {
+  return apiClient.delete<unknown>(`/api/announcements/${encodeURIComponent(id)}`);
 }
 
 export type ClassCalendarParams = {
@@ -192,9 +213,208 @@ export async function getCalendarUsersLite() {
   return apiClient.get<unknown[]>('/api/calendar/crm/users-lite');
 }
 
+/** Search/list by type — capped server-side (~100). Prefer over getAllUsersActive. */
+export async function getUsersByType(payload: { userType: string; filter?: string }) {
+  return apiClient.post<unknown[]>('/api/users/crm/getUserType', {
+    userType: payload.userType,
+    filter: payload.filter ?? '',
+  });
+}
+
 export async function getCalendarClosures(calendarId?: string) {
   const query = calendarId ? `?calendar_id=${encodeURIComponent(calendarId)}` : '';
   return apiClient.get<unknown>(`/api/calendar-closure/crm/getClosures${query}`);
+}
+
+/** Dated or permanent weekday closure. Writes are adminOnly (includes type=staff). */
+export async function addCalendarClosure(payload: {
+  scope: 'global' | 'calendar';
+  calendar_id?: string;
+  is_permanent: boolean;
+  date?: string;
+  day_of_week?: number;
+  reason?: string;
+}) {
+  return apiClient.post<unknown>('/api/calendar-closure/crm/addClosure', payload);
+}
+
+export async function deleteCalendarClosure(id: string) {
+  return apiClient.delete<unknown>(
+    `/api/calendar-closure/crm/deleteClosure/${encodeURIComponent(id)}`,
+  );
+}
+
+/** Staff groups for the company (`groups.view`). */
+export async function getStaffGroups(companyId: string) {
+  return apiClient.get<{ message?: string; data?: unknown[] }>(
+    `/api/course/crm/getGroups/company/${encodeURIComponent(companyId)}`,
+  );
+}
+
+export async function getGroupDetail(groupId: string) {
+  return apiClient.get<{ success?: boolean; data?: unknown }>(
+    `/api/course/crm/group/${encodeURIComponent(groupId)}/detail`,
+  );
+}
+
+export async function getGroupStudents(
+  groupId: string,
+  params?: { search?: string; page?: number; limit?: number },
+) {
+  const qs = new URLSearchParams();
+  if (params?.search) qs.set('search', params.search);
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.limit) qs.set('limit', String(params.limit));
+  const query = qs.toString() ? `?${qs.toString()}` : '';
+  return apiClient.get<{
+    success?: boolean;
+    data?: unknown[];
+    pagination?: { total?: number; page?: number; limit?: number; pages?: number };
+  }>(`/api/course/crm/group/${encodeURIComponent(groupId)}/students${query}`);
+}
+
+export async function getGroupSessions(groupId: string) {
+  return apiClient.get<{ success?: boolean; data?: unknown[] }>(
+    `/api/course/crm/group/${encodeURIComponent(groupId)}/sessions`,
+  );
+}
+
+/** Active company users (country-filtered when EMS dataFilters set). */
+export async function getAllUsersActive() {
+  return apiClient.get<unknown[]>('/api/users/crm/getAllUsersActive');
+}
+
+export async function getCrmUserById(userId: string) {
+  return apiClient.get<unknown>(`/api/users/crm/${encodeURIComponent(userId)}`);
+}
+
+export async function getGroupSessionAttendance(groupId: string, classId: string) {
+  return apiClient.get<{ success?: boolean; data?: unknown }>(
+    `/api/course/crm/group/${encodeURIComponent(groupId)}/sessions/${encodeURIComponent(classId)}/attendance`,
+  );
+}
+
+export async function gradeCourseworkSubmission(
+  courseworkId: string,
+  submissionId: string,
+  payload: { score?: number | null; status?: string },
+) {
+  return apiClient.patch<{ success?: boolean; data?: unknown }>(
+    `/api/course/crm/coursework/${encodeURIComponent(courseworkId)}/submissions/${encodeURIComponent(submissionId)}/grade`,
+    payload,
+  );
+}
+
+/** Staff coursework across manageable groups (`groups.manageCoursework`). */
+export async function getStaffCoursework() {
+  return apiClient.get<{ success?: boolean; data?: unknown[] }>('/api/course/crm/coursework');
+}
+
+export async function getCourseworkSubmissions(courseworkId: string) {
+  return apiClient.get<{ success?: boolean; data?: { coursework?: unknown; rows?: unknown[] } }>(
+    `/api/course/crm/coursework/${encodeURIComponent(courseworkId)}/submissions`,
+  );
+}
+
+/** Payment plans — adminOnly (passes for any `type === 'staff'`). */
+export async function getAllPaymentPlans() {
+  return apiClient.get<{ success?: boolean; data?: unknown[] }>(
+    '/api/paymentPlan/crm/getAllPaymentPlans',
+  );
+}
+
+export async function getAgreementSubmissions(params?: {
+  status?: string;
+  bucket?: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.bucket) qs.set('bucket', params.bucket);
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.search) qs.set('search', params.search);
+  const query = qs.toString() ? `?${qs.toString()}` : '';
+  return apiClient.get<{
+    success?: boolean;
+    data?: unknown[];
+    pagination?: unknown;
+    statusCounts?: { _id?: string; count?: number }[];
+  }>(`/api/agreements/submissions${query}`);
+}
+
+/**
+ * Practical training admin roster. Always pass `date` or `location` —
+ * unfiltered loads every training day the company has ever had.
+ */
+export async function getAdminPracticalBookings(params: {
+  date?: string;
+  location?: string;
+  shift?: string;
+  student?: string;
+  status?: string;
+}) {
+  const qs = new URLSearchParams();
+  if (params.date) qs.set('date', params.date);
+  if (params.location) qs.set('location', params.location);
+  if (params.shift) qs.set('shift', params.shift);
+  if (params.student) qs.set('student', params.student);
+  if (params.status) qs.set('status', params.status);
+  const query = qs.toString() ? `?${qs.toString()}` : '';
+  return apiClient.get<{ success?: boolean; count?: number; data?: unknown[] }>(
+    `/api/practical-training/admin/bookings${query}`,
+  );
+}
+
+export async function getPracticalTrainingAdminCalendar(params: {
+  startDate: string;
+  endDate: string;
+}) {
+  const qs = new URLSearchParams();
+  qs.set('startDate', params.startDate);
+  qs.set('endDate', params.endDate);
+  return apiClient.get<unknown>(
+    `/api/practical-training/bookings/calendar/admin?${qs.toString()}`,
+  );
+}
+
+export async function markPracticalAttendance(
+  dayId: string,
+  bookingId: string,
+  attendance: 'Present' | 'Absent',
+) {
+  return apiClient.patch<{ success?: boolean; message?: string }>(
+    `/api/practical-training/bookings/${encodeURIComponent(dayId)}/${encodeURIComponent(bookingId)}`,
+    { attendance },
+  );
+}
+
+export async function getEmsProfile(emsProfileId: string) {
+  return apiClient.get<{
+    success?: boolean;
+    data?: {
+      name?: string;
+      dataFilters?: { countries?: string[]; categories?: string[] };
+      permissions?: { modules?: unknown; actions?: unknown[] };
+      features?: unknown;
+    };
+  }>(`/api/ems/profiles/${encodeURIComponent(emsProfileId)}`);
+}
+
+export async function getCrmModulePermissions(profileId: string) {
+  return apiClient.get<{
+    modules?: unknown[];
+    features?: unknown;
+    adminPermissions?: {
+      userManagement?: { enabled?: boolean; types?: string[] };
+      agreements?: { enabled?: boolean; send?: boolean };
+      complianceSettings?: { enabled?: boolean };
+      modulesCustomisation?: { enabled?: boolean };
+      rolesAndProfiles?: { enabled?: boolean; types?: string[] };
+    };
+  }>(`/api/module-permissions/crm/${encodeURIComponent(profileId)}`);
 }
 
 export type PracticalBookingsPage = {

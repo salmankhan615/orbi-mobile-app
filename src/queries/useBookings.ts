@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { cancelClassBooking, cancelPracticalBooking, getClassAvailability } from '@/api/crm';
-import { bookingsApi, type BookingKind } from '@/api/bookings';
+import { bookingsApi, type Booking, type BookingKind } from '@/api/bookings';
 import { trainingApi } from '@/api/training';
 import { sessionsKeys } from '@/queries/useSessions';
 import { requireUserId } from '@/api/sessionUser';
+import { useAfterInteractions } from '@/hooks/useAfterInteractions';
 
 export const bookingKeys = {
   all: ['bookings'] as const,
@@ -42,17 +43,28 @@ export function useMyBookings(studentId: string) {
 }
 
 export function useStaffBookings() {
+  const ready = useAfterInteractions();
   return useQuery({
     queryKey: bookingKeys.staff,
     queryFn: bookingsApi.listAll,
+    enabled: ready,
+    staleTime: 60_000,
+    retry: 1,
   });
 }
 
 export function useBooking(id: string) {
+  const client = useQueryClient();
   return useQuery({
     queryKey: bookingKeys.detail(id),
-    queryFn: () => bookingsApi.getById(id),
+    queryFn: async () => {
+      const cachedStaff = client.getQueryData<Booking[]>(bookingKeys.staff);
+      const fromStaff = cachedStaff?.find((item) => item.id === id);
+      if (fromStaff) return fromStaff;
+      return bookingsApi.getById(id);
+    },
     enabled: Boolean(id),
+    staleTime: 30_000,
   });
 }
 
@@ -157,6 +169,15 @@ export function useMarkAttendance() {
   return useMutation({
     mutationFn: ({ id, attendance }: { id: string; attendance: 'present' | 'absent' | 'late' }) =>
       bookingsApi.markAttendance(id, attendance),
-    onSuccess: () => client.invalidateQueries({ queryKey: bookingKeys.all }),
+    onSuccess: (updated, { id }) => {
+      if (updated) {
+        client.setQueryData(bookingKeys.detail(id), updated);
+        client.setQueryData<Booking[]>(bookingKeys.staff, (current) =>
+          current?.map((item) => (item.id === id ? updated : item)),
+        );
+      }
+      client.invalidateQueries({ queryKey: bookingKeys.staff });
+      client.invalidateQueries({ queryKey: bookingKeys.detail(id) });
+    },
   });
 }
