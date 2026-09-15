@@ -257,6 +257,32 @@ export async function getGroupDetail(groupId: string) {
   );
 }
 
+/** Courses for group create/filter dropdowns. */
+export async function getCrmCourses() {
+  return apiClient.get<unknown[] | { data?: unknown[] }>('/api/course/crm/getCourses');
+}
+
+/** Staff assignable to groups. */
+export async function getGroupStaffOptions() {
+  return apiClient.get<{ success?: boolean; data?: unknown[] }>(
+    '/api/course/crm/group-staff-options',
+  );
+}
+
+/** Link a staff user to a group (`canManageStaff`). */
+export async function assignGroupStaff(groupId: string, userId: string) {
+  return apiClient.patch<{ success?: boolean; data?: unknown; message?: string }>(
+    `/api/course/crm/group/${encodeURIComponent(groupId)}/staff`,
+    { userId },
+  );
+}
+
+export async function removeGroupStaff(groupId: string, userId: string) {
+  return apiClient.delete<{ success?: boolean; message?: string }>(
+    `/api/course/crm/group/${encodeURIComponent(groupId)}/staff/${encodeURIComponent(userId)}`,
+  );
+}
+
 export async function getGroupStudents(
   groupId: string,
   params?: { search?: string; page?: number; limit?: number },

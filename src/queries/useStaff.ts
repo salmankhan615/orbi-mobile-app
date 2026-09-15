@@ -6,8 +6,11 @@ import { useAfterInteractions } from '@/hooks/useAfterInteractions';
 
 export const staffKeys = {
   groups: ['staff', 'groups'] as const,
+  groupDetail: (id: string) => ['staff', 'groups', id, 'detail'] as const,
   groupStudents: (id: string) => ['staff', 'groups', id, 'students'] as const,
   groupSessions: (id: string) => ['staff', 'groups', id, 'sessions'] as const,
+  groupStaffOptions: ['staff', 'groupStaffOptions'] as const,
+  courseOptions: ['staff', 'courseOptions'] as const,
   directory: ['staff', 'directory'] as const,
   coursework: ['staff', 'coursework'] as const,
   submissions: (id?: string) => ['staff', 'submissions', id ?? 'all'] as const,
@@ -32,6 +35,36 @@ export function useStaffGroups() {
   });
 }
 
+export function useGroupDetail(groupId: string) {
+  const ready = useAfterInteractions();
+  return useQuery({
+    queryKey: staffKeys.groupDetail(groupId),
+    queryFn: () => staffApi.groupDetail(groupId),
+    enabled: ready && Boolean(groupId),
+    ...STAFF_QUERY,
+  });
+}
+
+export function useGroupStaffOptions(enabled = true) {
+  const ready = useAfterInteractions();
+  return useQuery({
+    queryKey: staffKeys.groupStaffOptions,
+    queryFn: staffApi.groupStaffOptions,
+    enabled: ready && enabled,
+    ...STAFF_QUERY,
+  });
+}
+
+export function useCrmCourseOptions(enabled = true) {
+  const ready = useAfterInteractions();
+  return useQuery({
+    queryKey: staffKeys.courseOptions,
+    queryFn: staffApi.courseOptions,
+    enabled: ready && enabled,
+    ...STAFF_QUERY,
+  });
+}
+
 export function useGroupStudents(groupId: string) {
   const ready = useAfterInteractions();
   return useQuery({
@@ -49,6 +82,28 @@ export function useGroupSessions(groupId: string) {
     queryFn: () => staffApi.groupSessions(groupId),
     enabled: ready && Boolean(groupId),
     ...STAFF_QUERY,
+  });
+}
+
+export function useAssignGroupStaff(groupId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => staffApi.assignStaff(groupId, userId),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: staffKeys.groupDetail(groupId) });
+      client.invalidateQueries({ queryKey: staffKeys.groups });
+    },
+  });
+}
+
+export function useRemoveGroupStaff(groupId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => staffApi.removeStaff(groupId, userId),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: staffKeys.groupDetail(groupId) });
+      client.invalidateQueries({ queryKey: staffKeys.groups });
+    },
   });
 }
 

@@ -1,5 +1,6 @@
 import {
   addCalendarClosure,
+  assignGroupStaff,
   deleteCalendarClosure,
   getAdminPracticalBookings,
   getAgreementSubmissions,
@@ -7,11 +8,15 @@ import {
   getCalendarClosures,
   getCalendarUsersLite,
   getCourseworkSubmissions,
+  getCrmCourses,
+  getGroupDetail,
   getGroupSessions,
+  getGroupStaffOptions,
   getGroupStudents,
   getStaffCoursework,
   getStaffGroups,
   getUsersByType,
+  removeGroupStaff,
 } from '@/api/crm';
 import { API_BASE_URL } from '@/api/config';
 import { formatCourseworkDate } from '@/api/coursework';
@@ -20,12 +25,44 @@ import { unwrapList } from '@/api/unwrap';
 import { toISODate } from '@/utils/date';
 import { stripHtml } from '@/utils/stripHtml';
 
+export interface StaffGroupMember {
+  id: string;
+  name: string;
+  email?: string;
+  assignedAt?: string;
+}
+
 export interface StaffGroup {
   id: string;
   name: string;
+  description: string;
+  status: string;
+  days: string[];
+  courseId: string;
   courseTitle: string;
+  staff: StaffGroupMember[];
+  startDate: string;
+  endDate: string;
+  ended: boolean;
   studentCount: number;
   nextSession: string;
+  updatedAt?: string;
+  updatedByName?: string;
+}
+
+export interface GroupDetail extends StaffGroup {
+  canManageStaff: boolean;
+}
+
+export interface GroupStaffOption {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface CrmCourseOption {
+  id: string;
+  title: string;
 }
 
 export interface GroupSession {
@@ -238,6 +275,80 @@ function formatClock(value: unknown): string {
   return raw;
 }
 
+/** CRM list uses `in-active`; tabs/filters use `inactive`. */
+function normalizeGroupStatus(raw: unknown): string {
+  const status = str(raw, 'active').toLowerCase().replace(/_/g, '-');
+  if (status === 'in-active' || status === 'inactive') return 'inactive';
+  return status;
+}
+
+type StaffLookup = Map<string, { name: string; email?: string }>;
+
+function mapGroupStaff(raw: unknown, lookup?: StaffLookup): StaffGroupMember[] {
+  const out: StaffGroupMember[] = [];
+  for (const item of asArray(raw)) {
+    const row = asRecord(item);
+    if (!row) continue;
+    const user = asRecord(row.userId);
+    const id = idOf(user?._id ?? user?.id ?? row.userId);
+    if (!id) continue;
+    const fromLookup = lookup?.get(id);
+    const name = user
+      ? personName(user)
+      : fromLookup?.name || (typeof row.userId === 'string' ? '' : personName(row));
+    out.push({
+      id,
+      name: name || fromLookup?.name || 'Staff',
+      email: str(user?.email) || fromLookup?.email || undefined,
+      assignedAt: str(row.assignedAt) || undefined,
+    });
+  }
+  return out;
+}
+
+function mapStaffGroup(row: UnknownRecord, lookup?: StaffLookup): StaffGroup | null {
+  const id = idOf(row._id ?? row.id);
+  if (!id) return null;
+  const course = asRecord(row.groupCourse) ?? asRecord(row.course);
+  const courseId = idOf(course?._id ?? course?.id ?? row.groupCourse) ?? '';
+  const endDate = toISODay(row.groupEndDate ?? row.endDate);
+  const ended =
+    row.ended === true ||
+    (Boolean(endDate) && new Date(`${endDate}T23:59:59`).getTime() < Date.now());
+  const days = asArray(row.groupDays ?? row.days)
+    .map((day) => str(day))
+    .filter(Boolean);
+  return {
+    id,
+    name: str(row.groupName, row.name, row.title, 'Group'),
+    description: str(row.groupDescription, row.description),
+    status: normalizeGroupStatus(row.groupStatus ?? row.status),
+    days,
+    courseId,
+    courseTitle: str(row.courseTitle, row.courseName, course?.courseTitle, course?.title, 'Course'),
+    staff: mapGroupStaff(row.staff, lookup),
+    startDate: toISODay(row.groupStartDate ?? row.startDate),
+    endDate,
+    ended,
+    studentCount: num(row.studentCount ?? row.studentsCount),
+    nextSession: toISODay(row.nextSession ?? row.nextClassDate ?? row.nextSessionDate) || '—',
+    updatedAt: str(row.updatedAt) || undefined,
+    updatedByName: str(row.updatedByName) || undefined,
+  };
+}
+
+function buildStaffLookup(raw: unknown): StaffLookup {
+  const lookup: StaffLookup = new Map();
+  for (const item of unwrapList(raw)) {
+    const row = asRecord(item);
+    if (!row) continue;
+    const id = idOf(row._id ?? row.id);
+    if (!id) continue;
+    lookup.set(id, { name: personName(row), email: str(row.email) || undefined });
+  }
+  return lookup;
+}
+
 function mapDirectoryRole(raw: UnknownRecord): DirectoryUser['role'] {
   const type = str(raw.type, raw.role).toLowerCase();
   if (type.includes('student') || type.includes('trainee') || type.includes('learner')) {
@@ -428,24 +539,79 @@ function mapClosureDates(raw: unknown): { id: string; date: string }[] {
 export const staffApi = {
   async groups(): Promise<StaffGroup[]> {
     const { companyId } = requireStudentContext();
-    const raw = await getStaffGroups(companyId);
+    // List payload stores staff as userId strings — resolve names via staff-options.
+    const [raw, staffRaw] = await Promise.all([
+      getStaffGroups(companyId),
+      getGroupStaffOptions().catch(() => null),
+    ]);
+    const lookup = staffRaw ? buildStaffLookup(staffRaw) : undefined;
     const out: StaffGroup[] = [];
     for (const item of unwrapList(raw)) {
-      if (out.length >= 60) break;
+      if (out.length >= 120) break;
+      const row = asRecord(item);
+      if (!row) continue;
+      const mapped = mapStaffGroup(row, lookup);
+      if (mapped) out.push(mapped);
+    }
+    return out;
+  },
+
+  async groupDetail(groupId: string): Promise<GroupDetail | null> {
+    const raw = await getGroupDetail(groupId);
+    const row = asRecord(asRecord(raw)?.data) ?? asRecord(raw);
+    if (!row) return null;
+    const mapped = mapStaffGroup(row);
+    if (!mapped) return null;
+    return {
+      ...mapped,
+      canManageStaff: row.canManageStaff === true,
+      ended: row.ended === true ? true : mapped.ended,
+    };
+  },
+
+  async groupStaffOptions(): Promise<GroupStaffOption[]> {
+    const raw = await getGroupStaffOptions();
+    const out: GroupStaffOption[] = [];
+    for (const item of unwrapList(raw)) {
       const row = asRecord(item);
       if (!row) continue;
       const id = idOf(row._id ?? row.id);
       if (!id) continue;
       out.push({
         id,
-        name: str(row.groupName, row.name, row.title, 'Group'),
-        courseTitle: str(row.courseTitle, row.courseName, asRecord(row.course)?.title, 'Course'),
-        // Roster size is not on the list payload — shown inside group detail only.
-        studentCount: 0,
-        nextSession: toISODay(row.nextSession ?? row.nextClassDate ?? row.nextSessionDate) || '—',
+        name: personName(row),
+        email: str(row.email),
       });
     }
     return out;
+  },
+
+  async courseOptions(): Promise<CrmCourseOption[]> {
+    const raw = await getCrmCourses();
+    const out: CrmCourseOption[] = [];
+    for (const item of unwrapList(raw)) {
+      const row = asRecord(item);
+      if (!row) continue;
+      const id = idOf(row._id ?? row.id);
+      if (!id) continue;
+      out.push({
+        id,
+        title: str(row.courseTitle, row.title, row.name, 'Course'),
+      });
+    }
+    return out;
+  },
+
+  async assignStaff(groupId: string, userId: string): Promise<StaffGroupMember[]> {
+    const raw = await assignGroupStaff(groupId, userId);
+    const data = asRecord(raw)?.data ?? raw;
+    if (Array.isArray(data)) return mapGroupStaff(data);
+    const detail = await staffApi.groupDetail(groupId);
+    return detail?.staff ?? [];
+  },
+
+  async removeStaff(groupId: string, userId: string): Promise<void> {
+    await removeGroupStaff(groupId, userId);
   },
 
   async groupStudents(groupId: string): Promise<GroupStudent[]> {
@@ -718,4 +884,3 @@ export const staffApi = {
     return staffApi.closedDays();
   },
 };
-
