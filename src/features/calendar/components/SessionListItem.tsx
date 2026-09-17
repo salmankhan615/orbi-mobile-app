@@ -17,6 +17,8 @@ interface SessionListItemProps {
   showChevron?: boolean;
   /** Hide date column when date is already in a group header. */
   hideDate?: boolean;
+  /** Staggered enter animation — skip on long calendar lists. */
+  animate?: boolean;
   isFirst?: boolean;
   isLast?: boolean;
 }
@@ -35,13 +37,14 @@ export function SessionListItem({
   onPress,
   showChevron = false,
   hideDate = false,
+  animate = false,
 }: SessionListItemProps) {
   const tint = SESSION_TYPE_TINT[session.type];
   const { day, month } = formatDateParts(session.date);
   const statusBadge = sessionStatusBadge(session);
 
-  return (
-    <FadeInView delay={staggerDelay(index)} style={styles.wrapper}>
+  const row = (
+    <View style={styles.wrapper}>
       <ScalePressable onPress={onPress} style={styles.card}>
         <View style={[styles.accent, { backgroundColor: tokens.colors[sessionAccentColor(session)] }]} />
         {!hideDate && (
@@ -85,6 +88,14 @@ export function SessionListItem({
           ) : null}
         </View>
       </ScalePressable>
+    </View>
+  );
+
+  if (!animate) return row;
+
+  return (
+    <FadeInView delay={staggerDelay(index)} style={styles.wrapper}>
+      {row}
     </FadeInView>
   );
 }

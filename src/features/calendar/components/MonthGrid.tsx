@@ -1,32 +1,35 @@
+import { memo, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import type { Session } from '@/api/sessions';
 import { daySessionMarkers } from '../sessionStyle';
-import { getMonthGrid, isSameDay, WEEKDAY_LABELS } from '@/utils/date';
+import { getMonthGrid, toISODate, WEEKDAY_LABELS } from '@/utils/date';
 
 interface MonthGridProps {
   year: number;
   month: number;
   selectedDate: string;
   sessionsByDate: Map<string, Session[]>;
-  closedDates?: string[];
+  closedDates?: ReadonlySet<string>;
   onSelectDate: (iso: string) => void;
 }
 
-export function MonthGrid({
+export const MonthGrid = memo(function MonthGrid({
   year,
   month,
   selectedDate,
   sessionsByDate,
-  closedDates = [],
+  closedDates,
   onSelectDate,
 }: MonthGridProps) {
-  const today = new Date();
-  const days = getMonthGrid(year, month);
-  const weeks = Array.from({ length: days.length / 7 }, (_, index) =>
-    days.slice(index * 7, index * 7 + 7),
-  );
+  const todayIso = toISODate(new Date());
+  const weeks = useMemo(() => {
+    const days = getMonthGrid(year, month);
+    return Array.from({ length: days.length / 7 }, (_, index) =>
+      days.slice(index * 7, index * 7 + 7),
+    );
+  }, [year, month]);
 
   return (
     <View>
@@ -42,10 +45,10 @@ export function MonthGrid({
         <View key={week[0]?.iso} style={styles.daysRow}>
           {week.map((day) => {
             const isSelected = day.iso === selectedDate;
-            const isClosed = closedDates.includes(day.iso);
+            const isClosed = closedDates?.has(day.iso) ?? false;
             const daySessions = sessionsByDate.get(day.iso) ?? [];
             const { hasBooked, availableCount } = daySessionMarkers(daySessions);
-            const isToday = isSameDay(day.iso, today);
+            const isToday = day.iso === todayIso;
             const availableDots = Math.min(availableCount, 3);
 
             return (
@@ -81,7 +84,7 @@ export function MonthGrid({
       ))}
     </View>
   );
-}
+});
 
 const CELL_SIZE = 36;
 

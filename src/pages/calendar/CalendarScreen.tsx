@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { Modal, Pressable, ScrollView, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
@@ -27,7 +27,7 @@ import {
 import { useIsStaff, useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { useToastStore } from '@/store/useToastStore';
-import { smoothScrollProps } from '@/utils/scroll';
+import { smoothListProps, smoothScrollProps } from '@/utils/scroll';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Calendar'>;
@@ -59,21 +59,21 @@ export function CalendarScreen({ navigation }: Props) {
   const canViewBookings = useHasPermission('view_bookings');
   const canEditCalendar = useHasPermission('edit_calendar');
   const showToast = useToastStore((state) => state.show);
+  const [, startViewTransition] = useTransition();
   const [viewMode, setViewMode] = useState<ViewMode>('Month');
   const [cursor, setCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => toISODate(new Date()));
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const range = useMemo(
-    () => getVisibleCalendarRange(cursor, viewMode),
-    [cursor, viewMode],
-  );
+  const range = useMemo(() => getVisibleCalendarRange(cursor), [cursor]);
   const { data: sessions, isLoading } = useSessions({
     calendarId: selectedCalendarId,
     startDate: range.startDate,
     endDate: range.endDate,
   });
+  const showInitialLoad = isLoading && !sessions;
   const { data: closedDays = [] } = useClosedDays();
+  const closedDateSet = useMemo(() => new Set(closedDays), [closedDays]);
 
   const selectedCalendar =
     calendars?.find((calendar) => calendar.id === selectedCalendarId) ?? calendars?.[0];
@@ -99,9 +99,15 @@ export function CalendarScreen({ navigation }: Props) {
   const sessionsForSelectedDate = sessionsByDate.get(selectedDate) ?? [];
 
   const groupedForList = useMemo(() => {
-    const dates = Array.from(sessionsByDate.keys()).sort();
-    return dates.map((date) => ({ date, sessions: sessionsByDate.get(date) ?? [] }));
-  }, [sessionsByDate]);
+    const prefix = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-`;
+    const dates = Array.from(sessionsByDate.keys())
+      .filter((date) => date.startsWith(prefix))
+      .sort();
+    return dates.map((date) => ({
+      date,
+      data: sessionsByDate.get(date) ?? [],
+    }));
+  }, [sessionsByDate, cursor]);
 
   useEffect(() => {
     if (!sessions) return;
@@ -131,11 +137,19 @@ export function CalendarScreen({ navigation }: Props) {
     setSelectedDate(toISODate(today));
   }
 
-  function handleSelectDate(iso: string) {
-    setSelectedDate(iso);
-    if ((sessionsByDate.get(iso) ?? []).length > 0) {
-      setSheetOpen(true);
-    }
+  const handleSelectDate = useCallback(
+    (iso: string) => {
+      setSelectedDate(iso);
+      if ((sessionsByDate.get(iso) ?? []).length > 0) {
+        setSheetOpen(true);
+      }
+    },
+    [sessionsByDate],
+  );
+
+  function handleViewMode(mode: ViewMode) {
+    if (mode === viewMode) return;
+    startViewTransition(() => setViewMode(mode));
   }
 
   function handleCalendarChange(calendarId: string) {
@@ -143,30 +157,33 @@ export function CalendarScreen({ navigation }: Props) {
     setSheetOpen(false);
   }
 
-  function openSession(session: Session) {
-    if (!isStaff) {
-      navigation.navigate('SessionDetails', { sessionId: session.id });
-      return;
-    }
-    if (session.kind === 'training') {
-      if (!canViewBookings) {
-        showToast("You don't have permission to view bookings for this location.", 'danger');
+  const openSession = useCallback(
+    (session: Session) => {
+      if (!isStaff) {
+        navigation.navigate('SessionDetails', { sessionId: session.id });
         return;
       }
-      navigation.navigate('TrainingLocationBookings', {
-        date: session.date,
-        locationName: session.location || session.code || 'Location',
-        locationId: session.locationId,
-        dayId: session.dayId,
-      });
-      return;
-    }
-    if (canEditCalendar) {
-      navigation.navigate('EditTimetable', { classId: session.id });
-      return;
-    }
-    showToast("You don't have permission to edit this class.", 'danger');
-  }
+      if (session.kind === 'training') {
+        if (!canViewBookings) {
+          showToast("You don't have permission to view bookings for this location.", 'danger');
+          return;
+        }
+        navigation.navigate('TrainingLocationBookings', {
+          date: session.date,
+          locationName: session.location || session.code || 'Location',
+          locationId: session.locationId,
+          dayId: session.dayId,
+        });
+        return;
+      }
+      if (canEditCalendar) {
+        navigation.navigate('EditTimetable', { classId: session.id });
+        return;
+      }
+      showToast("You don't have permission to edit this class.", 'danger');
+    },
+    [canEditCalendar, canViewBookings, isStaff, navigation, showToast],
+  );
 
   return (
     <Screen style={styles.screen}>
@@ -234,7 +251,7 @@ export function CalendarScreen({ navigation }: Props) {
           return (
             <ScalePressable
               key={mode}
-              onPress={() => setViewMode(mode)}
+              onPress={() => handleViewMode(mode)}
               hapticStyle="select"
               style={isActive ? [styles.segment, styles.segmentActive] : styles.segment}
             >
@@ -250,13 +267,45 @@ export function CalendarScreen({ navigation }: Props) {
         })}
       </View>
 
+      {viewMode === 'List' ? (
+        <SectionList
+          style={styles.scroll}
+          contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
+          sections={groupedForList}
+          keyExtractor={(item) => item.id}
+          stickySectionHeadersEnabled={false}
+          {...smoothListProps}
+          renderSectionHeader={({ section }) => (
+            <Text variant="bodySmall" color="textSecondary" style={styles.listGroupHeader}>
+              {formatSessionDate(section.date)}
+            </Text>
+          )}
+          renderItem={({ item }) => (
+            <SessionListItem
+              session={item}
+              hideDate
+              showChevron
+              onPress={() => openSession(item)}
+            />
+          )}
+          ListEmptyComponent={
+            showInitialLoad ? (
+              <CalendarSkeleton />
+            ) : (
+              <EmptyState
+                icon="calendar-outline"
+                title="No sessions"
+                message="Nothing in this calendar for the current period."
+              />
+            )
+          }
+        />
+      ) : (
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
         {...smoothScrollProps}
       >
-        {viewMode !== 'List' && (
-          <>
             <View style={styles.monthCard}>
               {viewMode === 'Month' ? (
                 <MonthGrid
@@ -264,7 +313,7 @@ export function CalendarScreen({ navigation }: Props) {
                   month={cursor.getMonth()}
                   selectedDate={selectedDate}
                   sessionsByDate={sessionsByDate}
-                  closedDates={closedDays}
+                  closedDates={closedDateSet}
                   onSelectDate={handleSelectDate}
                 />
               ) : (
@@ -272,7 +321,7 @@ export function CalendarScreen({ navigation }: Props) {
                   anchor={cursor}
                   selectedDate={selectedDate}
                   sessionsByDate={sessionsByDate}
-                  closedDates={closedDays}
+                  closedDates={closedDateSet}
                   onSelectDate={handleSelectDate}
                 />
               )}
@@ -307,15 +356,14 @@ export function CalendarScreen({ navigation }: Props) {
               />
             ) : null}
 
-            {isLoading ? (
+            {showInitialLoad ? (
               <EntityListSkeleton rows={3} />
             ) : (
               <>
-                {sessionsForSelectedDate.map((session, index) => (
+                {sessionsForSelectedDate.map((session) => (
                   <SessionListItem
                     key={session.id}
                     session={session}
-                    index={index}
                     onPress={() => openSession(session)}
                   />
                 ))}
@@ -342,40 +390,8 @@ export function CalendarScreen({ navigation }: Props) {
                 style={styles.viewFullDay}
               />
             )}
-          </>
-        )}
-
-        {viewMode === 'List' && isLoading ? (
-          <CalendarSkeleton />
-        ) : viewMode === 'List' ? (
-          <>
-            {groupedForList.map((group) => (
-              <View key={group.date} style={styles.listGroup}>
-                <Text variant="bodySmall" color="textSecondary" style={styles.listGroupHeader}>
-                  {formatSessionDate(group.date)}
-                </Text>
-                {group.sessions.map((session, index) => (
-                  <SessionListItem
-                    key={session.id}
-                    session={session}
-                    index={index}
-                    hideDate
-                    showChevron
-                    onPress={() => openSession(session)}
-                  />
-                ))}
-              </View>
-            ))}
-            {groupedForList.length === 0 ? (
-              <EmptyState
-                icon="calendar-outline"
-                title="No sessions"
-                message="Nothing in this calendar for the current period."
-              />
-            ) : null}
-          </>
-        ) : null}
       </ScrollView>
+      )}
 
       <Modal
         visible={sheetOpen}
@@ -577,6 +593,7 @@ const styles = StyleSheet.create({
     marginBottom: tokens.spacing.lg,
   },
   listGroupHeader: {
+    marginTop: tokens.spacing.md,
     marginBottom: tokens.spacing.sm,
     fontFamily: tokens.fontFamily.semibold,
   },

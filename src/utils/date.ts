@@ -132,16 +132,13 @@ export function getMonthDateRange(date: Date): { startDate: string; endDate: str
   return { startDate: toISODate(start), endDate: toISODate(end) };
 }
 
-/** Visible fetch window for calendar Month/Week/List modes. */
-export function getVisibleCalendarRange(
-  cursor: Date,
-  viewMode: 'Month' | 'Week' | 'List',
-): { startDate: string; endDate: string } {
-  if (viewMode === 'Week') {
-    const { start, end } = getWeekRange(cursor);
-    return { startDate: toISODate(start), endDate: toISODate(end) };
-  }
-  return getMonthDateRange(cursor);
+/**
+ * Shared fetch window for Month/Week/List. Always the 6-week month grid so
+ * switching views does not refetch, and week days at month edges still have data.
+ */
+export function getVisibleCalendarRange(cursor: Date): { startDate: string; endDate: string } {
+  const days = getMonthGrid(cursor.getFullYear(), cursor.getMonth());
+  return { startDate: days[0].iso, endDate: days[days.length - 1].iso };
 }
 
 export function getWeekDays(anchor: Date): MonthDay[] {

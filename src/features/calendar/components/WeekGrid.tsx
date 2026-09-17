@@ -1,29 +1,30 @@
+import { memo, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import type { Session } from '@/api/sessions';
 import { daySessionMarkers, SESSION_TYPE_COLOR } from '../sessionStyle';
-import { getWeekDays, isSameDay, WEEKDAY_LABELS } from '@/utils/date';
+import { getWeekDays, toISODate, WEEKDAY_LABELS } from '@/utils/date';
 
 interface WeekGridProps {
   anchor: Date;
   selectedDate: string;
   sessionsByDate: Map<string, Session[]>;
-  closedDates?: string[];
+  closedDates?: ReadonlySet<string>;
   onSelectDate: (iso: string) => void;
 }
 
 const DAY_CIRCLE = 32;
 
-export function WeekGrid({
+export const WeekGrid = memo(function WeekGrid({
   anchor,
   selectedDate,
   sessionsByDate,
-  closedDates = [],
+  closedDates,
   onSelectDate,
 }: WeekGridProps) {
-  const days = getWeekDays(anchor);
-  const today = new Date();
+  const days = useMemo(() => getWeekDays(anchor), [anchor]);
+  const todayIso = toISODate(new Date());
 
   return (
     <View style={styles.root}>
@@ -31,8 +32,8 @@ export function WeekGrid({
         const daySessions = sessionsByDate.get(day.iso) ?? [];
         const { hasBooked, availableCount } = daySessionMarkers(daySessions);
         const isSelected = day.iso === selectedDate;
-        const isClosed = closedDates.includes(day.iso);
-        const isToday = isSameDay(day.iso, today);
+        const isClosed = closedDates?.has(day.iso) ?? false;
+        const isToday = day.iso === todayIso;
         const availableDots = Math.min(availableCount, 3);
 
         return (
@@ -92,7 +93,7 @@ export function WeekGrid({
       })}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: {

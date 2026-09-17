@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { sessionsApi, type SessionListParams } from '@/api/sessions';
 
 export const sessionsKeys = {
@@ -18,6 +18,7 @@ export function useSessions(params: SessionListParams) {
     queryKey: sessionsKeys.list(params),
     queryFn: () => sessionsApi.list(params),
     enabled: Boolean(params.startDate && params.endDate),
+    placeholderData: keepPreviousData,
   });
 }
 
