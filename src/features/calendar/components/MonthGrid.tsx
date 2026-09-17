@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import type { Session } from '@/api/sessions';
-import { SESSION_TYPE_COLOR } from '../sessionStyle';
+import { daySessionMarkers } from '../sessionStyle';
 import { getMonthGrid, isSameDay, WEEKDAY_LABELS } from '@/utils/date';
 
 interface MonthGridProps {
@@ -44,15 +44,17 @@ export function MonthGrid({
             const isSelected = day.iso === selectedDate;
             const isClosed = closedDates.includes(day.iso);
             const daySessions = sessionsByDate.get(day.iso) ?? [];
-
+            const { hasBooked, availableCount } = daySessionMarkers(daySessions);
             const isToday = isSameDay(day.iso, today);
+            const availableDots = Math.min(availableCount, 3);
 
             return (
               <Pressable key={day.iso} style={styles.dayCell} onPress={() => onSelectDate(day.iso)}>
                 <View
                   style={[
                     styles.dayCircle,
-                    isToday && !isSelected && styles.dayCircleToday,
+                    isToday && !isSelected && !hasBooked && styles.dayCircleToday,
+                    hasBooked && !isSelected && styles.dayCircleBooked,
                     isClosed && styles.dayCircleClosed,
                     isSelected && styles.dayCircleSelected,
                   ]}
@@ -68,14 +70,8 @@ export function MonthGrid({
                   </Text>
                 </View>
                 <View style={styles.dotsRow}>
-                  {daySessions.slice(0, 3).map((session) => (
-                    <View
-                      key={session.id}
-                      style={[
-                        styles.dot,
-                        { backgroundColor: tokens.colors[SESSION_TYPE_COLOR[session.type]] },
-                      ]}
-                    />
+                  {Array.from({ length: availableDots }, (_, index) => (
+                    <View key={`${day.iso}-dot-${index}`} style={styles.dot} />
                   ))}
                 </View>
               </Pressable>
@@ -119,6 +115,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: tokens.colors.secondary,
   },
+  dayCircleBooked: {
+    borderWidth: 2,
+    borderColor: tokens.colors.success,
+  },
   dayCircleSelected: {
     backgroundColor: tokens.colors.secondary,
     ...tokens.shadows.sm,
@@ -142,5 +142,6 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
+    backgroundColor: tokens.colors.secondary,
   },
 });

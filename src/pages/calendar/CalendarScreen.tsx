@@ -17,7 +17,6 @@ import { WeekGrid } from '@/features/calendar/components/WeekGrid';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
 import { CalendarSkeleton, EntityListSkeleton } from '@/components/custom/Skeletons';
 import { EmptyState } from '@/components/custom/EmptyState';
-import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
 import {
   formatWeekRange,
   getVisibleCalendarRange,
@@ -281,22 +280,15 @@ export function CalendarScreen({ navigation }: Props) {
 
             <View style={styles.legend}>
               <View style={styles.legendItem}>
-                <View
-                  style={[styles.legendDot, { backgroundColor: tokens.colors[SESSION_TYPE_COLOR.blue] }]}
-                />
+                <View style={styles.legendBooked} />
                 <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
                   Booked
                 </Text>
               </View>
               <View style={styles.legendItem}>
-                <View
-                  style={[
-                    styles.legendDot,
-                    { backgroundColor: tokens.colors[SESSION_TYPE_COLOR.green] },
-                  ]}
-                />
+                <View style={styles.legendAvailable} />
                 <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
-                  Open to book
+                  Available
                 </Text>
               </View>
             </View>
@@ -554,6 +546,19 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  legendBooked: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: tokens.colors.success,
+  },
+  legendAvailable: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: tokens.colors.secondary,
   },
   legendLabel: {
     fontFamily: tokens.fontFamily.medium,

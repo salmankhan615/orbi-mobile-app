@@ -36,3 +36,24 @@ export const SESSION_TYPE_ICON: Record<SessionType, keyof typeof Ionicons.glyphM
 export function sessionAccentColor(session: Session): keyof typeof tokens.colors {
   return SESSION_TYPE_COLOR[session.type];
 }
+
+function isActiveBooking(session: Session): boolean {
+  if (session.type === 'blue') return true;
+  const mb = session.myBooking;
+  if (!mb) return false;
+  return !(mb.status ?? '').toLowerCase().includes('cancel');
+}
+
+/** Month/week day markers: green ring = booked, purple dots = available. */
+export function daySessionMarkers(sessions: Session[]): {
+  hasBooked: boolean;
+  availableCount: number;
+} {
+  let hasBooked = false;
+  let availableCount = 0;
+  for (const session of sessions) {
+    if (isActiveBooking(session)) hasBooked = true;
+    else if (session.type === 'green') availableCount += 1;
+  }
+  return { hasBooked, availableCount };
+}

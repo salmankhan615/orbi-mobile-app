@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import type { Session } from '@/api/sessions';
-import { SESSION_TYPE_COLOR } from '../sessionStyle';
+import { daySessionMarkers, SESSION_TYPE_COLOR } from '../sessionStyle';
 import { getWeekDays, isSameDay, WEEKDAY_LABELS } from '@/utils/date';
 
 interface WeekGridProps {
@@ -29,9 +29,11 @@ export function WeekGrid({
     <View style={styles.root}>
       {days.map((day) => {
         const daySessions = sessionsByDate.get(day.iso) ?? [];
+        const { hasBooked, availableCount } = daySessionMarkers(daySessions);
         const isSelected = day.iso === selectedDate;
         const isClosed = closedDates.includes(day.iso);
         const isToday = isSameDay(day.iso, today);
+        const availableDots = Math.min(availableCount, 3);
 
         return (
           <Pressable key={day.iso} style={styles.dayCol} onPress={() => onSelectDate(day.iso)}>
@@ -41,7 +43,8 @@ export function WeekGrid({
             <View
               style={[
                 styles.dayCircle,
-                isToday && !isSelected && styles.dayCircleToday,
+                isToday && !isSelected && !hasBooked && styles.dayCircleToday,
+                hasBooked && !isSelected && styles.dayCircleBooked,
                 isClosed && styles.dayCircleClosed,
                 isSelected && styles.dayCircleSelected,
               ]}
@@ -53,6 +56,11 @@ export function WeekGrid({
               >
                 {day.date.getDate()}
               </Text>
+            </View>
+            <View style={styles.dotsRow}>
+              {Array.from({ length: availableDots }, (_, index) => (
+                <View key={`${day.iso}-dot-${index}`} style={styles.dot} />
+              ))}
             </View>
             <View style={styles.events}>
               {daySessions.slice(0, 3).map((session) => (
@@ -112,6 +120,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: tokens.colors.secondary,
   },
+  dayCircleBooked: {
+    borderWidth: 2,
+    borderColor: tokens.colors.success,
+  },
   dayCircleSelected: {
     backgroundColor: tokens.colors.secondary,
   },
@@ -120,6 +132,19 @@ const styles = StyleSheet.create({
   },
   daySelectedLabel: {
     fontFamily: tokens.fontFamily.bold,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    minHeight: 6,
+  },
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: tokens.colors.secondary,
   },
   events: {
     width: '100%',
