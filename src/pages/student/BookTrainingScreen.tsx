@@ -79,12 +79,16 @@ export function BookTrainingScreen({ route, navigation }: Props) {
     () =>
       shifts.map((shift) => {
         const full = shift.availableCount <= 0 || shift.freeSeats.length === 0;
+        const booked =
+          shift.bookingLimit > 0
+            ? `${shift.bookedCount} of ${shift.bookingLimit} booked`
+            : `${shift.bookedCount} booked`;
         return {
           id: shift.id,
           label: shift.name,
           detail: full
-            ? `${shift.startTime} – ${shift.endTime} · Full`
-            : `${shift.startTime} – ${shift.endTime} · ${shift.availableCount} seats left`,
+            ? `${shift.startTime} – ${shift.endTime} · ${booked} · Full`
+            : `${shift.startTime} – ${shift.endTime} · ${booked} · ${shift.availableCount} left`,
           disabled: full,
         };
       }),
@@ -188,6 +192,12 @@ export function BookTrainingScreen({ route, navigation }: Props) {
                 <Text variant="bodySmall" style={styles.fieldLabel}>
                   Seat <Text color="danger">*</Text>
                 </Text>
+                <Text variant="caption" color="textSecondary">
+                  {selectedShift.bookingLimit > 0
+                    ? `${selectedShift.bookedCount} of ${selectedShift.bookingLimit} seats already booked`
+                    : `${selectedShift.bookedCount} seats already booked`}
+                  {` · ${selectedShift.availableCount} left`}
+                </Text>
                 <View style={styles.seatGrid}>
                   {freeSeats.map((n) => {
                     const selected = seat === n;
@@ -223,6 +233,11 @@ export function BookTrainingScreen({ route, navigation }: Props) {
               </Text>
               <Text variant="caption" color="textSecondary">
                 {selectedLocation.title} · {selectedShift.startTime} – {selectedShift.endTime}
+              </Text>
+              <Text variant="caption" color="textSecondary">
+                {selectedShift.bookingLimit > 0
+                  ? `${selectedShift.bookedCount} of ${selectedShift.bookingLimit} seats already booked`
+                  : `${selectedShift.bookedCount} seats already booked`}
               </Text>
             </View>
           ) : null}

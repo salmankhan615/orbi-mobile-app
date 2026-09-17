@@ -31,6 +31,9 @@ export interface BookableSlot {
   endTime: string;
   instructor: string;
   seatsLeft: number;
+  /** Active seats already taken on this slot. */
+  seatsBooked: number;
+  bookingLimit?: number;
   mode: 'Online' | 'In-Person';
   /** First free seat for class booking. */
   seat?: number;
@@ -257,6 +260,13 @@ function mapClassSlot(raw: unknown, classTitles: Map<string, string>): BookableS
   if (hasActiveMyBooking(row)) return null;
   const { left, nextSeat } = seatsLeftForClass(row);
   if (left <= 0) return null;
+  const limit = Number(row.bookingLimit ?? row.classLimit ?? 0) || 0;
+  const activeCount = Number(row.activeBookingsCount);
+  const bookedCount = Math.max(
+    bookedSeats(row).length,
+    Number.isFinite(activeCount) ? activeCount : 0,
+    limit > 0 ? Math.max(0, limit - left) : 0,
+  );
   const classTypeId = idOf(row.classType) ?? str(row.classType);
   const link = str(row.link, row.classLink);
   return {
@@ -268,6 +278,8 @@ function mapClassSlot(raw: unknown, classTitles: Map<string, string>): BookableS
     endTime: formatClock(row.endTime ?? row.classEndTime),
     instructor: str(asRecord(row.instructor)?.name, row.instructor, 'Instructor'),
     seatsLeft: left,
+    seatsBooked: bookedCount,
+    bookingLimit: limit || undefined,
     mode: link ? 'Online' : 'In-Person',
     seat: nextSeat,
   };
@@ -325,6 +337,14 @@ async function listTrainingSlots(): Promise<BookableSlot[]> {
             const reported = Number(shift.availableSeats ?? shift.seatsLeft ?? shift.remaining);
             const left = Number.isFinite(reported) ? reported : freeSeats.length;
             if (left <= 0) continue;
+            const limit = Number(shift.currentLimit ?? shift.defaultLimit ?? 0) || 0;
+            const bookedFromCount =
+              typeof shift.bookedSeats === 'number' ? shift.bookedSeats : 0;
+            const bookedCount = Math.max(
+              asArray(shift.bookedSeatNumbers).length,
+              Number.isFinite(bookedFromCount) ? bookedFromCount : 0,
+              limit > 0 ? Math.max(0, limit - left) : 0,
+            );
             slots.push({
               id: `training:${location._id}:${shiftId}:${date}`,
               kind: 'training',
@@ -334,6 +354,8 @@ async function listTrainingSlots(): Promise<BookableSlot[]> {
               endTime: formatClock(shift.endTime ?? shift.end),
               instructor: str(shift.instructor, shift.trainer, 'Trainer'),
               seatsLeft: left,
+              seatsBooked: bookedCount,
+              bookingLimit: limit || undefined,
               mode: 'In-Person',
               seat: freeSeats[0] ?? (Number(shift.nextSeat) || 1),
               locationId: location._id,

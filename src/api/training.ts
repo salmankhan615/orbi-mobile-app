@@ -20,6 +20,7 @@ export type TrainingShiftOption = {
   freeSeats: number[];
   availableCount: number;
   bookingLimit: number;
+  bookedCount: number;
 };
 
 function freeSeatsForShift(shift: TrainingShiftRaw): number[] {
@@ -57,6 +58,13 @@ export const trainingApi = {
           typeof shift.availableSeats === 'number'
             ? shift.availableSeats
             : freeSeats.length;
+        const bookingLimit = Number(shift.currentLimit ?? shift.defaultLimit ?? 0) || 0;
+        const bookedFromCount = typeof shift.bookedSeats === 'number' ? shift.bookedSeats : 0;
+        const bookedCount = Math.max(
+          Array.isArray(shift.bookedSeatNumbers) ? shift.bookedSeatNumbers.length : 0,
+          Number.isFinite(bookedFromCount) ? bookedFromCount : 0,
+          bookingLimit > 0 ? Math.max(0, bookingLimit - availableCount) : 0,
+        );
         return {
           id,
           name: shift.name?.trim() || 'Shift',
@@ -64,7 +72,8 @@ export const trainingApi = {
           endTime: shift.endTime || '—',
           freeSeats,
           availableCount,
-          bookingLimit: Number(shift.currentLimit ?? shift.defaultLimit ?? 0) || 0,
+          bookingLimit,
+          bookedCount,
         };
       })
       .filter((item): item is TrainingShiftOption => Boolean(item));

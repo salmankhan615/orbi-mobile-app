@@ -55,7 +55,7 @@ export function BookSlotList({ kind, title }: BookSlotListProps) {
       <HeroBanner
         kicker={isClass ? 'Classroom' : 'Practical'}
         title={isClass ? 'Available classes' : 'Available training'}
-        subtitle="Choose a slot with seats remaining, then confirm."
+        subtitle="See how many seats are already booked, then confirm."
         icon={isClass ? 'school-outline' : 'people-outline'}
       />
 
@@ -96,26 +96,36 @@ export function BookSlotList({ kind, title }: BookSlotListProps) {
               </View>
 
               <View style={styles.footer}>
-                <View
-                  style={[
-                    styles.seatsPill,
-                    slot.seatsLeft === 0 && styles.seatsPillEmpty,
-                  ]}
-                >
-                  <Ionicons
-                    name="people-outline"
-                    size={14}
-                    color={
-                      slot.seatsLeft === 0 ? tokens.colors.danger : tokens.colors.tertiary
-                    }
-                  />
-                  <Text
-                    variant="caption"
-                    color={slot.seatsLeft === 0 ? 'danger' : 'textPrimary'}
-                    style={styles.seatsLabel}
+                <View style={styles.seatStats}>
+                  <View style={styles.seatsPillBooked}>
+                    <Ionicons name="people" size={14} color={tokens.colors.textSecondary} />
+                    <Text variant="caption" color="textSecondary" style={styles.seatsLabel}>
+                      {slot.bookingLimit
+                        ? `${slot.seatsBooked} of ${slot.bookingLimit} booked`
+                        : `${slot.seatsBooked} booked`}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.seatsPill,
+                      slot.seatsLeft === 0 && styles.seatsPillEmpty,
+                    ]}
                   >
-                    {slot.seatsLeft === 0 ? 'Full' : `${slot.seatsLeft} seats left`}
-                  </Text>
+                    <Ionicons
+                      name="people-outline"
+                      size={14}
+                      color={
+                        slot.seatsLeft === 0 ? tokens.colors.danger : tokens.colors.tertiary
+                      }
+                    />
+                    <Text
+                      variant="caption"
+                      color={slot.seatsLeft === 0 ? 'danger' : 'textPrimary'}
+                      style={styles.seatsLabel}
+                    >
+                      {slot.seatsLeft === 0 ? 'Full' : `${slot.seatsLeft} left`}
+                    </Text>
+                  </View>
                 </View>
                 <Button
                   label="Book"
@@ -191,7 +201,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     gap: tokens.spacing.md,
+  },
+  seatStats: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+    minWidth: 0,
+  },
+  seatsPillBooked: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+    backgroundColor: tokens.colors.surfaceAlt,
+    borderRadius: tokens.radius.full,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
   },
   seatsPill: {
     flexDirection: 'row',

@@ -101,6 +101,31 @@ function BookingDetailsContent({
     return session.availableSeats ?? [];
   }, [availabilityQuery.data, session.availableSeats]);
 
+  const occupancy = useMemo(() => {
+    const availability = availabilityQuery.data;
+    const limit = Number(availability?.bookingLimit ?? session.bookingLimit ?? 0) || 0;
+    const bookedFromSeats = Array.isArray(availability?.bookedSeats)
+      ? availability.bookedSeats.length
+      : 0;
+    const bookedFromCount = Number(
+      availability?.activeBookingsCount ?? session.activeBookingsCount ?? 0,
+    );
+    const hasSeatMap = seats.length > 0 || (!availabilityQuery.isLoading && Boolean(availability));
+    const bookedFromLeft = limit > 0 && hasSeatMap ? Math.max(0, limit - seats.length) : 0;
+    const booked = Math.max(
+      bookedFromSeats,
+      Number.isFinite(bookedFromCount) ? bookedFromCount : 0,
+      bookedFromLeft,
+    );
+    return { booked, limit };
+  }, [
+    availabilityQuery.data,
+    availabilityQuery.isLoading,
+    session.activeBookingsCount,
+    session.bookingLimit,
+    seats.length,
+  ]);
+
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
   const effectiveSeat = selectedSeat ?? seats[0] ?? null;
 
@@ -207,6 +232,16 @@ function BookingDetailsContent({
               <Text variant="bodySmall">{timeLabel}</Text>
             </DetailRow>
 
+            {canBook ? (
+              <DetailRow label="Seats booked">
+                <Text variant="bodySmall">
+                  {occupancy.limit > 0
+                    ? `${occupancy.booked} of ${occupancy.limit}`
+                    : String(occupancy.booked)}
+                </Text>
+              </DetailRow>
+            ) : null}
+
             {booked && session.myBooking?.seat != null ? (
               <DetailRow label="Your Seat">
                 <Badge label={String(session.myBooking.seat)} tone="success" />
@@ -262,6 +297,12 @@ function BookingDetailsContent({
             <View style={styles.seatSection}>
               <Text variant="bodySmall" style={styles.seatLabel}>
                 Select Seat Number*
+              </Text>
+              <Text variant="caption" color="textSecondary">
+                {occupancy.limit > 0
+                  ? `${occupancy.booked} of ${occupancy.limit} seats already booked`
+                  : `${occupancy.booked} seats already booked`}
+                {seats.length > 0 ? ` · ${seats.length} left` : ''}
               </Text>
               {availabilityQuery.isLoading && seats.length === 0 ? (
                 <Spinner />
