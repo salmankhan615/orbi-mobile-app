@@ -3,11 +3,7 @@ import { AUTH_API_PREFIX } from '@/api/config';
 import { crmCourseMediaUrl } from '@/api/crmMedia';
 import { Platform } from 'react-native';
 import { SESSION_DURATION_MS } from '@/features/auth/permissions';
-import {
-  formatRoleLabel,
-  mapCrmRole,
-  permissionsForRole,
-} from '@/features/auth/mapCrmRole';
+import { formatRoleLabel, mapCrmRole, permissionsForRole } from '@/features/auth/mapCrmRole';
 import { mapStaffPermissions } from '@/features/auth/mapStaffPermissions';
 import { getCrmModulePermissions, getEmsProfile } from '@/api/crm';
 import type { AuthUser } from '@/store/useAuthStore';
@@ -67,9 +63,10 @@ interface CrmUser {
   type?: string;
   roleId?: string | null;
   token?: string;
-  profile?: string;
-  profileId?: string | null;
-  emsProfileId?: string | null;
+  profile?: string | { _id?: string; $oid?: string; id?: string } | null;
+  profileId?: string | { _id?: string; $oid?: string; id?: string } | null;
+  emsProfile?: string | { _id?: string; $oid?: string; id?: string } | null;
+  emsProfileId?: string | { _id?: string; $oid?: string; id?: string } | null;
   status?: string;
   country?: string;
   city?: string;
@@ -172,6 +169,14 @@ function optionalId(value: unknown): string | undefined {
   return id || undefined;
 }
 
+function crmProfileId(raw: CrmUser): string | undefined {
+  return optionalId(raw.profileId) ?? optionalId(raw.profile);
+}
+
+function emsProfileIdOf(raw: CrmUser): string | undefined {
+  return optionalId(raw.emsProfileId) ?? optionalId(raw.emsProfile);
+}
+
 function mapCrmUser(
   raw: CrmUser,
   fallbackEmail: string,
@@ -181,8 +186,8 @@ function mapCrmUser(
     role: raw.role,
     type: raw.type,
     roleId: optionalId(raw.roleId),
-    profileId: optionalId(raw.profileId),
-    emsProfileId: optionalId(raw.emsProfileId),
+    profileId: crmProfileId(raw),
+    emsProfileId: emsProfileIdOf(raw),
   });
   const firstName = (raw.firstName ?? raw.name ?? '').trim() || 'User';
   const lastName = (raw.lastName ?? raw.lname ?? '').trim();
@@ -202,8 +207,8 @@ function mapCrmUser(
     roleLabel: formatRoleLabel(raw.role || raw.type, role),
     crmType: (raw.type || '').trim() || undefined,
     roleId: optionalId(raw.roleId),
-    profileId: optionalId(raw.profileId),
-    emsProfileId: optionalId(raw.emsProfileId),
+    profileId: crmProfileId(raw),
+    emsProfileId: emsProfileIdOf(raw),
     status: (raw.status || '').trim() || undefined,
     country: titleCase(raw.country),
     city: titleCase(raw.city),
@@ -223,13 +228,13 @@ async function resolveStaffPermissions(raw: CrmUser): Promise<StaffPermission[]>
     role: raw.role,
     type: raw.type,
     roleId: optionalId(raw.roleId),
-    profileId: optionalId(raw.profileId),
-    emsProfileId: optionalId(raw.emsProfileId),
+    profileId: crmProfileId(raw),
+    emsProfileId: emsProfileIdOf(raw),
   });
   if (role !== 'staff') return [];
 
-  const emsProfileId = optionalId(raw.emsProfileId);
-  const profileId = optionalId(raw.profileId);
+  const emsProfileId = emsProfileIdOf(raw);
+  const profileId = crmProfileId(raw);
   const [emsResult, crmResult] = await Promise.allSettled([
     emsProfileId ? getEmsProfile(emsProfileId) : Promise.resolve(null),
     profileId ? getCrmModulePermissions(profileId) : Promise.resolve(null),

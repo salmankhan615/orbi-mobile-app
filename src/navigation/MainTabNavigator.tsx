@@ -8,12 +8,14 @@ import { StaffHomeScreen } from '@/pages/staff/StaffHomeScreen';
 import { StaffBookingsScreen } from '@/pages/staff/StaffBookingsScreen';
 import { StaffGroupsScreen } from '@/pages/staff/StaffGroupsScreen';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useCrmUser } from '@/queries/useAuth';
 import { CustomTabBar } from './CustomTabBar';
 import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabNavigator() {
+  useCrmUser();
   const role = useAuthStore((state) => state.user?.role ?? 'student');
   const permissions = useAuthStore((state) => state.user?.permissions ?? []);
   const canBookings = role === 'staff' && permissions.includes('view_bookings');

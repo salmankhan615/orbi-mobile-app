@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { clearApiSession, setApiSession } from '@/api/client';
-import { permissionsForRole } from '@/features/auth/mapCrmRole';
 import type { StaffPermission, UserRole } from '@/features/auth/permissions';
 
 export interface AuthUser {
@@ -76,9 +75,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Never wipe a known companyId with an undefined/empty patch value.
       if (!patch.companyId?.trim()) {
         next.companyId = state.user.companyId;
-      }
-      if (patch.role && patch.permissions === undefined) {
-        next.permissions = permissionsForRole(patch.role);
       }
       return { user: next };
     }),

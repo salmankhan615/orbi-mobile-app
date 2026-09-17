@@ -20,8 +20,15 @@ function str(...values: unknown[]): string {
   return '';
 }
 
-function normalizeRole(value?: string | null): string {
-  return (value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+function normalizeKey(value?: string | null): string {
+  return (value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+}
+
+function compactKey(value?: string | null): string {
+  return normalizeKey(value).replace(/_/g, '');
 }
 
 /** Truthy EMS action scope — presence means enabled (`'all'`, `'own'`, dual-scope object). */
@@ -34,48 +41,179 @@ function actionEnabled(value: unknown): boolean {
   return Boolean(value);
 }
 
-/**
- * Resolve `permissions.actions[].find(a => a.moduleKey === m).actions[action]`.
- * Also accepts a flat `permissions.modules[module].actions[action]` shape.
- */
-export function readEmsAction(
-  emsProfile: unknown,
-  moduleKey: string,
-  action: string,
-): unknown {
+function permissionsRoot(emsProfile: unknown): UnknownRecord | null {
   const root = asRecord(emsProfile);
   const data = asRecord(root?.data) ?? root;
-  const permissions = asRecord(data?.permissions) ?? asRecord(root?.permissions);
-  if (!permissions) return undefined;
+  return asRecord(data?.permissions) ?? asRecord(root?.permissions) ?? data;
+}
 
-  for (const entry of asArray(permissions.actions)) {
-    const row = asRecord(entry);
-    if (!row) continue;
-    if (str(row.moduleKey, row.key, row.module) !== moduleKey) continue;
-    const actions = asRecord(row.actions) ?? asRecord(row);
-    return actions?.[action];
+function lookupAction(actions: UnknownRecord | null, action: string): unknown {
+  if (!actions) return undefined;
+  if (action in actions) return actions[action];
+  const want = compactKey(action);
+  for (const [key, value] of Object.entries(actions)) {
+    if (compactKey(key) === want) return value;
+  }
+  return undefined;
+}
+
+type ModuleEntry = { key: string; row: UnknownRecord };
+
+function moduleEntries(emsProfile: unknown): ModuleEntry[] {
+  const permissions = permissionsRoot(emsProfile);
+  const raw = permissions?.modules ?? asRecord(emsProfile)?.modules;
+  const out: ModuleEntry[] = [];
+
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      const row = asRecord(item);
+      if (!row) continue;
+      const key = normalizeKey(str(row.moduleKey, row.key, row.module, row.name, row.id));
+      if (key) out.push({ key, row });
+    }
+    return out;
   }
 
-  const modules = asRecord(permissions.modules);
-  const module = asRecord(modules?.[moduleKey]);
-  const actions = asRecord(module?.actions);
-  if (actions) return actions[action];
-  return module?.[action];
+  const rec = asRecord(raw);
+  if (!rec) return out;
+  for (const [key, value] of Object.entries(rec)) {
+    const row = asRecord(value) ?? {};
+    out.push({ key: normalizeKey(key), row });
+  }
+  return out;
+}
+
+function moduleKeyMatches(actual: string, want: string): boolean {
+  if (!actual || !want) return false;
+  if (actual === want || actual.endsWith(`_${want}`)) return true;
+  const compactActual = compactKey(actual);
+  const compactWant = compactKey(want);
+  return compactActual === compactWant || compactActual.endsWith(compactWant);
+}
+
+function asActionsRecord(value: unknown): UnknownRecord | null {
+  const rec = asRecord(value);
+  if (rec) return rec;
+  if (!Array.isArray(value)) return null;
+  const out: UnknownRecord = {};
+  for (const item of value) {
+    if (typeof item === 'string' && item.trim()) {
+      out[item.trim()] = true;
+      continue;
+    }
+    const row = asRecord(item);
+    if (!row) continue;
+    const key = str(row.key, row.action, row.name, row.id);
+    if (key) out[key] = row.enabled ?? true;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+function findModule(emsProfile: unknown, moduleKey: string): UnknownRecord | null {
+  const want = normalizeKey(moduleKey);
+  for (const entry of moduleEntries(emsProfile)) {
+    if (moduleKeyMatches(entry.key, want)) return entry.row;
+  }
+  return null;
+}
+
+function actionBundles(emsProfile: unknown): { moduleKey: string; actions: UnknownRecord }[] {
+  const permissions = permissionsRoot(emsProfile);
+  const raw = permissions?.actions;
+  const out: { moduleKey: string; actions: UnknownRecord }[] = [];
+
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      const row = asRecord(item);
+      if (!row) continue;
+      const moduleKey = normalizeKey(str(row.moduleKey, row.key, row.module));
+      const actions = asActionsRecord(row.actions) ?? asRecord(row);
+      if (moduleKey && actions) out.push({ moduleKey, actions });
+    }
+    return out;
+  }
+
+  const rec = asRecord(raw);
+  if (!rec) return out;
+
+  const nested = asActionsRecord(rec.actions);
+  const selfKey = normalizeKey(str(rec.moduleKey, rec.key, rec.module));
+  if (selfKey && (nested || rec.view || rec.viewBookings)) {
+    out.push({ moduleKey: selfKey, actions: nested ?? rec });
+    return out;
+  }
+
+  for (const [key, value] of Object.entries(rec)) {
+    const row = asRecord(value);
+    if (!row) continue;
+    out.push({
+      moduleKey: normalizeKey(key),
+      actions: asActionsRecord(row.actions) ?? row,
+    });
+  }
+  return out;
+}
+
+/**
+ * Resolve `permissions.actions[].find(a => a.moduleKey === m).actions[action]`.
+ * Also accepts a flat `permissions.modules[module].actions[action]` shape,
+ * arrays of modules, and case/snake/camel action names.
+ */
+export function readEmsAction(emsProfile: unknown, moduleKey: string, action: string): unknown {
+  const want = normalizeKey(moduleKey);
+  for (const bundle of actionBundles(emsProfile)) {
+    if (!moduleKeyMatches(bundle.moduleKey, want)) continue;
+    const value = lookupAction(bundle.actions, action);
+    if (value !== undefined) return value;
+  }
+
+  const module = findModule(emsProfile, moduleKey);
+  if (!module) return undefined;
+  const fromActions = lookupAction(asActionsRecord(module.actions), action);
+  if (fromActions !== undefined) return fromActions;
+  return lookupAction(module, action);
 }
 
 function hasEmsAction(emsProfile: unknown, moduleKey: string, action: string): boolean {
   return actionEnabled(readEmsAction(emsProfile, moduleKey, action));
 }
 
-function moduleEnabled(emsProfile: unknown, moduleKey: string): boolean {
-  const root = asRecord(emsProfile);
-  const data = asRecord(root?.data) ?? root;
-  const permissions = asRecord(data?.permissions) ?? asRecord(root?.permissions);
-  const modules = asRecord(permissions?.modules);
-  const module = asRecord(modules?.[moduleKey]);
-  if (!module) return true;
-  if (module.enabled === false || module.enabled === 'false') return false;
-  return true;
+function crmRoot(crm: unknown): UnknownRecord | null {
+  const root = asRecord(crm);
+  if (!root) return null;
+  return asRecord(root.data) ?? root;
+}
+
+function crmFlagEnabled(value: unknown): boolean {
+  const row = asRecord(value);
+  if (!row) return value === true || value === 'true';
+  return row.enabled === true || row.enabled === 'true';
+}
+
+function crmModuleEnabled(crm: unknown, needle: string): boolean {
+  const root = crmRoot(crm);
+  if (!root) return false;
+  const want = compactKey(needle);
+  if (!want) return false;
+  for (const item of asArray(root.modules)) {
+    const row = asRecord(item);
+    const key = compactKey(
+      str(
+        row?.key,
+        row?.moduleKey,
+        row?.module,
+        row?.name,
+        row?.id,
+        typeof item === 'string' ? item : '',
+      ),
+    );
+    if (!key) continue;
+    if (key === want || key.includes(want)) {
+      if (!row) return true;
+      return row.enabled !== false && row.enabled !== 'false';
+    }
+  }
+  return false;
 }
 
 export type StaffPermissionInput = {
@@ -90,45 +228,41 @@ export type StaffPermissionInput = {
 
 /**
  * Map EMS + CRM permission payloads onto app `StaffPermission` flags.
- * Mirrors staff API §2: admin/superAdmin allow-all; missing EMS profile denies EMS-gated screens.
+ * Deny-by-default: only admin/superAdmin get every tool. Everyone else must
+ * have the matching EMS action or CRM admin flag.
  */
 export function mapStaffPermissions(input: StaffPermissionInput): StaffPermission[] {
-  const role = normalizeRole(input.role);
-  const type = normalizeRole(input.type);
+  const role = normalizeKey(input.role);
 
   if (role === 'admin' || role === 'superadmin' || role === 'super_admin') {
     return [...ALL_STAFF_PERMISSIONS];
   }
 
   const granted = new Set<StaffPermission>();
-  const isStaffType = type === 'staff' || type.includes('staff') || type.includes('teacher');
 
-  // Announcements — session for read; create is role/type based (EMS module unused on write).
+  // Announcements list is visible to signed-in staff; create/edit is gated below.
   granted.add('view_announcements');
-  if (isStaffType || role.includes('admin')) {
-    granted.add('manage_announcements');
-  }
 
-  const crm = asRecord(input.crmModulePermissions);
+  const crm = crmRoot(input.crmModulePermissions);
   const admin = asRecord(crm?.adminPermissions);
-  const userMgmt = asRecord(admin?.userManagement);
-  // userManagement is unenforced server-side; honour explicit `enabled: false` only.
-  if (!crm || userMgmt == null || userMgmt.enabled !== false) {
+  if (crmFlagEnabled(admin?.userManagement)) {
     granted.add('view_users');
   }
-  if (asRecord(admin?.agreements)?.enabled) {
+  if (
+    crmFlagEnabled(admin?.agreements) ||
+    crmModuleEnabled(input.crmModulePermissions, 'agreement')
+  ) {
     granted.add('view_agreements');
   }
-
-  // adminOnly routes also pass for type === 'staff'.
-  if (isStaffType) {
+  if (
+    crmModuleEnabled(input.crmModulePermissions, 'invoice') ||
+    crmModuleEnabled(input.crmModulePermissions, 'payment')
+  ) {
     granted.add('view_invoices');
-    granted.add('close_calendar');
   }
 
   const hasEms = Boolean(input.hasEmsProfile && input.emsProfile);
   if (!hasEms) {
-    // No EMS profile → EMS-gated endpoints 403. Keep only auth / CRM-admin screens above.
     return ALL_STAFF_PERMISSIONS.filter((permission) => granted.has(permission));
   }
 
@@ -152,11 +286,8 @@ export function mapStaffPermissions(input: StaffPermissionInput): StaffPermissio
     granted.add('view_shifts');
     granted.add('view_calendar');
   }
-  if (moduleEnabled(ems, 'calendar')) {
-    granted.add('view_calendar');
-  }
 
-  if (moduleEnabled(ems, 'groups') && hasEmsAction(ems, 'groups', 'view')) {
+  if (hasEmsAction(ems, 'groups', 'view')) {
     granted.add('view_groups');
     granted.add('view_group_sessions');
   }
@@ -166,6 +297,19 @@ export function mapStaffPermissions(input: StaffPermissionInput): StaffPermissio
   }
   if (hasEmsAction(ems, 'courses', 'invoiceManagement')) {
     granted.add('view_invoices');
+  }
+
+  if (
+    hasEmsAction(ems, 'announcements', 'create') ||
+    hasEmsAction(ems, 'announcements', 'edit') ||
+    hasEmsAction(ems, 'announcements', 'manage') ||
+    hasEmsAction(ems, 'announcements', 'write')
+  ) {
+    granted.add('manage_announcements');
+  }
+
+  if (hasEmsAction(ems, 'users', 'view') || hasEmsAction(ems, 'users', 'manage')) {
+    granted.add('view_users');
   }
 
   return ALL_STAFF_PERMISSIONS.filter((permission) => granted.has(permission));

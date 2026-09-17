@@ -105,7 +105,11 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: authApi.updateProfile,
     onSuccess: (next) => {
-      updateUser(next);
+      const current = useAuthStore.getState().user;
+      updateUser({
+        ...next,
+        permissions: current?.permissions?.length ? current.permissions : next.permissions,
+      });
       queryClient.setQueryData(authKeys.user, next);
       void queryClient.invalidateQueries({ queryKey: authKeys.user });
     },

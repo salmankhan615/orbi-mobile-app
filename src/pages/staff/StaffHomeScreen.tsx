@@ -19,8 +19,7 @@ type Props = MainTabScreenProps<'Home'>;
 export function StaffHomeScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const user = useAuthStore((state) => state.user);
-  const permissions = user?.permissions ?? [];
-  const tools = useMemo(() => toolsForPermissions(permissions), [permissions]);
+  const tools = useMemo(() => toolsForPermissions(user?.permissions ?? []), [user?.permissions]);
 
   function openTool(tool: StaffTool) {
     openStaffTool(navigation, tool);

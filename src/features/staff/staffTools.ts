@@ -102,7 +102,7 @@ export const STAFF_TOOLS: StaffTool[] = [
     label: 'Announcements',
     description: 'Create, edit, and manage posts',
     icon: 'megaphone-outline',
-    permission: 'view_announcements',
+    permission: 'manage_announcements',
     route: 'Announcements',
   },
   {

@@ -1,14 +1,7 @@
 import type { StaffPermission, UserRole } from '@/features/auth/permissions';
-import { ALL_STAFF_PERMISSIONS } from '@/features/auth/permissions';
 
 /** Labels CRM uses for learners (ORBI web checks `role === "Student"`). */
-const STUDENT_LABELS = new Set([
-  'student',
-  'trainee',
-  'learner',
-  'candidate',
-  'applicant',
-]);
+const STUDENT_LABELS = new Set(['student', 'trainee', 'learner', 'candidate', 'applicant']);
 
 /** Labels / substrings that mean staff-side CRM access. */
 const STAFF_LABELS = new Set([
@@ -27,7 +20,10 @@ const STAFF_LABELS = new Set([
 ]);
 
 function normalizeLabel(value?: string | null): string {
-  return (value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return (value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
 }
 
 function isStaffLabel(normalized: string): boolean {
@@ -75,7 +71,8 @@ export function mapCrmRole(input: CrmRoleInput): UserRole {
 }
 
 export function permissionsForRole(role: UserRole): StaffPermission[] {
-  return role === 'staff' ? [...ALL_STAFF_PERMISSIONS] : [];
+  // Staff tools come from EMS/CRM via mapStaffPermissions — never imply full access.
+  return role === 'staff' ? ['view_announcements'] : [];
 }
 
 export function formatRoleLabel(rawRole?: string | null, role?: UserRole): string {
