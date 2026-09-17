@@ -352,10 +352,22 @@ export async function getGroupSessionAttendance(groupId: string, classId: string
 export async function gradeCourseworkSubmission(
   courseworkId: string,
   submissionId: string,
-  payload: { score?: number | null; status?: string },
+  payload: { score?: number | null; status?: string; comment?: string; feedback?: string },
 ) {
   return apiClient.patch<{ success?: boolean; data?: unknown }>(
     `/api/course/crm/coursework/${encodeURIComponent(courseworkId)}/submissions/${encodeURIComponent(submissionId)}/grade`,
+    payload,
+  );
+}
+
+/** Staff feedback on a student submission. */
+export async function addCourseworkSubmissionComment(
+  courseworkId: string,
+  submissionId: string,
+  payload: { text: string },
+) {
+  return apiClient.post<{ success?: boolean; data?: unknown; message?: string }>(
+    `/api/course/crm/coursework/${encodeURIComponent(courseworkId)}/submissions/${encodeURIComponent(submissionId)}/comments`,
     payload,
   );
 }
@@ -368,6 +380,32 @@ export async function getStaffCoursework() {
 export async function getCourseworkSubmissions(courseworkId: string) {
   return apiClient.get<{ success?: boolean; data?: { coursework?: unknown; rows?: unknown[] } }>(
     `/api/course/crm/coursework/${encodeURIComponent(courseworkId)}/submissions`,
+  );
+}
+
+const COURSEWORK_WRITE_TIMEOUT_MS = 60_000;
+
+/** Create staff coursework (`groups.manageCoursework`) — multipart when files are attached. */
+export async function createStaffCoursework(payload: FormData) {
+  return apiClient.post<{ success?: boolean; data?: unknown; message?: string }>(
+    '/api/course/crm/coursework',
+    payload,
+    { timeoutMs: COURSEWORK_WRITE_TIMEOUT_MS },
+  );
+}
+
+/** Update staff coursework — multipart so existing files can be kept and new ones added. */
+export async function updateStaffCoursework(courseworkId: string, payload: FormData) {
+  return apiClient.put<{ success?: boolean; data?: unknown; message?: string }>(
+    `/api/course/crm/coursework/${encodeURIComponent(courseworkId)}`,
+    payload,
+    { timeoutMs: COURSEWORK_WRITE_TIMEOUT_MS },
+  );
+}
+
+export async function deleteStaffCoursework(courseworkId: string) {
+  return apiClient.delete<{ success?: boolean; message?: string }>(
+    `/api/course/crm/coursework/${encodeURIComponent(courseworkId)}`,
   );
 }
 
@@ -432,9 +470,7 @@ export async function getPracticalTrainingAdminCalendar(params: {
   qs.set('startDate', params.startDate);
   qs.set('endDate', params.endDate);
   if (params.cateId) qs.set('cateId', params.cateId);
-  return apiClient.get<unknown>(
-    `/api/practical-training/bookings/calendar/admin?${qs.toString()}`,
-  );
+  return apiClient.get<unknown>(`/api/practical-training/bookings/calendar/admin?${qs.toString()}`);
 }
 
 export type PracticalShiftPayload = {
@@ -450,10 +486,7 @@ export type PracticalShiftPayload = {
 };
 
 /** Shift schedule definitions (`calendar.manageShifts`). */
-export async function getPracticalShifts(params?: {
-  location?: string;
-  isActive?: string;
-}) {
+export async function getPracticalShifts(params?: { location?: string; isActive?: string }) {
   const qs = new URLSearchParams();
   if (params?.location) qs.set('location', params.location);
   if (params?.isActive) qs.set('isActive', params.isActive);

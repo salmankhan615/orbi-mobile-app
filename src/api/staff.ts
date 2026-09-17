@@ -2,14 +2,18 @@ import {
   addCalendarClosure,
   assignGroupStaff,
   createPracticalShift,
+  createStaffCoursework,
   deleteCalendarClosure,
   deletePracticalShift,
+  deleteStaffCoursework,
   getAgreementSubmissions,
   getAllPaymentPlans,
   getCalendarClosures,
   getCalendarUsersLite,
   getCourseSettings,
   getCourseworkSubmissions,
+  gradeCourseworkSubmission,
+  addCourseworkSubmissionComment,
   getCrmCourses,
   getGroupDetail,
   getGroupSessions,
@@ -22,10 +26,16 @@ import {
   getUsersByType,
   removeGroupStaff,
   updatePracticalShift,
+  updateStaffCoursework,
   type PracticalShiftPayload,
 } from '@/api/crm';
 import { API_BASE_URL } from '@/api/config';
-import { formatCourseworkDate } from '@/api/coursework';
+import { ApiError } from '@/api/client';
+import {
+  buildCourseworkForm,
+  formatCourseworkDate,
+  type CourseworkWritePayload,
+} from '@/api/coursework';
 import { requireStudentContext } from '@/api/sessionUser';
 import { unwrapList } from '@/api/unwrap';
 import { toISODate } from '@/utils/date';
@@ -119,6 +129,8 @@ export interface CourseworkItem {
   kind?: 'assignment' | 'resource' | 'other';
   groupId?: string;
   groupName?: string;
+  /** Whether students receive a score (assignment setting). */
+  graded?: boolean;
   /** Staff list: graded | ungraded (assignment-level). */
   gradingLabel?: 'graded' | 'ungraded';
   submissionCount?: number;
@@ -128,6 +140,7 @@ export interface CourseworkItem {
   lastUpdatedLabel?: string;
   score?: number;
   maxScore?: number;
+  studentCount?: number;
   instructions?: string;
   /** Raw ISO due date for overdue checks */
   dueDateIso?: string;
@@ -155,6 +168,11 @@ export interface CourseworkSubmission {
   isLate?: boolean;
   files?: CourseworkFile[];
   comments?: CourseworkFeedback[];
+}
+
+export interface CourseworkSubmissionsPage {
+  assignment?: CourseworkItem;
+  rows: CourseworkSubmission[];
 }
 
 export interface InvoiceInstallment {
@@ -486,19 +504,25 @@ function mapSubmissionFile(raw: unknown): CourseworkFile | null {
   };
 }
 
-function mapSubmissionComments(raw: unknown): CourseworkFeedback[] {
+function mapSubmissionComments(raw: unknown, extraText?: string): CourseworkFeedback[] {
   const comments: CourseworkFeedback[] = [];
-  for (const item of asArray(raw)) {
+  const seen = new Set<string>();
+  const source = typeof raw === 'string' ? [{ text: raw }] : asArray(raw);
+  for (const item of source) {
     const row = asRecord(item);
-    if (!row) continue;
-    const text = stripHtml(str(row.text, row.comment, row.message));
-    if (!text) continue;
+    const text = stripHtml(row ? str(row.text, row.comment, row.message, row.feedback) : str(item));
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
     comments.push({
-      id: idOf(row._id ?? row.id) ?? text.slice(0, 12),
+      id: idOf(row?._id ?? row?.id) ?? text.slice(0, 12),
       text,
-      authorRole: str(row.authorRole, asRecord(row.author)?.role) || undefined,
-      createdAt: str(row.createdAt) || undefined,
+      authorRole: str(row?.authorRole, asRecord(row?.author)?.role) || undefined,
+      createdAt: str(row?.createdAt) || undefined,
     });
+  }
+  const extra = stripHtml(str(extraText));
+  if (extra && !seen.has(extra)) {
+    comments.unshift({ id: 'feedback', text: extra });
   }
   return comments;
 }
@@ -524,17 +548,24 @@ function mapStaffCourseworkItem(raw: unknown): CourseworkItem | null {
   const group = asRecord(row.group) ?? asRecord(row.groupId);
   const groupId = idOf(row.groupId ?? group?._id ?? group?.id) ?? undefined;
   const groupName =
-    str(row.groupName, group?.name, group?.title, group?.groupName, row.courseTitle, row.courseName) ||
-    undefined;
+    str(
+      row.groupName,
+      group?.name,
+      group?.title,
+      group?.groupName,
+      row.courseTitle,
+      row.courseName,
+    ) || undefined;
   const updatedBy =
-    asRecord(row.updatedBy) ??
-    asRecord(row.lastUpdatedBy) ??
-    asRecord(row.modifiedBy);
+    asRecord(row.updatedBy) ?? asRecord(row.lastUpdatedBy) ?? asRecord(row.modifiedBy);
   const updatedAt = formatCourseworkDate(
     row.updatedAt ?? row.lastUpdated ?? row.modifiedAt ?? row.createdAt,
   );
   const updaterName = personName(updatedBy);
-  const lastUpdatedLabel = [updatedAt !== '—' ? updatedAt : '', updaterName !== '—' ? updaterName : '']
+  const lastUpdatedLabel = [
+    updatedAt !== '—' ? updatedAt : '',
+    updaterName !== '—' ? updaterName : '',
+  ]
     .filter(Boolean)
     .join(' ');
   const number = num(row.number ?? row.order ?? row.index);
@@ -554,7 +585,16 @@ function mapStaffCourseworkItem(raw: unknown): CourseworkItem | null {
     number: number > 0 ? number : undefined,
     lastUpdatedLabel: lastUpdatedLabel || undefined,
     maxScore: num(row.maxScore) || undefined,
-    instructions: str(row.instructions) || undefined,
+    studentCount: num(row.studentCount ?? row.totalStudents) || undefined,
+    instructions: stripHtml(str(row.instructions)) || undefined,
+    graded:
+      row.graded === true ||
+      row.isGraded === true ||
+      str(row.graded, row.isGraded).toLowerCase() === 'true' ||
+      num(row.maxScore) > 0,
+    attachments: asArray(row.attachments)
+      .map(mapSubmissionFile)
+      .filter((file): file is CourseworkFile => Boolean(file)),
   };
 }
 
@@ -839,11 +879,27 @@ export const staffApi = {
     return out.sort((a, b) => (b.dueDateIso || '').localeCompare(a.dueDateIso || ''));
   },
 
-  async submissions(assignmentId?: string): Promise<CourseworkSubmission[]> {
-    if (!assignmentId) return [];
+  async createCoursework(payload: CourseworkWritePayload) {
+    return createStaffCoursework(buildCourseworkForm(payload));
+  },
+
+  async updateCoursework(courseworkId: string, payload: CourseworkWritePayload) {
+    return updateStaffCoursework(courseworkId, buildCourseworkForm(payload));
+  },
+
+  async deleteCoursework(courseworkId: string) {
+    return deleteStaffCoursework(courseworkId);
+  },
+
+  async submissions(assignmentId?: string): Promise<CourseworkSubmissionsPage> {
+    if (!assignmentId) return { rows: [] };
     const raw = await getCourseworkSubmissions(assignmentId);
     const payload = asRecord(raw)?.data ?? raw;
-    const rows = asArray(asRecord(payload)?.rows ?? unwrapList(payload));
+    const payloadRecord = asRecord(payload);
+    const assignment = mapStaffCourseworkItem(
+      payloadRecord?.coursework ?? payloadRecord?.assignment,
+    );
+    const rows = asArray(payloadRecord?.rows ?? unwrapList(payload));
     const out: CourseworkSubmission[] = [];
     for (const item of rows) {
       const row = asRecord(item);
@@ -872,10 +928,35 @@ export const staffApi = {
             ? String(submission.score)
             : undefined,
         files,
-        comments: mapSubmissionComments(submission.comments),
+        comments: mapSubmissionComments(
+          submission.comments ?? row.comments,
+          str(submission.feedback, submission.comment, row.feedback, row.comment),
+        ),
       });
     }
-    return out;
+    return { assignment: assignment ?? undefined, rows: out };
+  },
+
+  async gradeSubmission(
+    courseworkId: string,
+    submissionId: string,
+    payload: { score?: number | null; status?: string; comment?: string },
+  ) {
+    return gradeCourseworkSubmission(courseworkId, submissionId, payload);
+  },
+
+  async addSubmissionComment(courseworkId: string, submissionId: string, text: string) {
+    try {
+      return await addCourseworkSubmissionComment(courseworkId, submissionId, { text });
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 404 || error.status === 405)) {
+        return gradeCourseworkSubmission(courseworkId, submissionId, {
+          comment: text,
+          feedback: text,
+        });
+      }
+      throw error;
+    }
   },
 
   async invoices(): Promise<Invoice[]> {
@@ -953,9 +1034,7 @@ export const staffApi = {
       if (!row) continue;
       const props = asRecord(row.extendedProps) ?? row;
       const dayId =
-        idOf(props.dayId ?? row.dayId) ||
-        str(row._id, row.id).replace(/^pt-/, '') ||
-        '';
+        idOf(props.dayId ?? row.dayId) || str(row._id, row.id).replace(/^pt-/, '') || '';
       const locationId = idOf(props.locationId ?? row.locationId) ?? undefined;
       const location =
         str(props.locationName, row.locationName) ||

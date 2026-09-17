@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { StyleSheet, TextInput, View } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
@@ -8,10 +7,14 @@ import { Badge } from '@/components/ui/Badge';
 import { TextField } from '@/components/ui/TextField';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { CourseworkFileChip } from '@/features/coursework/components/CourseworkFileChip';
-import { gradeCourseworkSubmission } from '@/api/crm';
-import { staffKeys } from '@/queries/useStaff';
+import {
+  useAddCourseworkFeedback,
+  useGradeCourseworkSubmission,
+  useStaffCoursework,
+} from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useToastStore } from '@/store/useToastStore';
+import { haptics } from '@/utils/haptics';
 import type { CourseworkFeedback, CourseworkFile } from '@/api/staff';
 import type { RootStackScreenProps } from '@/navigation/types';
 
@@ -29,24 +32,15 @@ export function CourseworkSubmissionDetailScreen({ route, navigation }: Props) {
     comments = [],
   } = route.params;
   const canGrade = useHasPermission('view_submissions');
+  const { data: coursework } = useStaffCoursework();
+  const assignment = coursework?.find((item) => item.id === assignmentId);
+  const maxScore = assignment?.maxScore;
   const [score, setScore] = useState(grade ?? '');
+  const [feedback, setFeedback] = useState('');
+  const [notes, setNotes] = useState(comments);
   const showToast = useToastStore((state) => state.show);
-  const client = useQueryClient();
-
-  const gradeMutation = useMutation({
-    mutationFn: () =>
-      gradeCourseworkSubmission(assignmentId, submissionId, {
-        score: score.trim() ? Number(score) : null,
-        status: 'graded',
-      }),
-    onSuccess: () => {
-      showToast('Grade saved', 'success');
-      client.invalidateQueries({ queryKey: staffKeys.submissions(assignmentId) });
-    },
-    onError: (error) => {
-      showToast(error instanceof Error ? error.message : 'Could not save grade', 'danger');
-    },
-  });
+  const gradeMutation = useGradeCourseworkSubmission(assignmentId);
+  const feedbackMutation = useAddCourseworkFeedback(assignmentId);
 
   function openFile(file: CourseworkFile) {
     navigation.navigate('CourseworkFile', {
@@ -56,8 +50,57 @@ export function CourseworkSubmissionDetailScreen({ route, navigation }: Props) {
     });
   }
 
+  function saveGrade() {
+    const trimmed = score.trim();
+    const value = trimmed ? Number(trimmed) : null;
+    if (trimmed && !Number.isFinite(value)) {
+      showToast('Enter a valid score', 'danger');
+      return;
+    }
+    if (value != null && maxScore != null && value > maxScore) {
+      showToast(`Score cannot be more than ${maxScore}`, 'danger');
+      return;
+    }
+    gradeMutation.mutate(
+      { submissionId, score: value },
+      {
+        onSuccess: () => {
+          haptics.success();
+          showToast('Grade saved', 'success');
+        },
+        onError: (error) => {
+          haptics.warning();
+          showToast(error instanceof Error ? error.message : 'Could not save grade', 'danger');
+        },
+      },
+    );
+  }
+
+  function saveFeedback() {
+    const text = feedback.trim();
+    if (!text) {
+      showToast('Enter feedback first', 'danger');
+      return;
+    }
+    feedbackMutation.mutate(
+      { submissionId, text },
+      {
+        onSuccess: () => {
+          haptics.success();
+          showToast('Feedback saved', 'success');
+          setNotes((prev) => [...prev, { id: `local-${Date.now()}`, text }]);
+          setFeedback('');
+        },
+        onError: (error) => {
+          haptics.warning();
+          showToast(error instanceof Error ? error.message : 'Could not save feedback', 'danger');
+        },
+      },
+    );
+  }
+
   return (
-    <StackScreen title="Submission">
+    <StackScreen title="Submission" keyboardAvoiding>
       <Text variant="heading">{studentName}</Text>
       <View style={styles.badge}>
         <Badge
@@ -67,6 +110,7 @@ export function CourseworkSubmissionDetailScreen({ route, navigation }: Props) {
       </View>
       <Text variant="bodySmall" color="textSecondary" style={styles.meta}>
         Submitted {submittedAt}
+        {maxScore != null ? ` · Max ${maxScore}` : ''}
       </Text>
 
       <Text variant="title" style={styles.section}>
@@ -88,28 +132,48 @@ export function CourseworkSubmissionDetailScreen({ route, navigation }: Props) {
         </View>
       )}
 
-      {comments.length > 0 ? (
-        <>
-          <Text variant="title" style={styles.section}>
-            Comments
-          </Text>
-          {comments.map((comment: CourseworkFeedback) => (
-            <View key={comment.id} style={styles.comment}>
-              <Text variant="bodySmall" color="textSecondary">
-                {comment.text}
-              </Text>
-            </View>
-          ))}
-        </>
-      ) : null}
+      <Text variant="title" style={styles.section}>
+        Feedback
+      </Text>
+      {notes.length > 0 ? (
+        notes.map((comment: CourseworkFeedback) => (
+          <View key={comment.id} style={styles.comment}>
+            <Text variant="bodySmall" color="textSecondary">
+              {comment.text}
+            </Text>
+          </View>
+        ))
+      ) : (
+        <Text variant="bodySmall" color="textMuted" style={styles.emptyFiles}>
+          No feedback yet.
+        </Text>
+      )}
 
       {canGrade ? (
         <>
+          <TextInput
+            value={feedback}
+            onChangeText={setFeedback}
+            placeholder="Write feedback for this student…"
+            placeholderTextColor={tokens.colors.textMuted}
+            multiline
+            textAlignVertical="top"
+            style={styles.feedbackInput}
+          />
+          <Button
+            label="Save feedback"
+            variant="secondary"
+            loading={feedbackMutation.isPending}
+            disabled={!feedback.trim() || feedbackMutation.isPending}
+            onPress={saveFeedback}
+            style={styles.save}
+          />
+
           <Text variant="title" style={styles.section}>
             Grade
           </Text>
           <TextField
-            label="Score"
+            label={maxScore != null ? `Score / ${maxScore}` : 'Score'}
             value={score}
             onChangeText={setScore}
             keyboardType="decimal-pad"
@@ -118,7 +182,7 @@ export function CourseworkSubmissionDetailScreen({ route, navigation }: Props) {
           <Button
             label="Save grade"
             loading={gradeMutation.isPending}
-            onPress={() => gradeMutation.mutate()}
+            onPress={saveGrade}
             style={styles.save}
           />
         </>
@@ -154,7 +218,21 @@ const styles = StyleSheet.create({
     borderColor: tokens.colors.border,
     marginBottom: tokens.spacing.sm,
   },
+  feedbackInput: {
+    minHeight: 110,
+    marginBottom: tokens.spacing.md,
+    borderWidth: 1.5,
+    borderColor: tokens.colors.border,
+    borderRadius: tokens.radius.md,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    backgroundColor: tokens.colors.surface,
+    color: tokens.colors.textPrimary,
+    fontFamily: tokens.fontFamily.regular,
+    fontSize: tokens.fontSize.md,
+  },
   save: {
-    marginTop: tokens.spacing.lg,
+    marginTop: tokens.spacing.sm,
+    marginBottom: tokens.spacing.lg,
   },
 });

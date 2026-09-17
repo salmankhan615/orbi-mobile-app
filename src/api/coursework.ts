@@ -1,8 +1,59 @@
+import { Platform } from 'react-native';
 import { getStudentCoursework } from '@/api/crm';
 import { requireUserId } from '@/api/sessionUser';
 import { unwrapList } from '@/api/unwrap';
 import type { CourseworkFeedback, CourseworkFile, CourseworkItem } from '@/api/staff';
 import { stripHtml } from '@/utils/stripHtml';
+
+/** CRM `kind` → Coursework UI tab. */
+export type CourseworkTab = 'assignment' | 'resource';
+
+export type CourseworkLocalFile = {
+  uri: string;
+  name: string;
+  type: string;
+  blob?: Blob;
+};
+
+export type CourseworkWritePayload = {
+  groupId: string;
+  kind: CourseworkTab;
+  title: string;
+  instructions: string;
+  graded: boolean;
+  dueDate?: string;
+  keepFiles: CourseworkFile[];
+  newFiles: CourseworkLocalFile[];
+};
+
+function appendFormFile(form: FormData, file: CourseworkLocalFile) {
+  if (Platform.OS === 'web' && file.blob) {
+    form.append('files', file.blob, file.name);
+    return;
+  }
+  form.append('files', {
+    uri: file.uri,
+    name: file.name || 'attachment',
+    type: file.type || 'application/octet-stream',
+  } as unknown as Blob);
+}
+
+/** Multipart body for CRM create/update coursework. */
+export function buildCourseworkForm(payload: CourseworkWritePayload): FormData {
+  const form = new FormData();
+  form.append('groupId', payload.groupId);
+  form.append('kind', payload.kind);
+  form.append('title', payload.title);
+  form.append('instructions', payload.instructions);
+  form.append('graded', payload.graded ? 'true' : 'false');
+  if (payload.dueDate) form.append('dueDate', payload.dueDate);
+  const keep = payload.keepFiles.map((file) => file.url).filter(Boolean);
+  form.append('keepFiles', JSON.stringify(keep));
+  for (const file of payload.newFiles) {
+    appendFormFile(form, file);
+  }
+  return form;
+}
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -176,9 +227,8 @@ export function isCourseworkOverdue(item: CourseworkItem): boolean {
   return Date.now() > end.getTime();
 }
 
-/** CRM `kind` → Coursework UI tab. */
-export type CourseworkTab = 'assignment' | 'resource';
-
-export function courseworkTabForKind(kind: CourseworkItem['kind'] | string | undefined): CourseworkTab {
+export function courseworkTabForKind(
+  kind: CourseworkItem['kind'] | string | undefined,
+): CourseworkTab {
   return String(kind ?? '').toLowerCase() === 'resource' ? 'resource' : 'assignment';
 }

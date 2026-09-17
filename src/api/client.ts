@@ -18,6 +18,8 @@ type RequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>;
   /** Skip auth cookie/token for public endpoints like login. */
   skipAuth?: boolean;
+  /** Override the default 20s abort. File uploads need longer. */
+  timeoutMs?: number;
 };
 
 let sessionCookie: string | null = null;
@@ -136,7 +138,7 @@ function isFormDataBody(body: unknown): body is FormData {
 const REQUEST_TIMEOUT_MS = 20_000;
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, headers, skipAuth, signal, ...rest } = options;
+  const { body, headers, skipAuth, signal, timeoutMs, ...rest } = options;
   const authHeaders: Record<string, string> = {};
 
   if (!skipAuth) {
@@ -147,7 +149,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const formData = isFormDataBody(body);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs ?? REQUEST_TIMEOUT_MS);
   const onOuterAbort = () => controller.abort();
   signal?.addEventListener('abort', onOuterAbort);
 

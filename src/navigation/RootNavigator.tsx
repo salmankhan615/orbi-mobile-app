@@ -34,6 +34,7 @@ import { GroupSessionDetailScreen } from '@/pages/staff/GroupSessionDetailScreen
 import { UserDirectoryScreen } from '@/pages/staff/UserDirectoryScreen';
 import { UserDetailScreen } from '@/pages/staff/UserDetailScreen';
 import { StaffCourseworkScreen } from '@/pages/staff/StaffCourseworkScreen';
+import { CourseworkEditorScreen } from '@/pages/staff/CourseworkEditorScreen';
 import { CourseworkSubmissionsScreen } from '@/pages/staff/CourseworkSubmissionsScreen';
 import { CourseworkSubmissionDetailScreen } from '@/pages/staff/CourseworkSubmissionDetailScreen';
 import {
@@ -111,6 +112,7 @@ export function RootNavigator() {
               <Stack.Screen name="UserDirectory" component={UserDirectoryScreen} />
               <Stack.Screen name="UserDetail" component={UserDetailScreen} />
               <Stack.Screen name="StaffCoursework" component={StaffCourseworkScreen} />
+              <Stack.Screen name="CourseworkEditor" component={CourseworkEditorScreen} />
               <Stack.Screen name="CourseworkSubmissions" component={CourseworkSubmissionsScreen} />
               <Stack.Screen
                 name="CourseworkSubmissionDetail"

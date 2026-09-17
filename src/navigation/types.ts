@@ -65,6 +65,11 @@ export type RootStackParamList = {
     status?: string;
   };
   StaffCoursework: undefined;
+  CourseworkEditor: {
+    courseworkId?: string;
+    groupId?: string;
+    kind?: 'assignment' | 'resource';
+  };
   CourseworkSubmissions: { assignmentId: string };
   CourseworkSubmissionDetail: {
     assignmentId: string;
