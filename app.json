@@ -10,8 +10,13 @@
     "ios": {
       "supportsTablet": true
     },
+    "androidNavigationBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#FFFFFF"
+    },
     "android": {
       "package": "com.kbmgroups.kbmtrainingrecruitment",
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "VIBRATE",
         "android.permission.READ_CALENDAR",
