@@ -30,6 +30,15 @@ export type RootStackParamList = {
   HelpSupport: undefined;
   AboutKbm: undefined;
   StaffBookingDetail: { bookingId: string };
+  ClassBookings: {
+    classId: string;
+    title: string;
+    date: string;
+    dateLabel?: string;
+    startTime: string;
+    endTime: string;
+    location: string;
+  };
   GroupDetail: { groupId: string };
   GroupSessionDetail: {
     groupId: string;

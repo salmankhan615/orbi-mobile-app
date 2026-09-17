@@ -5,6 +5,7 @@ import { trainingApi } from '@/api/training';
 import { sessionsKeys } from '@/queries/useSessions';
 import { requireUserId } from '@/api/sessionUser';
 import { useAfterInteractions } from '@/hooks/useAfterInteractions';
+import { toISODate } from '@/utils/date';
 
 export const bookingKeys = {
   all: ['bookings'] as const,
@@ -13,6 +14,8 @@ export const bookingKeys = {
   mineTraining: (studentId: string) => ['bookings', 'mine', studentId, 'training'] as const,
   mineClasses: (studentId: string) => ['bookings', 'mine', studentId, 'class'] as const,
   staff: ['bookings', 'staff'] as const,
+  staffSessions: (rangeKey: string) => ['bookings', 'staff', 'sessions', rangeKey] as const,
+  classRoster: (classId: string) => ['bookings', 'staff', 'class', classId] as const,
   detail: (id: string) => ['bookings', id] as const,
   availability: (classId: string) => ['bookings', 'availability', classId] as const,
   trainingLocations: ['bookings', 'training', 'locations'] as const,
@@ -42,14 +45,32 @@ export function useMyBookings(studentId: string) {
   });
 }
 
-export function useStaffBookings() {
+export function useStaffBookings(range?: { startDate: string; endDate: string }) {
   const ready = useAfterInteractions();
+  const today = toISODate(new Date());
+  let startDate = range?.startDate || today;
+  let endDate = range?.endDate || startDate;
+  if (startDate > endDate) {
+    const swap = startDate;
+    startDate = endDate;
+    endDate = swap;
+  }
+  const rangeKey = `${startDate}:${endDate}`;
   return useQuery({
-    queryKey: bookingKeys.staff,
-    queryFn: bookingsApi.listAll,
+    queryKey: bookingKeys.staffSessions(rangeKey),
+    queryFn: () => bookingsApi.listSessions({ startDate, endDate }),
     enabled: ready,
     staleTime: 60_000,
     retry: 1,
+  });
+}
+
+export function useClassRoster(classId: string) {
+  return useQuery({
+    queryKey: bookingKeys.classRoster(classId),
+    queryFn: () => bookingsApi.listClassRoster(classId),
+    enabled: Boolean(classId),
+    staleTime: 30_000,
   });
 }
 

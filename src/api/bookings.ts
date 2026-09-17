@@ -76,6 +76,25 @@ export interface Booking {
   classId?: string;
   dayId?: string;
   bookingId?: string;
+  groupId?: string;
+}
+
+/** One row on the staff Bookings list — a class or training location-day. */
+export interface StaffBookingSession {
+  id: string;
+  kind: BookingKind;
+  title: string;
+  date: string;
+  dateLabel: string;
+  startTime: string;
+  endTime: string;
+  locationLabel: string;
+  bookingCount: number;
+  classId?: string;
+  groupId?: string;
+  dayId?: string;
+  locationId?: string;
+  locationName?: string;
 }
 
 type UnknownRecord = Record<string, unknown>;
@@ -446,6 +465,7 @@ function pushClassBooking(
     calendarLabel: calendarId ? maps.categories.get(calendarId) : undefined,
     classId,
     bookingId,
+    groupId: idOf(row.groupId) || str(row.groupId) || undefined,
   });
 }
 
@@ -516,27 +536,130 @@ function mapStaffClassBookings(
   return bookings;
 }
 
-async function listStaffClassBookings(): Promise<Booking[]> {
-  // Today only — multi-day full rosters freeze staff tools.
-  const day = toISODate(new Date());
+async function listStaffClassBookings(day: string): Promise<Booking[]> {
   const [calendarRaw, settings, usersLite] = await Promise.all([
     getClassCalendar({ startDate: day, endDate: day }),
     getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
     getCalendarUsersLite().catch(() => []),
   ]);
   const nameById = buildUserNameMap(usersLite);
-  const mapped = mapStaffClassBookings(asList(calendarRaw), buildTitleMaps(settings), nameById);
-  return mapped.slice(0, 60);
+  return mapStaffClassBookings(asList(calendarRaw), buildTitleMaps(settings), nameById);
 }
 
-async function listStaffTrainingBookings(): Promise<Booking[]> {
-  // Same admin calendar day payload the web location-detail uses.
-  const date = toISODate(new Date());
+async function listStaffTrainingBookings(day: string): Promise<Booking[]> {
   const [raw, settings] = await Promise.all([
-    getPracticalTrainingAdminCalendar({ startDate: date, endDate: date }),
+    getPracticalTrainingAdminCalendar({ startDate: day, endDate: day }),
     getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
   ]);
-  return mapAdminCalendarBookings(raw, buildTitleMaps(settings)).slice(0, 40);
+  return mapAdminCalendarBookings(raw, buildTitleMaps(settings));
+}
+
+/** One list row per class (not per student seat). */
+function mapStaffClassSessions(calendarRows: unknown[], maps: TitleMaps): StaffBookingSession[] {
+  const out: StaffBookingSession[] = [];
+  for (const item of calendarRows) {
+    const row = asRecord(item);
+    if (!row) continue;
+    const classId = idOf(row._id ?? row.id);
+    if (!classId) continue;
+    const bookings = asArray(row.bookings);
+    const active = bookings.filter((entry) => {
+      const booking = asRecord(entry);
+      if (!booking) return false;
+      return !str(booking.status).toLowerCase().includes('cancel');
+    });
+    const count =
+      Number(row.activeBookingsCount) ||
+      active.length ||
+      bookings.length;
+    if (count <= 0 && active.length === 0) continue;
+    const date = toISODate(row.classDate ?? row.date);
+    out.push({
+      id: `class-session:${classId}`,
+      kind: 'class',
+      title: classTitleForRow(row, maps),
+      date,
+      dateLabel: formatPortalDate(date),
+      startTime: formatClock(row.classStartTime ?? row.startTime),
+      endTime: formatClock(row.classEndTime ?? row.endTime),
+      locationLabel: classLocationForRow(row, maps),
+      bookingCount: count,
+      classId,
+      groupId: idOf(row.groupId) || str(row.groupId) || undefined,
+    });
+  }
+  return out.sort(
+    (a, b) => a.startTime.localeCompare(b.startTime) || a.title.localeCompare(b.title),
+  );
+}
+
+/** One list row per training location-day (admin calendar). */
+function mapStaffTrainingSessions(raw: unknown, maps: TitleMaps): StaffBookingSession[] {
+  const out: StaffBookingSession[] = [];
+  for (const item of asList(raw)) {
+    const row = asRecord(item) ?? {};
+    const props = asRecord(row.extendedProps) ?? row;
+    const dayId =
+      idOf(props.dayId ?? row.dayId) ||
+      str(row._id, row.id).replace(/^pt-/, '') ||
+      '';
+    const locationId = idOf(props.locationId ?? row.locationId) ?? '';
+    const locationName =
+      str(props.locationName, row.locationName) ||
+      maps.locations.get(locationId) ||
+      str(row.title).replace(/\s*\(\d+\)\s*$/, '') ||
+      'Training';
+    const date = toISODate(props.classDate ?? row.classDate ?? row.date) || '';
+    const total = Number(props.totalBookings ?? row.totalBookings) || 0;
+    let bookingCount = total;
+    if (!bookingCount) {
+      for (const group of asArray(props.shifts)) {
+        const entry = asRecord(group);
+        bookingCount += asArray(entry?.bookings).length;
+      }
+    }
+    if (!dayId && !locationId) continue;
+    out.push({
+      id: `training-day:${dayId || `${date}-${locationId}`}`,
+      kind: 'training',
+      title: str(row.title) || `${locationName}${bookingCount ? ` (${bookingCount})` : ''}`,
+      date,
+      dateLabel: formatPortalDate(date),
+      startTime: formatClock(row.start ?? props.startTime),
+      endTime: formatClock(row.end ?? props.endTime),
+      locationLabel: locationName,
+      bookingCount,
+      dayId: dayId || undefined,
+      locationId: locationId || undefined,
+      locationName,
+    });
+  }
+  return out.sort(
+    (a, b) =>
+      a.startTime.localeCompare(b.startTime) || a.locationLabel.localeCompare(b.locationLabel),
+  );
+}
+
+async function listStaffClassSessions(
+  startDate: string,
+  endDate: string,
+): Promise<StaffBookingSession[]> {
+  const [calendarRaw, settings] = await Promise.all([
+    getClassCalendar({ startDate, endDate }),
+    getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
+  ]);
+  return mapStaffClassSessions(asList(calendarRaw), buildTitleMaps(settings));
+}
+
+async function listStaffTrainingSessions(
+  startDate: string,
+  endDate: string,
+): Promise<StaffBookingSession[]> {
+  const [raw, settings] = await Promise.all([
+    getPracticalTrainingAdminCalendar({ startDate, endDate }),
+    getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
+  ]);
+  return mapStaffTrainingSessions(raw, buildTitleMaps(settings));
 }
 
 /**
@@ -775,17 +898,67 @@ export const bookingsApi = {
     );
   },
 
-  async listAll(): Promise<Booking[]> {
-    // Classes first — training is a separate, lighter follow-up so the list can paint.
+  async listAll(date?: string): Promise<Booking[]> {
+    const day = date || localDayFromDate(new Date());
     try {
-      const classBookings = await listStaffClassBookings();
-      const training = await listStaffTrainingBookings().catch(() => [] as Booking[]);
+      const classBookings = await listStaffClassBookings(day);
+      const training = await listStaffTrainingBookings(day).catch(() => [] as Booking[]);
       return [...classBookings, ...training].sort(
         (a, b) => b.date.localeCompare(a.date) || b.bookingDate.localeCompare(a.bookingDate),
       );
     } catch (error) {
       throw error instanceof Error ? error : new Error('Could not load bookings');
     }
+  },
+
+  /** Grouped staff list — one row per class / training location-day. */
+  async listSessions(range?: { startDate: string; endDate: string } | string): Promise<StaffBookingSession[]> {
+    const today = localDayFromDate(new Date());
+    let startDate = today;
+    let endDate = today;
+    if (typeof range === 'string' && range.trim()) {
+      startDate = range.trim();
+      endDate = range.trim();
+    } else if (range && typeof range === 'object') {
+      startDate = range.startDate?.trim() || today;
+      endDate = range.endDate?.trim() || startDate;
+      if (startDate > endDate) {
+        const swap = startDate;
+        startDate = endDate;
+        endDate = swap;
+      }
+    }
+    const [classes, training] = await Promise.all([
+      listStaffClassSessions(startDate, endDate),
+      listStaffTrainingSessions(startDate, endDate).catch(() => [] as StaffBookingSession[]),
+    ]);
+    return [...classes, ...training].sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        a.startTime.localeCompare(b.startTime) ||
+        a.title.localeCompare(b.title),
+    );
+  },
+
+  /** Roster for one class session (`getClassCalendarById`). */
+  async listClassRoster(classId: string): Promise<Booking[]> {
+    const [raw, settings, usersLite] = await Promise.all([
+      getClassCalendarById(classId),
+      getCourseSettings().catch(() => ({
+        classes: [],
+        locations: [],
+        categories: [],
+      })),
+      getCalendarUsersLite().catch(() => []),
+    ]);
+    const root = asRecord(raw);
+    const classRow = asRecord(root?.data) ?? root;
+    if (!classRow) return [];
+    return mapStaffClassBookings(
+      [classRow],
+      buildTitleMaps(settings),
+      buildUserNameMap(usersLite),
+    );
   },
 
   async getById(id: string): Promise<Booking | undefined> {

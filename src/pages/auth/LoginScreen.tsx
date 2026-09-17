@@ -72,20 +72,6 @@ export function LoginScreen({ navigation }: Props) {
               loading={login.isPending}
               style={styles.submit}
             />
-
-            <View style={styles.footer}>
-              <Text variant="bodySmall" color="textSecondary">
-                Don&apos;t have an account?{' '}
-              </Text>
-              <Text
-                variant="bodySmall"
-                color="primary"
-                style={styles.link}
-                onPress={() => navigation.navigate('Signup')}
-              >
-                Sign Up
-              </Text>
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -113,13 +99,5 @@ const styles = StyleSheet.create({
   },
   submit: {
     marginTop: tokens.spacing.sm,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: tokens.spacing.xl,
-  },
-  link: {
-    fontFamily: tokens.fontFamily.semibold,
   },
 });

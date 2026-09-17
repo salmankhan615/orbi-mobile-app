@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { useQueryClient } from '@tanstack/react-query';
 import { Text } from '@/components/ui/Text';
 import { Screen } from '@/components/custom/Screen';
 import { EmptyState } from '@/components/custom/EmptyState';
@@ -8,10 +7,15 @@ import { EntityRow } from '@/components/custom/EntityRow';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScalePressable } from '@/components/custom/ScalePressable';
-import { bookingKeys, useStaffBookings } from '@/queries/useBookings';
+import {
+  DateRangePicker,
+  type DateRange,
+} from '@/features/bookings/components/DateRangePicker';
+import { useStaffBookings } from '@/queries/useBookings';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
-import type { BookingKind } from '@/api/bookings';
+import { formatPortalDate, toISODate } from '@/utils/date';
+import type { BookingKind, StaffBookingSession } from '@/api/bookings';
 import type { MainTabScreenProps } from '@/navigation/types';
 import { tokens } from '@/theme';
 
@@ -25,24 +29,50 @@ const TABS: { key: BookingKind; label: string }[] = [
 export function StaffBookingsScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const allowed = useHasPermission('view_bookings');
-  const { data, isLoading } = useStaffBookings();
-  const client = useQueryClient();
+  const today = toISODate(new Date());
+  const [range, setRange] = useState<DateRange>({ startDate: today, endDate: today });
   const [tab, setTab] = useState<BookingKind>('class');
+  const { data, isLoading } = useStaffBookings(range);
 
-  const bookings = data ?? [];
-  const classes = useMemo(() => bookings.filter((item) => item.kind === 'class'), [bookings]);
-  const training = useMemo(() => bookings.filter((item) => item.kind === 'training'), [bookings]);
+  const sessions = data ?? [];
+  const classes = useMemo(() => sessions.filter((item) => item.kind === 'class'), [sessions]);
+  const training = useMemo(() => sessions.filter((item) => item.kind === 'training'), [sessions]);
   const visible = tab === 'class' ? classes : training;
+
+  function openSession(session: StaffBookingSession) {
+    if (session.kind === 'training') {
+      navigation.navigate('TrainingLocationBookings', {
+        date: session.date || range.startDate,
+        locationName: session.locationName || session.locationLabel || 'Location',
+        locationId: session.locationId,
+        dayId: session.dayId,
+      });
+      return;
+    }
+    if (session.classId) {
+      navigation.navigate('ClassBookings', {
+        classId: session.classId,
+        title: session.title,
+        date: session.date,
+        dateLabel: session.dateLabel,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        location: session.locationLabel,
+      });
+    }
+  }
 
   return (
     <Screen style={styles.screen}>
-      <PageHeader title="Bookings" subtitle="Mark attendance or cancel a seat." />
+      <PageHeader title="Bookings" subtitle="Open a class or location to manage seats." />
       {!allowed ? (
         <Text variant="body" color="textMuted">
           You do not have permission to view bookings.
         </Text>
       ) : (
         <>
+          <DateRangePicker value={range} onChange={setRange} />
+
           <View style={styles.tabs}>
             {TABS.map((item) => {
               const count = item.key === 'class' ? classes.length : training.length;
@@ -75,7 +105,9 @@ export function StaffBookingsScreen({ navigation }: Props) {
             <EmptyState
               icon={tab === 'class' ? 'school-outline' : 'fitness-outline'}
               message={
-                tab === 'class' ? 'No class bookings for today.' : 'No training bookings for today.'
+                tab === 'class'
+                  ? 'No class sessions in this date range.'
+                  : 'No training locations in this date range.'
               }
             />
           ) : (
@@ -87,19 +119,17 @@ export function StaffBookingsScreen({ navigation }: Props) {
               windowSize={7}
               removeClippedSubviews
               contentContainerStyle={{ paddingBottom: tabPadding }}
-              renderItem={({ item: booking }) => (
+              renderItem={({ item: session }) => (
                 <EntityRow
                   icon={tab === 'class' ? 'school-outline' : 'fitness-outline'}
-                  title={booking.title}
-                  subtitle={`${booking.studentName || 'Student'} · ${booking.date} ${booking.startTime}`}
+                  title={session.title}
+                  subtitle={`${session.locationLabel} · ${session.startTime}–${session.endTime}`}
+                  meta={session.dateLabel || formatPortalDate(session.date)}
                   badge={{
-                    label: booking.attendance ?? booking.status,
-                    tone: booking.status === 'cancelled' ? 'danger' : 'success',
+                    label: `${session.bookingCount} booked`,
+                    tone: session.bookingCount > 0 ? 'success' : 'neutral',
                   }}
-                  onPress={() => {
-                    client.setQueryData(bookingKeys.detail(booking.id), booking);
-                    navigation.navigate('StaffBookingDetail', { bookingId: booking.id });
-                  }}
+                  onPress={() => openSession(session)}
                 />
               )}
             />

@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { tokens } from '@/theme';
 import { LoginScreen } from '@/pages/auth/LoginScreen';
-import { SignupScreen } from '@/pages/auth/SignupScreen';
 import { ForgotPasswordScreen } from '@/pages/auth/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '@/pages/auth/ResetPasswordScreen';
 import { CourseDetailScreen } from '@/pages/courses/CourseDetailScreen';
@@ -29,6 +28,7 @@ import {
   AboutKbmScreen,
 } from '@/pages/common/InfoScreens';
 import { StaffBookingDetailScreen } from '@/pages/staff/StaffBookingDetailScreen';
+import { ClassBookingsScreen } from '@/pages/staff/ClassBookingsScreen';
 import { GroupDetailScreen } from '@/pages/staff/GroupDetailScreen';
 import { GroupSessionDetailScreen } from '@/pages/staff/GroupSessionDetailScreen';
 import { UserDirectoryScreen } from '@/pages/staff/UserDirectoryScreen';
@@ -105,6 +105,7 @@ export function RootNavigator() {
             <>
               <Stack.Screen name="AnnouncementEditor" component={AnnouncementEditorScreen} />
               <Stack.Screen name="StaffBookingDetail" component={StaffBookingDetailScreen} />
+              <Stack.Screen name="ClassBookings" component={ClassBookingsScreen} />
               <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
               <Stack.Screen name="GroupSessionDetail" component={GroupSessionDetailScreen} />
               <Stack.Screen name="UserDirectory" component={UserDirectoryScreen} />
@@ -151,7 +152,6 @@ export function RootNavigator() {
       ) : (
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Signup" component={SignupScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         </>
