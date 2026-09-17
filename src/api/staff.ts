@@ -117,7 +117,15 @@ export interface CourseworkItem {
   status: 'open' | 'submitted' | 'graded';
   /** CRM student coursework fields */
   kind?: 'assignment' | 'resource' | 'other';
+  groupId?: string;
   groupName?: string;
+  /** Staff list: graded | ungraded (assignment-level). */
+  gradingLabel?: 'graded' | 'ungraded';
+  submissionCount?: number;
+  gradedCount?: number;
+  /** Display index from CRM (`number` / `order`). */
+  number?: number;
+  lastUpdatedLabel?: string;
   score?: number;
   maxScore?: number;
   instructions?: string;
@@ -500,7 +508,7 @@ function mapStaffCourseworkItem(raw: unknown): CourseworkItem | null {
   if (!row) return null;
   const id = idOf(row._id ?? row.id);
   if (!id) return null;
-  const submissionCount = num(row.submissionCount);
+  const submissionCount = num(row.submissionCount ?? row.submittedCount);
   const gradedCount = num(row.gradedCount);
   let status: CourseworkItem['status'] = 'open';
   if (gradedCount > 0 && gradedCount >= submissionCount && submissionCount > 0) {
@@ -508,16 +516,43 @@ function mapStaffCourseworkItem(raw: unknown): CourseworkItem | null {
   } else if (submissionCount > 0) {
     status = 'submitted';
   }
+  const gradingLabel: CourseworkItem['gradingLabel'] =
+    gradedCount > 0 && gradedCount >= submissionCount && submissionCount > 0
+      ? 'graded'
+      : 'ungraded';
   const dueIso = toISODay(row.dueDate);
+  const group = asRecord(row.group) ?? asRecord(row.groupId);
+  const groupId = idOf(row.groupId ?? group?._id ?? group?.id) ?? undefined;
+  const groupName =
+    str(row.groupName, group?.name, group?.title, group?.groupName, row.courseTitle, row.courseName) ||
+    undefined;
+  const updatedBy =
+    asRecord(row.updatedBy) ??
+    asRecord(row.lastUpdatedBy) ??
+    asRecord(row.modifiedBy);
+  const updatedAt = formatCourseworkDate(
+    row.updatedAt ?? row.lastUpdated ?? row.modifiedAt ?? row.createdAt,
+  );
+  const updaterName = personName(updatedBy);
+  const lastUpdatedLabel = [updatedAt !== '—' ? updatedAt : '', updaterName !== '—' ? updaterName : '']
+    .filter(Boolean)
+    .join(' ');
+  const number = num(row.number ?? row.order ?? row.index);
   return {
     id,
     title: str(row.title, 'Coursework'),
-    courseTitle: str(row.groupName, row.courseTitle, row.courseName, 'Group'),
+    courseTitle: groupName || 'Group',
     dueDate: formatCourseworkDate(row.dueDate),
     dueDateIso: dueIso || undefined,
     status,
     kind: str(row.kind).toLowerCase() === 'resource' ? 'resource' : 'assignment',
-    groupName: str(row.groupName) || undefined,
+    groupId,
+    groupName,
+    gradingLabel,
+    submissionCount,
+    gradedCount,
+    number: number > 0 ? number : undefined,
+    lastUpdatedLabel: lastUpdatedLabel || undefined,
     maxScore: num(row.maxScore) || undefined,
     instructions: str(row.instructions) || undefined,
   };
@@ -797,11 +832,11 @@ export const staffApi = {
     const raw = await getStaffCoursework();
     const out: CourseworkItem[] = [];
     for (const item of unwrapList(raw)) {
-      if (out.length >= 50) break;
       const mapped = mapStaffCourseworkItem(item);
       if (mapped) out.push(mapped);
     }
-    return out;
+    // Web table sorts Due descending.
+    return out.sort((a, b) => (b.dueDateIso || '').localeCompare(a.dueDateIso || ''));
   },
 
   async submissions(assignmentId?: string): Promise<CourseworkSubmission[]> {

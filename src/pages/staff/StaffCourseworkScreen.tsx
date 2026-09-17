@@ -2,10 +2,13 @@ import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
-import { EntityRow } from '@/components/custom/EntityRow';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { Text } from '@/components/ui/Text';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { FilterSelectRow } from '@/features/bookings/components/BookingFilters';
+import { courseworkTabForKind, type CourseworkTab } from '@/api/coursework';
 import { useStaffCoursework } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import type { CourseworkItem } from '@/api/staff';
@@ -14,26 +17,53 @@ import { tokens } from '@/theme';
 
 type Props = RootStackScreenProps<'StaffCoursework'>;
 
-type StatusFilter = 'all' | CourseworkItem['status'];
-
-const FILTERS: { key: StatusFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'open', label: 'Open' },
-  { key: 'submitted', label: 'Submitted' },
-  { key: 'graded', label: 'Graded' },
+const TABS: { key: CourseworkTab; label: string }[] = [
+  { key: 'assignment', label: 'Assignments' },
+  { key: 'resource', label: 'Resources' },
 ];
 
 export function StaffCourseworkScreen({ navigation }: Props) {
   const allowed = useHasPermission('view_coursework');
   const canSubs = useHasPermission('view_submissions');
   const { data, isLoading } = useStaffCoursework();
-  const [filter, setFilter] = useState<StatusFilter>('all');
+  const [tab, setTab] = useState<CourseworkTab>('assignment');
+  const [groupId, setGroupId] = useState('');
 
   const items = data ?? [];
-  const visible = useMemo(
-    () => (filter === 'all' ? items : items.filter((item) => item.status === filter)),
-    [items, filter],
+  const assignments = useMemo(
+    () => items.filter((item) => courseworkTabForKind(item.kind) === 'assignment'),
+    [items],
   );
+  const resources = useMemo(
+    () => items.filter((item) => courseworkTabForKind(item.kind) === 'resource'),
+    [items],
+  );
+  const tabItems = tab === 'assignment' ? assignments : resources;
+
+  const groupOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const item of items) {
+      const id = item.groupId || item.groupName || item.courseTitle;
+      const label = item.groupName || item.courseTitle;
+      if (id && label && !seen.has(id)) seen.set(id, label);
+    }
+    return [
+      { id: '', label: 'All groups' },
+      ...Array.from(seen.entries())
+        .map(([id, label]) => ({ id, label }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    ];
+  }, [items]);
+
+  const visible = useMemo(() => {
+    if (!groupId) return tabItems;
+    return tabItems.filter(
+      (item) =>
+        item.groupId === groupId ||
+        item.groupName === groupId ||
+        item.courseTitle === groupId,
+    );
+  }, [tabItems, groupId]);
 
   if (!allowed) {
     return (
@@ -47,36 +77,45 @@ export function StaffCourseworkScreen({ navigation }: Props) {
 
   return (
     <StackScreen title="Coursework" scroll={false}>
-      <View style={styles.filters}>
-        {FILTERS.map((item) => {
-          const active = filter === item.key;
-          const count =
-            item.key === 'all' ? items.length : items.filter((row) => row.status === item.key).length;
+      <View style={styles.tabs}>
+        {TABS.map((item) => {
+          const count = item.key === 'assignment' ? assignments.length : resources.length;
+          const active = tab === item.key;
           return (
             <ScalePressable
               key={item.key}
-              haptic={false}
-              onPress={() => setFilter(item.key)}
-              style={active ? styles.chipActive : styles.chip}
+              onPress={() => setTab(item.key)}
+              hapticStyle="select"
+              style={styles.tabPress}
             >
-              <Text variant="caption" color={active ? 'onSecondary' : 'textSecondary'}>
-                {item.label}
-                {isLoading ? '' : ` · ${count}`}
-              </Text>
+              <View style={[styles.tab, active && styles.tabActive]}>
+                <Text
+                  variant="caption"
+                  color={active ? 'secondary' : 'textSecondary'}
+                  style={styles.tabLabel}
+                >
+                  {item.label} ({isLoading ? '…' : count})
+                </Text>
+              </View>
             </ScalePressable>
           );
         })}
       </View>
 
+      <FilterSelectRow
+        label="Group"
+        value={groupId}
+        options={groupOptions}
+        onChange={setGroupId}
+      />
+
       {isLoading ? (
-        <EntityListSkeleton />
+        <EntityListSkeleton rows={5} />
       ) : visible.length === 0 ? (
         <EmptyState
           icon="document-text-outline"
           message={
-            filter === 'all'
-              ? 'No coursework assignments yet.'
-              : `No ${filter} coursework right now.`
+            tab === 'assignment' ? 'No assignments yet.' : 'No resources yet.'
           }
         />
       ) : (
@@ -85,25 +124,14 @@ export function StaffCourseworkScreen({ navigation }: Props) {
           keyExtractor={(item) => item.id}
           initialNumToRender={12}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <EntityRow
-              icon="document-text-outline"
-              title={item.title}
-              subtitle={item.courseTitle}
-              meta={`Due ${item.dueDate}`}
-              badge={{
-                label: item.status,
-                tone:
-                  item.status === 'graded'
-                    ? 'success'
-                    : item.status === 'submitted'
-                      ? 'warning'
-                      : 'primary',
-              }}
-              onPress={
-                canSubs
-                  ? () => navigation.navigate('CourseworkSubmissions', { assignmentId: item.id })
-                  : undefined
+          renderItem={({ item, index }) => (
+            <CourseworkRow
+              item={item}
+              index={index}
+              showGrading={tab === 'assignment'}
+              canOpenSubmissions={canSubs && tab === 'assignment'}
+              onSubmissions={() =>
+                navigation.navigate('CourseworkSubmissions', { assignmentId: item.id })
               }
             />
           )}
@@ -113,30 +141,137 @@ export function StaffCourseworkScreen({ navigation }: Props) {
   );
 }
 
+function CourseworkRow({
+  item,
+  index,
+  showGrading,
+  canOpenSubmissions,
+  onSubmissions,
+}: {
+  item: CourseworkItem;
+  index: number;
+  showGrading: boolean;
+  canOpenSubmissions: boolean;
+  onSubmissions: () => void;
+}) {
+  const graded = item.gradedCount ?? 0;
+  const submitted = item.submissionCount ?? 0;
+  const grading = item.gradingLabel ?? 'ungraded';
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardTop}>
+        <Text variant="caption" color="textMuted" style={styles.index}>
+          #{item.number ?? index + 1}
+        </Text>
+        {showGrading ? (
+          <Badge
+            label={grading}
+            tone={grading === 'graded' ? 'success' : 'neutral'}
+          />
+        ) : null}
+      </View>
+
+      <Text variant="bodySmall" style={styles.title}>
+        {item.title}
+      </Text>
+      <Text variant="caption" color="textSecondary" numberOfLines={1}>
+        {item.groupName || item.courseTitle}
+      </Text>
+
+      <View style={styles.metaRow}>
+        <Text variant="caption" color={item.dueDate !== '—' ? 'textPrimary' : 'textMuted'}>
+          Due {item.dueDate}
+        </Text>
+        {showGrading ? (
+          <Text variant="caption" color="textSecondary" style={styles.ratio}>
+            {graded}/{submitted}
+          </Text>
+        ) : null}
+      </View>
+
+      {item.lastUpdatedLabel ? (
+        <Text variant="caption" color="textMuted" numberOfLines={1}>
+          Updated {item.lastUpdatedLabel}
+        </Text>
+      ) : null}
+
+      {canOpenSubmissions ? (
+        <Button
+          label="Submissions"
+          variant="primary"
+          onPress={onSubmissions}
+          style={styles.submissionsBtn}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  filters: {
+  tabs: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: tokens.spacing.sm,
-    marginBottom: tokens.spacing.lg,
+    marginBottom: tokens.spacing.md,
   },
-  chip: {
-    paddingHorizontal: tokens.spacing.md,
+  tabPress: {
+    flex: 1,
+  },
+  tab: {
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: tokens.spacing.sm,
-    borderRadius: tokens.radius.full,
+    paddingHorizontal: tokens.spacing.md,
+    borderRadius: tokens.radius.md,
     backgroundColor: tokens.colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.border,
   },
-  chipActive: {
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-    borderRadius: tokens.radius.full,
-    backgroundColor: tokens.colors.secondary,
-    borderWidth: StyleSheet.hairlineWidth,
+  tabActive: {
+    backgroundColor: tokens.colors.secondaryMuted,
     borderColor: tokens.colors.secondary,
   },
+  tabLabel: {
+    fontFamily: tokens.fontFamily.semibold,
+  },
   list: {
+    paddingTop: tokens.spacing.md,
     paddingBottom: tokens.spacing.xl,
+    gap: tokens.spacing.md,
+  },
+  card: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
+    padding: tokens.spacing.lg,
+    gap: tokens.spacing.xs,
+    ...tokens.shadows.sm,
+  },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: tokens.spacing.xs,
+  },
+  index: {
+    fontFamily: tokens.fontFamily.medium,
+  },
+  title: {
+    fontFamily: tokens.fontFamily.semibold,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: tokens.spacing.xs,
+    gap: tokens.spacing.sm,
+  },
+  ratio: {
+    fontFamily: tokens.fontFamily.medium,
+  },
+  submissionsBtn: {
+    marginTop: tokens.spacing.sm,
+    minHeight: 40,
   },
 });
