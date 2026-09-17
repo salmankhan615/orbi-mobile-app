@@ -141,6 +141,8 @@ export type ClassCalendarParams = {
   startDate?: string;
   endDate?: string;
   slim?: boolean;
+  /** Category filter — matches ORBI custom-calendar `cateId`. */
+  cateId?: string;
 };
 
 /**
@@ -158,6 +160,7 @@ export async function getClassCalendar(params?: string | ClassCalendarParams) {
   if (opts.viewAsStudentId) qs.set('viewAsStudentId', opts.viewAsStudentId);
   else if (opts.userId) qs.set('userId', opts.userId);
   if (opts.slim) qs.set('slim', '1');
+  if (opts.cateId) qs.set('cateId', opts.cateId);
   const query = qs.toString() ? `?${qs.toString()}` : '';
   return apiClient.get<unknown[]>(`/api/calendar/crm/getClassCalendar${query}`);
 }
@@ -236,7 +239,7 @@ export async function markClassAttendance(
 
 /** Lightweight users for resolving instructor ids on calendar events. */
 export async function getCalendarUsersLite() {
-  return apiClient.get<unknown[]>('/api/calendar/crm/users-lite');
+  return apiClient.get<unknown[]>('/api/calendar/crm/users-lite?excludeStudents=1');
 }
 
 /** Search/list by type — capped server-side (~100). Prefer over getAllUsersActive. */
@@ -423,10 +426,12 @@ export async function getAdminPracticalBookings(params: {
 export async function getPracticalTrainingAdminCalendar(params: {
   startDate: string;
   endDate: string;
+  cateId?: string;
 }) {
   const qs = new URLSearchParams();
   qs.set('startDate', params.startDate);
   qs.set('endDate', params.endDate);
+  if (params.cateId) qs.set('cateId', params.cateId);
   return apiClient.get<unknown>(
     `/api/practical-training/bookings/calendar/admin?${qs.toString()}`,
   );
@@ -554,12 +559,14 @@ export async function getPracticalTrainingCalendar(params: {
   endDate: string;
   viewAsStudentId?: string;
   studentId?: string;
+  cateId?: string;
 }) {
   const qs = new URLSearchParams();
   qs.set('startDate', params.startDate);
   qs.set('endDate', params.endDate);
   if (params.viewAsStudentId) qs.set('viewAsStudentId', params.viewAsStudentId);
   if (params.studentId) qs.set('studentId', params.studentId);
+  if (params.cateId) qs.set('cateId', params.cateId);
   return apiClient.get<{ success?: boolean; count?: number; data?: unknown[] }>(
     `/api/practical-training/bookings/calendar?${qs.toString()}`,
   );

@@ -21,7 +21,7 @@ import type { RootStackScreenProps } from '@/navigation/types';
 type Props = RootStackScreenProps<'TrainingLocationBookings'>;
 
 export function TrainingLocationBookingsScreen({ route }: Props) {
-  const { date, locationName, locationId } = route.params;
+  const { date, locationName, locationId, dayId } = route.params;
   const canAttend = useHasPermission('mark_attendance');
   const canCancel = useHasPermission('cancel_booking');
   const showToast = useToastStore((state) => state.show);
@@ -29,13 +29,12 @@ export function TrainingLocationBookingsScreen({ route }: Props) {
   const [search, setSearch] = useState('');
 
   const { data, isLoading } = useQuery({
-    queryKey: [...staffKeys.shifts, date, locationId || locationName || 'all'],
+    queryKey: [...staffKeys.shifts, date, dayId || locationId || locationName || 'all'],
     queryFn: async () => {
       const rows = await staffApi.shifts(date);
       return rows.filter((row) => {
-        if (locationId && row.location) {
-          // Location title match — admin list returns names, not always ids.
-        }
+        if (dayId && row.dayId) return row.dayId === dayId;
+        if (locationId && row.locationId) return row.locationId === locationId;
         if (!locationName) return true;
         return row.location.toLowerCase() === locationName.toLowerCase();
       });

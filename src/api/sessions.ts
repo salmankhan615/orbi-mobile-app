@@ -196,9 +196,13 @@ function availableSeatsFrom(row: UnknownRecord): number[] | undefined {
 
 function displayPersonName(raw: unknown): string {
   if (typeof raw === 'string' && raw.trim()) {
-    // Mongo ObjectId — resolve via users-lite later.
-    if (/^[a-f0-9]{24}$/i.test(raw.trim())) return '';
-    return raw.trim();
+    const trimmed = raw.trim();
+    // Mongo ObjectId / UUID — resolve via users-lite later.
+    if (/^[a-f0-9]{24}$/i.test(trimmed)) return '';
+    if (/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(trimmed)) {
+      return '';
+    }
+    return trimmed;
   }
   const row = asRecord(raw);
   if (!row) return '';
@@ -209,7 +213,7 @@ function displayPersonName(raw: unknown): string {
 
 function buildInstructorNames(usersLite: unknown): Map<string, string> {
   const map = new Map<string, string>();
-  for (const item of asArray(usersLite)) {
+  for (const item of asList(usersLite)) {
     const row = asRecord(item);
     if (!row) continue;
     const id = idOf(row._id ?? row.id);
@@ -279,18 +283,31 @@ export const sessionsApi = {
       }
     }
 
+    const cateIdFilter =
+      calendarId && calendarId !== 'all' && calendarId !== 'training' ? calendarId : undefined;
+
     const [settings, calendarRaw, practicalRaw, usersLite] = await Promise.all([
       getCourseSettings(),
       getClassCalendar({
         startDate,
         endDate,
         slim: true,
+        ...(cateIdFilter ? { cateId: cateIdFilter } : {}),
         // Staff custom calendar is company-wide — omit student scope.
         ...(isStaff ? {} : { viewAsStudentId: studentId }),
       }),
       isStaff
-        ? getPracticalTrainingAdminCalendar({ startDate, endDate }).catch(() => ({ data: [] }))
-        : getPracticalTrainingCalendar({ startDate, endDate }).catch(() => ({ data: [] as unknown[] })),
+        ? getPracticalTrainingAdminCalendar({
+            startDate,
+            endDate,
+            ...(cateIdFilter ? { cateId: cateIdFilter } : {}),
+          }).catch(() => ({ data: [] }))
+        : getPracticalTrainingCalendar({
+            startDate,
+            endDate,
+            studentId,
+            ...(cateIdFilter ? { cateId: cateIdFilter } : {}),
+          }).catch(() => ({ data: [] as unknown[] })),
       getCalendarUsersLite().catch(() => [] as unknown[]),
     ]);
 
@@ -336,13 +353,13 @@ export const sessionsApi = {
       if (!date) continue;
 
       const title =
-        str(row.className, row.title, row.eventType) ||
+        str(row.className, row.title) ||
         classTitles.get(classTypeId) ||
         categoryTitles.get(cateId) ||
         'Class session';
 
       const locationId = idOf(row.location) || str(row.location);
-        const instructorId = idOf(row.instructor) || str(row.instructor);
+      const instructorId = idOf(row.instructor) || str(row.instructor);
       const link = str(row.link, row.classLink, row.joinUrl, row.meetingLink);
       const location =
         locationTitles.get(locationId) ||
@@ -387,32 +404,41 @@ export const sessionsApi = {
       });
     }
 
-    const practicalList = asArray(asRecord(practicalRaw)?.data ?? practicalRaw);
+    // Admin PT calendar is `{ success, data: FullCalendar[] }`; student is a flat list.
+    const practicalList = asList(practicalRaw);
     if (isStaff) {
       for (const item of practicalList) {
         const row = asRecord(item);
         if (!row) continue;
         const props = asRecord(row.extendedProps) ?? row;
         const date =
-          str(props.classDate, row.classDate, row.date, row.start).slice(0, 10) ||
+          str(props.classDate, row.classDate, props.date, row.date).slice(0, 10) ||
+          str(row.start, props.start).slice(0, 10) ||
+          occurrenceDate(props) ||
           occurrenceDate(row);
-        if (!date) continue;
-        if (calendarId && calendarId !== 'all') continue;
+        if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+        // When a course category is selected, server already applied cateId — keep PT rows.
         const locationId = idOf(props.locationId ?? props.location ?? row.locationId ?? row.location);
         const locationName =
           locationTitles.get(locationId) ||
           str(props.locationName, row.locationName, 'Training centre');
         const dayId =
           idOf(props.dayId ?? row.dayId) ||
-          str(row.id, row._id).replace(/^pt-/, '') ||
+          str(row._id, row.id).replace(/^pt-/, '') ||
           `${date}-${locationId || locationName}`;
         const total = num(props.totalBookings ?? row.totalBookings);
-        const startTime = formatClock(props.startTime ?? row.startTime ?? row.start) || '09:00 AM';
-        const endTime = formatClock(props.endTime ?? row.endTime ?? row.end) || '05:00 PM';
+        const startRaw = props.startTime ?? row.startTime ?? row.start ?? props.start;
+        const endRaw = props.endTime ?? row.endTime ?? row.end ?? props.end;
+        const startTime = formatClock(startRaw) || '09:00 AM';
+        const endTime = formatClock(endRaw) || '05:00 PM';
+        // Web FullCalendar title is already e.g. "Barking (5)".
+        const title =
+          str(row.title) ||
+          `${locationName}${total ? ` (${total})` : ''}`;
         sessions.push({
           id: `training-day:${dayId}`,
           calendarId: 'training',
-          title: `${locationName}${total ? ` (${total})` : ''}`,
+          title,
           date,
           startTime,
           endTime,
@@ -443,7 +469,6 @@ export const sessionsApi = {
             : `training:${str(row.date)}:${idOf(row.shift) || str(row.shift)}`;
         const date = str(row.date).slice(0, 10);
         if (!date) continue;
-        if (calendarId && calendarId !== 'all') continue;
 
         const shiftTime = str(row.shiftTime);
         const [shiftStart, shiftEnd] = shiftTime.includes('-')

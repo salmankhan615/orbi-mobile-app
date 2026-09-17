@@ -3,7 +3,6 @@ import {
   bookPracticalTraining,
   cancelClassBooking,
   cancelPracticalBooking,
-  getAdminPracticalBookings,
   getAvailableTrainingShifts,
   getCalendarUsersLite,
   getClassAvailability,
@@ -11,6 +10,7 @@ import {
   getClassCalendarById,
   getCourseSettings,
   getMyPracticalBookings,
+  getPracticalTrainingAdminCalendar,
   isSettingsActive,
   markClassAttendance,
   markPracticalAttendance,
@@ -158,16 +158,24 @@ function bookingStudentName(
   return 'Student';
 }
 
+/** Local calendar day — avoid UTC `toISOString()` shifting the date in PK/UAE/etc. */
+function localDayFromDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 /** Local helper — do not import `toISODate` from `@/utils/date` (name clash). */
 function toISODate(value: unknown): string {
   if (!value) return '';
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
+    return localDayFromDate(value);
   }
   if (typeof value === 'string') {
     if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
     const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+    if (!Number.isNaN(parsed.getTime())) return localDayFromDate(parsed);
   }
   return '';
 }
@@ -522,64 +530,80 @@ async function listStaffClassBookings(): Promise<Booking[]> {
 }
 
 async function listStaffTrainingBookings(): Promise<Booking[]> {
-  // Optional / secondary — keep off the critical path of listAll.
+  // Same admin calendar day payload the web location-detail uses.
   const date = toISODate(new Date());
   const [raw, settings] = await Promise.all([
-    getAdminPracticalBookings({ date }),
+    getPracticalTrainingAdminCalendar({ startDate: date, endDate: date }),
     getCourseSettings().catch(() => ({ classes: [], locations: [], categories: [] })),
   ]);
-  return mapAdminPracticalBookings(raw, buildTitleMaps(settings)).slice(0, 40);
+  return mapAdminCalendarBookings(raw, buildTitleMaps(settings)).slice(0, 40);
 }
 
-/** Fix student id/name on admin practical rows (student populated). */
-function mapAdminPracticalBookings(raw: unknown, maps: TitleMaps): Booking[] {
-  return asList(raw).map((item, index) => {
+/**
+ * Flatten `/practical-training/bookings/calendar/admin` FullCalendar rows
+ * (`extendedProps.shifts[].bookings[]`) into staff Booking cards.
+ */
+function mapAdminCalendarBookings(raw: unknown, maps: TitleMaps): Booking[] {
+  const out: Booking[] = [];
+  for (const item of asList(raw)) {
     const row = asRecord(item) ?? {};
-    const bookingId = idOf(row.bookingId ?? row._id ?? row.id) ?? `pt-${index}`;
-    const dayId = idOf(row.dayId ?? row.day ?? row.practicalDay) ?? '';
-    const shiftRecord = asRecord(row.shift);
-    const shiftId = idOf(shiftRecord?._id ?? shiftRecord?.id ?? row.shiftId) ?? '';
-    const shiftName = str(shiftRecord?.name, shiftRecord?.title, row.shiftName, row.shift);
-    const [shiftStart, shiftEnd] = splitShiftTime(row.shiftTime);
-    const locationRecord = asRecord(row.location);
-    const locationId = idOf(row.location ?? row.locationId) ?? '';
+    const props = asRecord(row.extendedProps) ?? row;
+    const dayId =
+      idOf(props.dayId ?? row.dayId) ||
+      str(row._id, row.id).replace(/^pt-/, '') ||
+      '';
+    const locationId = idOf(props.locationId ?? row.locationId) ?? '';
     const locationLabel =
-      str(row.locationName, locationRecord?.title, locationRecord?.name) ||
+      str(props.locationName, row.locationName) ||
       maps.locations.get(locationId) ||
+      str(row.title).replace(/\s*\(\d+\)\s*$/, '') ||
       '—';
-    const date = toISODate(row.date ?? row.classDate ?? row.trainingDate);
-    const bookingDate = toISODate(row.bookedAt ?? row.bookingDate ?? row.createdAt);
-    const seat = Number(row.seat);
-    const attendanceRaw = str(row.attendance);
-    const studentRecord = asRecord(row.student) ?? asRecord(row.user);
-    const studentId = str(idOf(studentRecord), idOf(row.student), row.studentId);
-
-    return {
-      id: `training:${dayId || date || bookingId}:${bookingId}`,
-      slotId: shiftId || bookingId,
-      studentName: bookingStudentName(row, studentId),
-      studentId: studentId || 'unknown',
-      kind: 'training' as const,
-      typeLabel: 'Practical Training',
-      title: shiftName || locationLabel || 'Training',
-      date,
-      dateLabel: formatPortalDate(date),
-      startTime: formatClock(shiftRecord?.startTime ?? (shiftStart || row.startTime)),
-      endTime: formatClock(shiftRecord?.endTime ?? (shiftEnd || row.endTime)),
-      locationLabel,
-      bookingDate,
-      bookingDateLabel: formatPortalDate(bookingDate),
-      seat: Number.isFinite(seat) ? seat : undefined,
-      status: mapStatus(row.status),
-      statusLabel: mapStatusLabel(row.status),
-      attendance: mapAttendance(attendanceRaw),
-      attendanceLabel: attendanceRaw || undefined,
-      shiftId: shiftId || undefined,
-      shiftName: shiftName || undefined,
-      dayId: dayId || undefined,
-      bookingId,
-    };
-  });
+    const date = toISODate(props.classDate ?? row.classDate ?? row.date) || '';
+    for (const group of asArray(props.shifts)) {
+      const entry = asRecord(group);
+      if (!entry) continue;
+      const shiftRecord = asRecord(entry.shift) ?? entry;
+      const shiftId = idOf(shiftRecord?._id ?? shiftRecord?.id) ?? '';
+      const shiftName = str(shiftRecord?.name, shiftRecord?.title, 'Training');
+      for (const booking of asArray(entry.bookings)) {
+        const b = asRecord(booking);
+        if (!b) continue;
+        const bookingId = idOf(b._id ?? b.id ?? b.bookingId);
+        if (!bookingId) continue;
+        const studentRecord = asRecord(b.student) ?? asRecord(b.user);
+        const studentId = str(idOf(studentRecord), idOf(b.student), b.studentId);
+        const seat = Number(b.seat);
+        const attendanceRaw = str(b.attendance);
+        const bookingDate = toISODate(b.bookedAt ?? b.createdAt);
+        out.push({
+          id: `training:${dayId || date || bookingId}:${bookingId}`,
+          slotId: shiftId || bookingId,
+          studentName: bookingStudentName(b, studentId),
+          studentId: studentId || 'unknown',
+          kind: 'training',
+          typeLabel: 'Practical Training',
+          title: shiftName || locationLabel || 'Training',
+          date,
+          dateLabel: formatPortalDate(date),
+          startTime: formatClock(shiftRecord?.startTime ?? entry.startTime),
+          endTime: formatClock(shiftRecord?.endTime ?? entry.endTime),
+          locationLabel,
+          bookingDate,
+          bookingDateLabel: formatPortalDate(bookingDate),
+          seat: Number.isFinite(seat) ? seat : undefined,
+          status: mapStatus(b.status),
+          statusLabel: mapStatusLabel(b.status),
+          attendance: mapAttendance(attendanceRaw),
+          attendanceLabel: attendanceRaw || undefined,
+          shiftId: shiftId || undefined,
+          shiftName: shiftName || undefined,
+          dayId: dayId || undefined,
+          bookingId,
+        });
+      }
+    }
+  }
+  return out;
 }
 
 /** `shiftTime` arrives as "09:00 - 13:00" on flattened practical rows. */
@@ -783,32 +807,47 @@ export const bookingsApi = {
             })),
             getCalendarUsersLite().catch(() => []),
           ]);
+          const root = asRecord(raw);
+          const classRow = asRecord(root?.data) ?? root;
+          if (!classRow) return undefined;
           const roster = mapStaffClassBookings(
-            [raw],
+            [classRow],
             buildTitleMaps(settings),
             buildUserNameMap(usersLite),
           );
           return (
-            roster.find((item) => item.id === id || item.bookingId === bookingKey) ?? roster[0]
+            roster.find((item) => item.id === id || item.bookingId === bookingKey) ??
+            roster.find((item) => item.classId === classId) ??
+            undefined
           );
         } catch {
           return undefined;
         }
       }
       if (id.startsWith('training:')) {
-        const [, dayId, bookingId] = id.split(':');
+        const parts = id.split(':');
+        const dayId = parts[1];
+        const bookingId = parts.slice(2).join(':');
         if (!dayId || !bookingId) return undefined;
-        // Admin list needs a date; dayId is not always a date — try today.
-        const raw = await getAdminPracticalBookings({ date: toISODate(new Date()) });
-        const maps = buildTitleMaps(
-          await getCourseSettings().catch(() => ({
+        // Prefer a single day when the id encodes YYYY-MM-DD; otherwise scan a short window.
+        const range = /^\d{4}-\d{2}-\d{2}$/.test(dayId)
+          ? { startDate: dayId, endDate: dayId }
+          : getRollingDateRange(1, 1);
+        const [raw, settings] = await Promise.all([
+          getPracticalTrainingAdminCalendar({
+            startDate: range.startDate,
+            endDate: range.endDate,
+          }),
+          getCourseSettings().catch(() => ({
             classes: [],
             locations: [],
             categories: [],
           })),
-        );
-        return mapAdminPracticalBookings(raw, maps).find(
-          (item) => item.id === id || (item.dayId === dayId && item.bookingId === bookingId),
+        ]);
+        const roster = mapAdminCalendarBookings(raw, buildTitleMaps(settings));
+        return (
+          roster.find((item) => item.id === id) ??
+          roster.find((item) => item.dayId === dayId && item.bookingId === bookingId)
         );
       }
       return undefined;

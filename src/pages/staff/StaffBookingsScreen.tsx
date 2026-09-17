@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { Text } from '@/components/ui/Text';
 import { Screen } from '@/components/custom/Screen';
 import { EmptyState } from '@/components/custom/EmptyState';
@@ -7,7 +8,7 @@ import { EntityRow } from '@/components/custom/EntityRow';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScalePressable } from '@/components/custom/ScalePressable';
-import { useStaffBookings } from '@/queries/useBookings';
+import { bookingKeys, useStaffBookings } from '@/queries/useBookings';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import type { BookingKind } from '@/api/bookings';
@@ -25,6 +26,7 @@ export function StaffBookingsScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const allowed = useHasPermission('view_bookings');
   const { data, isLoading } = useStaffBookings();
+  const client = useQueryClient();
   const [tab, setTab] = useState<BookingKind>('class');
 
   const bookings = data ?? [];
@@ -94,9 +96,10 @@ export function StaffBookingsScreen({ navigation }: Props) {
                     label: booking.attendance ?? booking.status,
                     tone: booking.status === 'cancelled' ? 'danger' : 'success',
                   }}
-                  onPress={() =>
-                    navigation.navigate('StaffBookingDetail', { bookingId: booking.id })
-                  }
+                  onPress={() => {
+                    client.setQueryData(bookingKeys.detail(booking.id), booking);
+                    navigation.navigate('StaffBookingDetail', { bookingId: booking.id });
+                  }}
                 />
               )}
             />

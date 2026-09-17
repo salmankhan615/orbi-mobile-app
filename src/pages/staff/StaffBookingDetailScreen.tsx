@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { StackScreen } from '@/components/custom/StackScreen';
-import { Spinner } from '@/components/ui/Spinner';
+import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { useBooking, useCancelBooking, useMarkAttendance } from '@/queries/useBookings';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useToastStore } from '@/store/useToastStore';
@@ -14,7 +14,7 @@ type Props = RootStackScreenProps<'StaffBookingDetail'>;
 
 export function StaffBookingDetailScreen({ route, navigation }: Props) {
   const canView = useHasPermission('view_bookings');
-  const { data, isLoading } = useBooking(route.params.bookingId);
+  const { data, isLoading, isError, isFetching } = useBooking(route.params.bookingId);
   const canAttend = useHasPermission('mark_attendance');
   const canCancel = useHasPermission('cancel_booking');
   const mark = useMarkAttendance();
@@ -31,10 +31,34 @@ export function StaffBookingDetailScreen({ route, navigation }: Props) {
     );
   }
 
-  if (isLoading || !data) {
+  if ((isLoading || isFetching) && !data) {
     return (
       <StackScreen title="Booking">
-        <Spinner fill label="Loading booking…" />
+        <EntityListSkeleton rows={3} />
+      </StackScreen>
+    );
+  }
+
+  if (isError && !data) {
+    return (
+      <StackScreen title="Booking">
+        <Text variant="body" color="textMuted">
+          This booking could not be loaded.
+        </Text>
+        <Button
+          label="Go back"
+          variant="outline"
+          onPress={() => navigation.goBack()}
+          style={styles.cancel}
+        />
+      </StackScreen>
+    );
+  }
+
+  if (!data) {
+    return (
+      <StackScreen title="Booking">
+        <EntityListSkeleton rows={3} />
       </StackScreen>
     );
   }
@@ -51,8 +75,13 @@ export function StaffBookingDetailScreen({ route, navigation }: Props) {
         {data.seat != null ? ` · Seat ${data.seat}` : ''}
       </Text>
       <Text variant="bodySmall" color="textMuted">
-        {data.date} · {data.startTime}–{data.endTime}
+        {data.dateLabel || data.date} · {data.startTime}–{data.endTime}
       </Text>
+      {data.locationLabel ? (
+        <Text variant="bodySmall" color="textMuted" style={styles.location}>
+          {data.locationLabel}
+        </Text>
+      ) : null}
       <View style={styles.badges}>
         <Badge
           label={data.statusLabel || data.status}
@@ -130,6 +159,9 @@ const styles = StyleSheet.create({
   meta: {
     marginTop: tokens.spacing.sm,
     marginBottom: tokens.spacing.xs,
+  },
+  location: {
+    marginTop: tokens.spacing.xs,
   },
   badges: {
     flexDirection: 'row',

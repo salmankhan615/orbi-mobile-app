@@ -4,7 +4,6 @@ import {
   createPracticalShift,
   deleteCalendarClosure,
   deletePracticalShift,
-  getAdminPracticalBookings,
   getAgreementSubmissions,
   getAllPaymentPlans,
   getCalendarClosures,
@@ -17,6 +16,7 @@ import {
   getGroupStaffOptions,
   getGroupStudents,
   getPracticalShifts,
+  getPracticalTrainingAdminCalendar,
   getStaffCoursework,
   getStaffGroups,
   getUsersByType,
@@ -209,6 +209,7 @@ export interface BookingShift {
   startTime: string;
   endTime: string;
   location: string;
+  locationId?: string;
   seat?: number;
   status: 'active' | 'cancelled';
   statusLabel: string;
@@ -907,54 +908,66 @@ export const staffApi = {
   },
 
   async shifts(date?: string): Promise<BookingShift[]> {
-    // Always scope by date — unfiltered admin/bookings loads every training day ever.
+    // Web location-day detail uses `/bookings/calendar/admin?startDate&endDate`.
     const day = date || toISODate(new Date());
-    const raw = await getAdminPracticalBookings({ date: day });
+    const raw = await getPracticalTrainingAdminCalendar({ startDate: day, endDate: day });
     const out: BookingShift[] = [];
     const seen = new Set<string>();
     for (const item of unwrapList(raw)) {
       const row = asRecord(item);
       if (!row) continue;
-      const bookingId = idOf(row.bookingId ?? row._id ?? row.id);
-      const dayId = idOf(row.dayId ?? row.day ?? row.practicalDay) ?? '';
-      if (!bookingId || seen.has(`${dayId}:${bookingId}`)) continue;
-      seen.add(`${dayId}:${bookingId}`);
-      const shift = asRecord(row.shift);
-      const student = asRecord(row.student) ?? asRecord(row.user);
-      const location = asRecord(row.location);
-      const bookedBy = asRecord(row.bookedBy);
-      const statusRaw = str(row.status).toLowerCase();
-      const cancelled = statusRaw.includes('cancel');
-      const seat = Number(row.seat);
-      const shiftTime = str(row.shiftTime);
-      let startTime = formatClock(shift?.startTime ?? row.startTime);
-      let endTime = formatClock(shift?.endTime ?? row.endTime);
-      if ((startTime === '—' || endTime === '—') && shiftTime.includes('-')) {
-        const [start = '', end = ''] = shiftTime.split('-').map((part) => part.trim());
-        if (start) startTime = formatClock(start);
-        if (end) endTime = formatClock(end);
+      const props = asRecord(row.extendedProps) ?? row;
+      const dayId =
+        idOf(props.dayId ?? row.dayId) ||
+        str(row._id, row.id).replace(/^pt-/, '') ||
+        '';
+      const locationId = idOf(props.locationId ?? row.locationId) ?? undefined;
+      const location =
+        str(props.locationName, row.locationName) ||
+        str(row.title).replace(/\s*\(\d+\)\s*$/, '') ||
+        '—';
+      const classDate = toISODay(props.classDate ?? row.classDate) || day;
+      for (const group of asArray(props.shifts)) {
+        const entry = asRecord(group);
+        if (!entry) continue;
+        const shift = asRecord(entry.shift) ?? entry;
+        const shiftName = str(shift.name, shift.title, 'Training shift');
+        const startTime = formatClock(shift.startTime ?? entry.startTime);
+        const endTime = formatClock(shift.endTime ?? entry.endTime);
+        const isOverridden = Boolean(shift.isOverridden ?? entry.isOverridden);
+        for (const booking of asArray(entry.bookings)) {
+          const b = asRecord(booking);
+          if (!b) continue;
+          const bookingId = idOf(b._id ?? b.id ?? b.bookingId);
+          if (!bookingId || seen.has(`${dayId}:${bookingId}`)) continue;
+          seen.add(`${dayId}:${bookingId}`);
+          const student = asRecord(b.student) ?? asRecord(b.user);
+          const statusRaw = str(b.status).toLowerCase();
+          const cancelled = statusRaw.includes('cancel');
+          const seat = Number(b.seat);
+          out.push({
+            id: `training:${dayId || classDate}:${bookingId}`,
+            dayId,
+            bookingId,
+            studentId: idOf(student?._id ?? student?.id ?? b.studentId) ?? undefined,
+            studentName: personName(student) || str(b.studentName, 'Student'),
+            studentEmail: str(student?.email, b.studentEmail) || undefined,
+            shiftName,
+            date: classDate,
+            startTime,
+            endTime,
+            location,
+            locationId,
+            seat: Number.isFinite(seat) ? seat : undefined,
+            status: cancelled ? 'cancelled' : 'active',
+            statusLabel: str(b.status, cancelled ? 'Cancelled' : 'Active'),
+            attendance: str(b.attendance) || undefined,
+            bookedAt: formatCourseworkDate(b.bookedAt ?? b.createdAt) || undefined,
+            cancelledAt: formatCourseworkDate(b.cancelledAt) || undefined,
+            isOverridden,
+          });
+        }
       }
-      out.push({
-        id: `training:${dayId || day}:${bookingId}`,
-        dayId,
-        bookingId,
-        studentId: idOf(student?._id ?? student?.id ?? row.studentId) ?? undefined,
-        studentName: personName(student) || str(row.studentName, 'Student'),
-        studentEmail: str(student?.email, row.studentEmail) || undefined,
-        shiftName: str(shift?.name, shift?.title, row.shiftName, row.shift, 'Training shift'),
-        date: toISODay(row.date) || day,
-        startTime,
-        endTime,
-        location: str(row.locationName, location?.title, location?.name, row.location) || '—',
-        seat: Number.isFinite(seat) ? seat : undefined,
-        status: cancelled ? 'cancelled' : 'active',
-        statusLabel: str(row.status, cancelled ? 'Cancelled' : 'Active'),
-        attendance: str(row.attendance) || undefined,
-        bookedAt: formatCourseworkDate(row.bookedAt ?? row.createdAt) || undefined,
-        bookedByName: personName(bookedBy) !== '—' ? personName(bookedBy) : undefined,
-        cancelledAt: formatCourseworkDate(row.cancelledAt) || undefined,
-        isOverridden: Boolean(shift?.isOverridden ?? row.isOverridden),
-      });
     }
     return out.sort(
       (a, b) =>

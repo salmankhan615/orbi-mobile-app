@@ -58,10 +58,14 @@ export function useBooking(id: string) {
   return useQuery({
     queryKey: bookingKeys.detail(id),
     queryFn: async () => {
+      const cachedDetail = client.getQueryData<Booking>(bookingKeys.detail(id));
+      if (cachedDetail) return cachedDetail;
       const cachedStaff = client.getQueryData<Booking[]>(bookingKeys.staff);
       const fromStaff = cachedStaff?.find((item) => item.id === id);
       if (fromStaff) return fromStaff;
-      return bookingsApi.getById(id);
+      const found = await bookingsApi.getById(id);
+      if (!found) throw new Error('Booking not found');
+      return found;
     },
     enabled: Boolean(id),
     staleTime: 30_000,
