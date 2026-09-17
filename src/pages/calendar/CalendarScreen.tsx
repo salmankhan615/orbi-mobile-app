@@ -27,6 +27,7 @@ import {
 } from '@/utils/date';
 import { useIsStaff, useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { useToastStore } from '@/store/useToastStore';
 import { smoothScrollProps } from '@/utils/scroll';
 import type { MainTabScreenProps } from '@/navigation/types';
 
@@ -55,6 +56,10 @@ export function CalendarScreen({ navigation }: Props) {
   const [selectedCalendarId, setSelectedCalendarId] = useState('all');
   const isStaff = useIsStaff();
   const canClose = useHasPermission('close_calendar');
+  const canShifts = useHasPermission('view_shifts');
+  const canViewBookings = useHasPermission('view_bookings');
+  const canEditCalendar = useHasPermission('edit_calendar');
+  const showToast = useToastStore((state) => state.show);
   const [viewMode, setViewMode] = useState<ViewMode>('Month');
   const [cursor, setCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => toISODate(new Date()));
@@ -139,20 +144,60 @@ export function CalendarScreen({ navigation }: Props) {
     setSheetOpen(false);
   }
 
+  function openSession(session: Session) {
+    if (!isStaff) {
+      navigation.navigate('SessionDetails', { sessionId: session.id });
+      return;
+    }
+    if (session.kind === 'training') {
+      if (!canViewBookings) {
+        showToast("You don't have permission to view bookings for this location.", 'danger');
+        return;
+      }
+      navigation.navigate('TrainingLocationBookings', {
+        date: session.date,
+        locationName: session.location || session.code || 'Location',
+        locationId: session.locationId,
+        dayId: session.dayId,
+      });
+      return;
+    }
+    if (canEditCalendar) {
+      navigation.navigate('EditTimetable', { classId: session.id });
+      return;
+    }
+    showToast("You don't have permission to edit this class.", 'danger');
+  }
+
   return (
     <Screen style={styles.screen}>
       <View style={styles.header}>
-        <Text variant="heading">My Calendar</Text>
-        {isStaff && canClose ? (
-          <IconButton
-            name="close-circle-outline"
-            background="surfaceAlt"
-            onPress={() => navigation.navigate('CloseCalendar')}
-          />
-        ) : (
-          <View style={styles.headerSpacer} />
-        )}
+        <Text variant="heading">{isStaff ? 'Calendar' : 'My Calendar'}</Text>
+        <View style={styles.headerSpacer} />
       </View>
+
+      {isStaff && (canShifts || canClose) ? (
+        <View style={styles.staffActions}>
+          {canShifts ? (
+            <Button
+              label="Shifts"
+              icon="time-outline"
+              variant="primary"
+              onPress={() => navigation.navigate('PracticalShifts')}
+              style={styles.staffActionBtn}
+            />
+          ) : null}
+          {canClose ? (
+            <Button
+              label="Closures"
+              icon="close-circle-outline"
+              variant="primary"
+              onPress={() => navigation.navigate('CloseCalendar')}
+              style={styles.staffActionBtn}
+            />
+          ) : null}
+        </View>
+      ) : null}
 
       {calendars && calendars.length > 0 ? (
         <CalendarPicker
@@ -279,7 +324,7 @@ export function CalendarScreen({ navigation }: Props) {
                     key={session.id}
                     session={session}
                     index={index}
-                    onPress={() => navigation.navigate('SessionDetails', { sessionId: session.id })}
+                    onPress={() => openSession(session)}
                   />
                 ))}
 
@@ -324,7 +369,7 @@ export function CalendarScreen({ navigation }: Props) {
                     index={index}
                     hideDate
                     showChevron
-                    onPress={() => navigation.navigate('SessionDetails', { sessionId: session.id })}
+                    onPress={() => openSession(session)}
                   />
                 ))}
               </View>
@@ -378,7 +423,7 @@ export function CalendarScreen({ navigation }: Props) {
                   showChevron
                   onPress={() => {
                     setSheetOpen(false);
-                    navigation.navigate('SessionDetails', { sessionId: session.id });
+                    openSession(session);
                   }}
                 />
               ))}
@@ -415,6 +460,15 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 40,
+  },
+  staffActions: {
+    flexDirection: 'row',
+    gap: tokens.spacing.sm,
+    marginBottom: tokens.spacing.md,
+  },
+  staffActionBtn: {
+    flex: 1,
+    minHeight: 44,
   },
   controls: {
     flexDirection: 'row',

@@ -166,6 +166,32 @@ export async function getClassCalendarById(id: string) {
   return apiClient.get<unknown>(`/api/calendar/crm/getClassCalendarById/${encodeURIComponent(id)}`);
 }
 
+export type UpdateClassCalendarPayload = {
+  classType?: string;
+  location?: string | null;
+  room?: string;
+  instructor?: string | null;
+  classDate?: string;
+  bookingLimit?: number | string;
+  link?: string;
+  startTime?: string;
+  endTime?: string;
+  status?: string;
+  eventType?: string;
+  date?: string;
+  cateId?: string;
+  groupId?: string | null;
+  companyId?: string;
+  scope?: string;
+};
+
+export async function updateClassCalendar(classId: string, payload: UpdateClassCalendarPayload) {
+  return apiClient.patch<{ success?: boolean; data?: unknown; message?: string }>(
+    `/api/calendar/crm/updateClassCalendar/${encodeURIComponent(classId)}`,
+    payload,
+  );
+}
+
 /** Full class catalog used by CRM book-class flows. */
 export async function getCalendarData() {
   return apiClient.get<unknown[]>('/api/calendar/crm/getCalendarData');
@@ -403,6 +429,52 @@ export async function getPracticalTrainingAdminCalendar(params: {
   qs.set('endDate', params.endDate);
   return apiClient.get<unknown>(
     `/api/practical-training/bookings/calendar/admin?${qs.toString()}`,
+  );
+}
+
+export type PracticalShiftPayload = {
+  name: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  defaultBookingLimit: number | string;
+  color?: string;
+  daysOfWeek?: number[];
+  allowedAccessTypes?: string[];
+  isActive?: boolean;
+};
+
+/** Shift schedule definitions (`calendar.manageShifts`). */
+export async function getPracticalShifts(params?: {
+  location?: string;
+  isActive?: string;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.location) qs.set('location', params.location);
+  if (params?.isActive) qs.set('isActive', params.isActive);
+  const query = qs.toString() ? `?${qs.toString()}` : '';
+  return apiClient.get<{ success?: boolean; data?: unknown[] }>(
+    `/api/practical-training/shifts${query}`,
+  );
+}
+
+export async function createPracticalShift(payload: PracticalShiftPayload) {
+  return apiClient.post<{ success?: boolean; data?: unknown; message?: string }>(
+    '/api/practical-training/shifts',
+    payload,
+  );
+}
+
+export async function updatePracticalShift(shiftId: string, payload: PracticalShiftPayload) {
+  return apiClient.put<{ success?: boolean; data?: unknown; message?: string }>(
+    `/api/practical-training/shifts/${encodeURIComponent(shiftId)}`,
+    payload,
+  );
+}
+
+export async function deletePracticalShift(shiftId: string) {
+  return apiClient.delete<{ success?: boolean; message?: string }>(
+    `/api/practical-training/shifts/${encodeURIComponent(shiftId)}`,
   );
 }
 

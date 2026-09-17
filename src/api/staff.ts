@@ -1,22 +1,28 @@
 import {
   addCalendarClosure,
   assignGroupStaff,
+  createPracticalShift,
   deleteCalendarClosure,
+  deletePracticalShift,
   getAdminPracticalBookings,
   getAgreementSubmissions,
   getAllPaymentPlans,
   getCalendarClosures,
   getCalendarUsersLite,
+  getCourseSettings,
   getCourseworkSubmissions,
   getCrmCourses,
   getGroupDetail,
   getGroupSessions,
   getGroupStaffOptions,
   getGroupStudents,
+  getPracticalShifts,
   getStaffCoursework,
   getStaffGroups,
   getUsersByType,
   removeGroupStaff,
+  updatePracticalShift,
+  type PracticalShiftPayload,
 } from '@/api/crm';
 import { API_BASE_URL } from '@/api/config';
 import { formatCourseworkDate } from '@/api/coursework';
@@ -213,6 +219,23 @@ export interface BookingShift {
   isOverridden?: boolean;
 }
 
+/** Practical training shift schedule definition (`calendar.manageShifts`). */
+export interface PracticalShiftDefinition {
+  id: string;
+  name: string;
+  locationId: string;
+  locationName: string;
+  startTime: string;
+  endTime: string;
+  defaultBookingLimit: number;
+  color: string;
+  daysOfWeek: number[];
+  allowedAccessTypes: string[];
+  isActive: boolean;
+}
+
+export type PracticalShiftInput = PracticalShiftPayload;
+
 type UnknownRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): UnknownRecord | null {
@@ -273,6 +296,85 @@ function formatClock(value: unknown): string {
   const match = raw.match(/^(\d{1,2}):(\d{2})/);
   if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
   return raw;
+}
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+function mapDaysOfWeek(raw: unknown): number[] {
+  const out: number[] = [];
+  for (const item of asArray(raw)) {
+    if (typeof item === 'number' && item >= 0 && item <= 6) {
+      out.push(item);
+      continue;
+    }
+    const label = str(item).slice(0, 3);
+    const index = DAY_LABELS.findIndex((day) => day.toLowerCase() === label.toLowerCase());
+    if (index >= 0) out.push(index);
+  }
+  return [...new Set(out)].sort((a, b) => a - b);
+}
+
+function mapAccessTypes(raw: unknown): string[] {
+  const allowed = new Set(['Online', 'Hybrid', 'Center']);
+  const out: string[] = [];
+  for (const item of asArray(raw)) {
+    const value = str(item);
+    if (!value) continue;
+    const match = [...allowed].find((option) => option.toLowerCase() === value.toLowerCase());
+    if (match && !out.includes(match)) out.push(match);
+  }
+  return out;
+}
+
+function mapPracticalShift(
+  raw: unknown,
+  locations: Map<string, string>,
+): PracticalShiftDefinition | null {
+  const row = asRecord(raw);
+  if (!row) return null;
+  const id = idOf(row._id ?? row.id);
+  if (!id) return null;
+
+  const locationRaw = row.location ?? row.locationId;
+  const locationRecord = asRecord(locationRaw);
+  const locationId =
+    idOf(locationRecord?._id ?? locationRecord?.id ?? locationRaw) ?? str(locationRaw);
+  const locationName =
+    str(locationRecord?.title, locationRecord?.name, row.locationName, row.locationTitle) ||
+    locations.get(locationId) ||
+    (locationId && !/^[a-f0-9]{24}$/i.test(locationId) ? locationId : '') ||
+    'Location';
+
+  const limit = num(row.defaultBookingLimit ?? row.defaultLimit ?? row.bookingLimit);
+  const isActive =
+    row.isActive === true ||
+    row.isActive === 'true' ||
+    str(row.status).toLowerCase() === 'active' ||
+    (row.isActive == null && str(row.status).toLowerCase() !== 'inactive');
+
+  return {
+    id,
+    name: str(row.name, row.title, 'Shift'),
+    locationId,
+    locationName,
+    startTime: formatClock(row.startTime),
+    endTime: formatClock(row.endTime),
+    defaultBookingLimit: limit > 0 ? limit : 15,
+    color: str(row.color, '#3788d8') || '#3788d8',
+    daysOfWeek: mapDaysOfWeek(row.daysOfWeek ?? row.activeDays ?? row.days),
+    allowedAccessTypes: mapAccessTypes(row.allowedAccessTypes ?? row.accessTypes),
+    isActive,
+  };
+}
+
+export function formatShiftDays(days: number[]): string {
+  if (days.length === 0) return 'All days';
+  return days.map((day) => DAY_LABELS[day] ?? String(day)).join(', ');
+}
+
+export function formatShiftAccess(types: string[]): string {
+  if (types.length === 0) return 'All access';
+  return types.join(', ');
 }
 
 /** CRM list uses `in-active`; tabs/filters use `inactive`. */
@@ -858,6 +960,37 @@ export const staffApi = {
       (a, b) =>
         a.startTime.localeCompare(b.startTime) || a.studentName.localeCompare(b.studentName),
     );
+  },
+
+  async practicalShifts(params?: {
+    location?: string;
+    isActive?: string;
+  }): Promise<PracticalShiftDefinition[]> {
+    const [raw, settings] = await Promise.all([
+      getPracticalShifts(params),
+      getCourseSettings().catch(() => ({ locations: [] as { _id: string; title: string }[] })),
+    ]);
+    const locations = new Map(
+      (settings.locations ?? []).map((item) => [String(item._id), item.title || 'Location']),
+    );
+    const out: PracticalShiftDefinition[] = [];
+    for (const item of unwrapList(raw)) {
+      const mapped = mapPracticalShift(item, locations);
+      if (mapped) out.push(mapped);
+    }
+    return out;
+  },
+
+  async createPracticalShift(payload: PracticalShiftInput) {
+    return createPracticalShift(payload);
+  },
+
+  async updatePracticalShift(shiftId: string, payload: PracticalShiftInput) {
+    return updatePracticalShift(shiftId, payload);
+  },
+
+  async deletePracticalShift(shiftId: string) {
+    return deletePracticalShift(shiftId);
   },
 
   async closedDays(): Promise<string[]> {

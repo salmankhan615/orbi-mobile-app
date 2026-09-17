@@ -85,7 +85,9 @@ function BookingDetailsContent({
   const showToast = useToastStore((state) => state.show);
   const booked = isActiveBooking(session);
   const past = isPastSession(session);
-  const canBook = !booked && !past && session.kind !== 'training';
+  const canBook =
+    user?.role !== 'staff' && !booked && !past && session.kind !== 'training';
+  const canCancelOwn = user?.role !== 'staff' && booked && !past;
 
   const availabilityQuery = useClassAvailability(session.id, canBook);
   const book = useBookSlot();
@@ -212,7 +214,7 @@ function BookingDetailsContent({
             ) : null}
           </View>
 
-          {booked ? (
+          {booked && user?.role !== 'staff' ? (
             <View style={styles.confirmedBox}>
               <View style={styles.confirmedCopy}>
                 <Ionicons
@@ -229,7 +231,7 @@ function BookingDetailsContent({
                   </Text>
                 </View>
               </View>
-              {!past ? (
+              {canCancelOwn ? (
                 <Button
                   label="Cancel Booking"
                   variant="outline"
@@ -242,7 +244,7 @@ function BookingDetailsContent({
             </View>
           ) : null}
 
-          {past && !booked ? (
+          {past && !booked && user?.role !== 'staff' ? (
             <View style={styles.pastBox}>
               <Ionicons name="warning" size={20} color={tokens.colors.warning} />
               <View style={styles.pastText}>

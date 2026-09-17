@@ -136,11 +136,25 @@ export function mapStaffPermissions(input: StaffPermissionInput): StaffPermissio
 
   if (hasEmsAction(ems, 'calendar', 'viewBookings') || hasEmsAction(ems, 'calendar', 'view')) {
     granted.add('view_bookings');
+    granted.add('view_calendar');
   }
   if (hasEmsAction(ems, 'calendar', 'markAttendance')) granted.add('mark_attendance');
   if (hasEmsAction(ems, 'calendar', 'cancelBooking')) granted.add('cancel_booking');
-  if (hasEmsAction(ems, 'calendar', 'closureManagement')) granted.add('close_calendar');
-  if (hasEmsAction(ems, 'calendar', 'manageShifts')) granted.add('view_shifts');
+  if (hasEmsAction(ems, 'calendar', 'edit')) {
+    granted.add('edit_calendar');
+    granted.add('view_calendar');
+  }
+  if (hasEmsAction(ems, 'calendar', 'closureManagement')) {
+    granted.add('close_calendar');
+    granted.add('view_calendar');
+  }
+  if (hasEmsAction(ems, 'calendar', 'manageShifts')) {
+    granted.add('view_shifts');
+    granted.add('view_calendar');
+  }
+  if (moduleEnabled(ems, 'calendar')) {
+    granted.add('view_calendar');
+  }
 
   if (moduleEnabled(ems, 'groups') && hasEmsAction(ems, 'groups', 'view')) {
     granted.add('view_groups');

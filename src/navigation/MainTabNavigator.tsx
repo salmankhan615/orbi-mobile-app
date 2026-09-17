@@ -18,15 +18,17 @@ export function MainTabNavigator() {
   const permissions = useAuthStore((state) => state.user?.permissions ?? []);
   const canBookings = role === 'staff' && permissions.includes('view_bookings');
   const canGroups = role === 'staff' && permissions.includes('view_groups');
+  const canCalendar = role === 'staff' && permissions.includes('view_calendar');
 
   if (role === 'staff') {
     return (
       <Tab.Navigator
-        key={`staff-tabs-${canBookings ? 'b' : ''}${canGroups ? 'g' : ''}`}
+        key={`staff-tabs-${canCalendar ? 'c' : ''}${canBookings ? 'b' : ''}${canGroups ? 'g' : ''}`}
         screenOptions={{ headerShown: false }}
         tabBar={(props) => <CustomTabBar {...props} />}
       >
         <Tab.Screen name="Home" component={StaffHomeScreen} options={{ title: 'Overview' }} />
+        {canCalendar ? <Tab.Screen name="Calendar" component={CalendarScreen} /> : null}
         {canBookings ? <Tab.Screen name="Bookings" component={StaffBookingsScreen} /> : null}
         {canGroups ? <Tab.Screen name="Groups" component={StaffGroupsScreen} /> : null}
         <Tab.Screen name="Profile" component={ProfileScreen} />

@@ -17,6 +17,8 @@ export const staffKeys = {
   invoices: ['staff', 'invoices'] as const,
   agreements: ['staff', 'agreements'] as const,
   shifts: ['staff', 'shifts'] as const,
+  practicalShifts: (filters?: { location?: string; isActive?: string }) =>
+    ['staff', 'practicalShifts', filters?.location ?? 'all', filters?.isActive ?? 'all'] as const,
   closedDays: ['staff', 'closedDays'] as const,
 };
 
@@ -167,6 +169,43 @@ export function useShifts(date?: string) {
     queryFn: () => staffApi.shifts(day),
     enabled: ready,
     ...STAFF_QUERY,
+  });
+}
+
+export function usePracticalShifts(filters?: { location?: string; isActive?: string }) {
+  const ready = useAfterInteractions();
+  const location = filters?.location || undefined;
+  const isActive = filters?.isActive || undefined;
+  return useQuery({
+    queryKey: staffKeys.practicalShifts({ location, isActive }),
+    queryFn: () => staffApi.practicalShifts({ location, isActive }),
+    enabled: ready,
+    ...STAFF_QUERY,
+  });
+}
+
+export function useCreatePracticalShift() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: staffApi.createPracticalShift,
+    onSuccess: () => client.invalidateQueries({ queryKey: ['staff', 'practicalShifts'] }),
+  });
+}
+
+export function useUpdatePracticalShift() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ shiftId, payload }: { shiftId: string; payload: Parameters<typeof staffApi.updatePracticalShift>[1] }) =>
+      staffApi.updatePracticalShift(shiftId, payload),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['staff', 'practicalShifts'] }),
+  });
+}
+
+export function useDeletePracticalShift() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: staffApi.deletePracticalShift,
+    onSuccess: () => client.invalidateQueries({ queryKey: ['staff', 'practicalShifts'] }),
   });
 }
 

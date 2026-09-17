@@ -32,6 +32,9 @@ export function openStaffTool(navigation: StaffNav, tool: StaffTool) {
     case 'CloseCalendar':
       navigation.navigate('CloseCalendar');
       return;
+    case 'PracticalShifts':
+      navigation.navigate('PracticalShifts');
+      return;
     case 'BookingShifts':
       navigation.navigate('BookingShifts');
       return;

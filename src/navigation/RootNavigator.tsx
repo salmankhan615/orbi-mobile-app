@@ -45,6 +45,10 @@ import {
 import { InvoiceDetailScreen } from '@/pages/staff/InvoiceDetailScreen';
 import { AgreementDetailScreen } from '@/pages/staff/AgreementDetailScreen';
 import { BookingShiftDetailScreen } from '@/pages/staff/BookingShiftDetailScreen';
+import { TrainingLocationBookingsScreen } from '@/pages/staff/TrainingLocationBookingsScreen';
+import { EditTimetableScreen } from '@/pages/staff/EditTimetableScreen';
+import { PracticalShiftsScreen } from '@/pages/staff/PracticalShiftsScreen';
+import { ShiftEditorScreen } from '@/pages/staff/ShiftEditorScreen';
 import { setUnauthorizedHandler } from '@/api/client';
 import { useAuthStore } from '@/store/useAuthStore';
 import { MainTabNavigator } from './MainTabNavigator';
@@ -116,8 +120,17 @@ export function RootNavigator() {
               <Stack.Screen name="Agreements" component={AgreementsScreen} />
               <Stack.Screen name="AgreementDetail" component={AgreementDetailScreen} />
               <Stack.Screen name="CloseCalendar" component={CloseCalendarScreen} />
+              <Stack.Screen name="PracticalShifts" component={PracticalShiftsScreen} />
+              <Stack.Screen name="ShiftEditor" component={ShiftEditorScreen} />
               <Stack.Screen name="BookingShifts" component={BookingShiftsScreen} />
               <Stack.Screen name="BookingShiftDetail" component={BookingShiftDetailScreen} />
+              <Stack.Screen
+                name="TrainingLocationBookings"
+                component={TrainingLocationBookingsScreen}
+              />
+              <Stack.Screen name="EditTimetable" component={EditTimetableScreen} />
+              <Stack.Screen name="DayAgenda" component={DayAgendaScreen} />
+              <Stack.Screen name="SessionDetails" component={SessionDetailsScreen} />
             </>
           ) : (
             <>

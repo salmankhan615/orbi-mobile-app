@@ -13,6 +13,8 @@ export type StaffPermission =
   | 'view_agreements'
   | 'view_announcements'
   | 'manage_announcements'
+  | 'view_calendar'
+  | 'edit_calendar'
   | 'close_calendar'
   | 'view_shifts';
 
@@ -29,6 +31,8 @@ export const ALL_STAFF_PERMISSIONS: StaffPermission[] = [
   'view_agreements',
   'view_announcements',
   'manage_announcements',
+  'view_calendar',
+  'edit_calendar',
   'close_calendar',
   'view_shifts',
 ];

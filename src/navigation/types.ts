@@ -40,6 +40,13 @@ export type RootStackParamList = {
     endTime: string;
     location: string;
   };
+  TrainingLocationBookings: {
+    date: string;
+    locationName: string;
+    locationId?: string;
+    dayId?: string;
+  };
+  EditTimetable: { classId: string };
   UserDirectory: undefined;
   UserDetail: {
     userId: string;
@@ -98,6 +105,8 @@ export type RootStackParamList = {
     artifacts?: { id: string; filename: string; type: string; url: string }[];
   };
   CloseCalendar: undefined;
+  PracticalShifts: undefined;
+  ShiftEditor: { shiftId?: string };
   BookingShifts: undefined;
   BookingShiftDetail: {
     dayId: string;

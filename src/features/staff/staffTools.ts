@@ -10,6 +10,7 @@ export type StaffToolRoute = keyof Pick<
   | 'Announcements'
   | 'AnnouncementEditor'
   | 'CloseCalendar'
+  | 'PracticalShifts'
   | 'BookingShifts'
 >;
 
@@ -26,19 +27,28 @@ export type StaffTool = {
     | 'document-attach-outline'
     | 'megaphone-outline'
     | 'create-outline'
+    | 'calendar-outline'
     | 'close-circle-outline'
     | 'time-outline';
   permission: StaffPermission;
   /** Stack route — omit for tab routes handled separately. */
   route?: StaffToolRoute;
   /** Tab name when the tool lives on the staff tab bar. */
-  tab?: 'Bookings' | 'Groups';
+  tab?: 'Bookings' | 'Groups' | 'Calendar';
   /** Extra permission for create/edit tools. */
   managePermission?: StaffPermission;
 };
 
 /** Full staff capability list — UI only shows tools the user has permission for. */
 export const STAFF_TOOLS: StaffTool[] = [
+  {
+    id: 'calendar',
+    label: 'Calendar',
+    description: 'Class schedule, closures, and shifts',
+    icon: 'calendar-outline',
+    permission: 'view_calendar',
+    tab: 'Calendar',
+  },
   {
     id: 'bookings',
     label: 'Bookings',
@@ -97,7 +107,7 @@ export const STAFF_TOOLS: StaffTool[] = [
   },
   {
     id: 'close-calendar',
-    label: 'Close calendar day',
+    label: 'Manage closures',
     description: 'Close or reopen a training/class date',
     icon: 'close-circle-outline',
     permission: 'close_calendar',
@@ -105,11 +115,11 @@ export const STAFF_TOOLS: StaffTool[] = [
   },
   {
     id: 'shifts',
-    label: 'Booking shifts',
-    description: 'Practical training seats by day',
+    label: 'Shifts',
+    description: 'Manage practical training shift schedules',
     icon: 'time-outline',
     permission: 'view_shifts',
-    route: 'BookingShifts',
+    route: 'PracticalShifts',
   },
 ];
 

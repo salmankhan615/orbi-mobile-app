@@ -4,10 +4,12 @@ import {
   getClassCalendar,
   getCalendarUsersLite,
   getCourseSettings,
+  getPracticalTrainingAdminCalendar,
   getPracticalTrainingCalendar,
 } from '@/api/crm';
 import { collectAllocatedCalendarScope } from '@/features/calendar/allocatedScope';
-import { requireStudentContext, requireUserId } from '@/api/sessionUser';
+import { requireStudentContext } from '@/api/sessionUser';
+import { useAuthStore } from '@/store/useAuthStore';
 import { toISODate } from '@/utils/date';
 
 export type SessionType = 'green' | 'red' | 'amber' | 'blue';
@@ -50,6 +52,12 @@ export interface Session {
   classTypeId?: string;
   /** Practical training vs theory class. */
   kind?: 'class' | 'training';
+  /** Staff training day id (`pt-…` / admin calendar). */
+  dayId?: string;
+  locationId?: string;
+  instructorId?: string;
+  groupId?: string;
+  statusLabel?: string;
 }
 
 export type SessionListParams = {
@@ -94,6 +102,11 @@ function str(...values: unknown[]): string {
     if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   }
   return '';
+}
+
+function num(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
 /** CRM stores start/end as ISO datetimes — show 12-hour clock for combineDateAndTime. */
@@ -247,18 +260,23 @@ export function sessionStatusBadge(session: Session): { label: string; tone: Bad
 export const sessionsApi = {
   async list(params: SessionListParams): Promise<Session[]> {
     const { startDate, endDate, calendarId } = params;
-    const studentId = requireUserId();
+    const user = useAuthStore.getState().user;
+    const isStaff = user?.role === 'staff';
+    const studentId = user?.id;
+    if (!studentId) throw new Error('Not signed in.');
 
     let classTypeAllow: Set<string> | null = null;
     let categoryAllow: Set<string> | null = null;
-    try {
-      const { userId, companyId } = requireStudentContext();
-      const allocated = await getAllocatedCourses(userId, companyId, { slim: true });
-      const scope = collectAllocatedCalendarScope(asArray(asRecord(allocated)?.data ?? allocated));
-      if (scope.classTypeIds.size > 0) classTypeAllow = scope.classTypeIds;
-      if (scope.categoryIds.size > 0) categoryAllow = scope.categoryIds;
-    } catch {
-      // Non-students or missing company: show unfiltered calendar range.
+    if (!isStaff) {
+      try {
+        const { userId, companyId } = requireStudentContext();
+        const allocated = await getAllocatedCourses(userId, companyId, { slim: true });
+        const scope = collectAllocatedCalendarScope(asArray(asRecord(allocated)?.data ?? allocated));
+        if (scope.classTypeIds.size > 0) classTypeAllow = scope.classTypeIds;
+        if (scope.categoryIds.size > 0) categoryAllow = scope.categoryIds;
+      } catch {
+        // Missing company: show unfiltered calendar range.
+      }
     }
 
     const [settings, calendarRaw, practicalRaw, usersLite] = await Promise.all([
@@ -266,13 +284,13 @@ export const sessionsApi = {
       getClassCalendar({
         startDate,
         endDate,
-        viewAsStudentId: studentId,
         slim: true,
+        // Staff custom calendar is company-wide — omit student scope.
+        ...(isStaff ? {} : { viewAsStudentId: studentId }),
       }),
-      getPracticalTrainingCalendar({
-        startDate,
-        endDate,
-      }).catch(() => ({ data: [] as unknown[] })),
+      isStaff
+        ? getPracticalTrainingAdminCalendar({ startDate, endDate }).catch(() => ({ data: [] }))
+        : getPracticalTrainingCalendar({ startDate, endDate }).catch(() => ({ data: [] as unknown[] })),
       getCalendarUsersLite().catch(() => [] as unknown[]),
     ]);
 
@@ -324,7 +342,7 @@ export const sessionsApi = {
         'Class session';
 
       const locationId = idOf(row.location) || str(row.location);
-      const instructorId = idOf(row.instructor) || str(row.instructor);
+        const instructorId = idOf(row.instructor) || str(row.instructor);
       const link = str(row.link, row.classLink, row.joinUrl, row.meetingLink);
       const location =
         locationTitles.get(locationId) ||
@@ -361,54 +379,104 @@ export const sessionsApi = {
         bookingLimit: Number(row.bookingLimit) || undefined,
         activeBookingsCount: Number(row.activeBookingsCount) || undefined,
         classTypeId: classTypeId || undefined,
+        instructorId: instructorId || undefined,
+        groupId: idOf(row.groupId) || str(row.groupId) || undefined,
+        locationId: locationId || undefined,
+        statusLabel: str(row.status) || undefined,
         kind: 'class',
       });
     }
 
     const practicalList = asArray(asRecord(practicalRaw)?.data ?? practicalRaw);
-    for (const item of practicalList) {
-      const row = asRecord(item);
-      if (!row) continue;
-      const bookingId = idOf(row.bookingId) || idOf(row._id ?? row.id);
-      const dayId = idOf(row.dayId);
-      const id =
-        bookingId && dayId
-          ? `training:${dayId}:${bookingId}`
-          : `training:${str(row.date)}:${idOf(row.shift) || str(row.shift)}`;
-      const date = str(row.date).slice(0, 10);
-      if (!date) continue;
-      if (calendarId && calendarId !== 'all') continue;
+    if (isStaff) {
+      for (const item of practicalList) {
+        const row = asRecord(item);
+        if (!row) continue;
+        const props = asRecord(row.extendedProps) ?? row;
+        const date =
+          str(props.classDate, row.classDate, row.date, row.start).slice(0, 10) ||
+          occurrenceDate(row);
+        if (!date) continue;
+        if (calendarId && calendarId !== 'all') continue;
+        const locationId = idOf(props.locationId ?? props.location ?? row.locationId ?? row.location);
+        const locationName =
+          locationTitles.get(locationId) ||
+          str(props.locationName, row.locationName, 'Training centre');
+        const dayId =
+          idOf(props.dayId ?? row.dayId) ||
+          str(row.id, row._id).replace(/^pt-/, '') ||
+          `${date}-${locationId || locationName}`;
+        const total = num(props.totalBookings ?? row.totalBookings);
+        const startTime = formatClock(props.startTime ?? row.startTime ?? row.start) || '09:00 AM';
+        const endTime = formatClock(props.endTime ?? row.endTime ?? row.end) || '05:00 PM';
+        sessions.push({
+          id: `training-day:${dayId}`,
+          calendarId: 'training',
+          title: `${locationName}${total ? ` (${total})` : ''}`,
+          date,
+          startTime,
+          endTime,
+          code: locationName,
+          type: 'blue',
+          status: mapStatus('active', date),
+          instructor: 'Trainer',
+          mode: 'In-Person',
+          description: `${total} active booking${total === 1 ? '' : 's'}`,
+          attachments: [],
+          location: locationName,
+          seatsLeft: 0,
+          activeBookingsCount: total || undefined,
+          dayId,
+          locationId: locationId || undefined,
+          kind: 'training',
+        });
+      }
+    } else {
+      for (const item of practicalList) {
+        const row = asRecord(item);
+        if (!row) continue;
+        const bookingId = idOf(row.bookingId) || idOf(row._id ?? row.id);
+        const dayId = idOf(row.dayId);
+        const id =
+          bookingId && dayId
+            ? `training:${dayId}:${bookingId}`
+            : `training:${str(row.date)}:${idOf(row.shift) || str(row.shift)}`;
+        const date = str(row.date).slice(0, 10);
+        if (!date) continue;
+        if (calendarId && calendarId !== 'all') continue;
 
-      const shiftTime = str(row.shiftTime);
-      const [shiftStart, shiftEnd] = shiftTime.includes('-')
-        ? shiftTime.split('-').map((part) => part.trim())
-        : ['', ''];
-      const title =
-        str(row.shift, row.title, row.locationName, 'Practical training') || 'Practical training';
-      const myBooking: SessionMyBooking = {
-        seat: Number(row.seat) || undefined,
-        status: 'Active',
-      };
-      const status = mapStatus('active', date);
-      sessions.push({
-        id,
-        calendarId: 'training',
-        title,
-        date,
-        startTime: formatClock(shiftStart || row.startTime),
-        endTime: formatClock(shiftEnd || row.endTime),
-        code: str(row.locationName) || id.slice(-6).toUpperCase(),
-        type: typeFromBooking(myBooking, status),
-        status,
-        instructor: 'Trainer',
-        mode: 'In-Person',
-        description: `${title}${row.locationName ? ` · ${str(row.locationName)}` : ''}`,
-        attachments: [],
-        location: str(row.locationName) || 'Training centre',
-        seatsLeft: 0,
-        myBooking,
-        kind: 'training',
-      });
+        const shiftTime = str(row.shiftTime);
+        const [shiftStart, shiftEnd] = shiftTime.includes('-')
+          ? shiftTime.split('-').map((part) => part.trim())
+          : ['', ''];
+        const title =
+          str(row.shift, row.title, row.locationName, 'Practical training') || 'Practical training';
+        const myBooking: SessionMyBooking = {
+          seat: Number(row.seat) || undefined,
+          status: 'Active',
+        };
+        const status = mapStatus('active', date);
+        sessions.push({
+          id,
+          calendarId: 'training',
+          title,
+          date,
+          startTime: formatClock(shiftStart || row.startTime),
+          endTime: formatClock(shiftEnd || row.endTime),
+          code: str(row.locationName) || id.slice(-6).toUpperCase(),
+          type: typeFromBooking(myBooking, status),
+          status,
+          instructor: 'Trainer',
+          mode: 'In-Person',
+          description: `${title}${row.locationName ? ` · ${str(row.locationName)}` : ''}`,
+          attachments: [],
+          location: str(row.locationName) || 'Training centre',
+          seatsLeft: 0,
+          myBooking,
+          dayId: dayId || undefined,
+          kind: 'training',
+        });
+      }
     }
 
     // Booked first within a day (matches CRM month chips), then by start time.
