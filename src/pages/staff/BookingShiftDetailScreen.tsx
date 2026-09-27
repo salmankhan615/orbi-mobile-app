@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { StackScreen } from '@/components/custom/StackScreen';
+import { AttendanceActions } from '@/features/bookings/components/AttendanceActions';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { cancelPracticalBooking, markPracticalAttendance } from '@/api/crm';
 import { staffKeys } from '@/queries/useStaff';
@@ -128,35 +129,17 @@ export function BookingShiftDetailScreen({ route, navigation }: Props) {
         />
       ) : null}
 
-      {canAttend && !isCancelled && !marked ? (
-        <View style={styles.actions}>
-          <Button
-            label="Present"
-            variant="accent"
-            loading={attendMutation.isPending}
-            onPress={() => attendMutation.mutate('Present')}
-          />
-          <Button
-            label="Absent"
-            variant="outline"
-            loading={attendMutation.isPending}
-            onPress={() => attendMutation.mutate('Absent')}
-          />
-        </View>
-      ) : null}
-
-      {marked && !isCancelled ? (
-        <Text variant="bodySmall" color="textMuted" style={styles.note}>
-          Attendance recorded as {attendance}.
-        </Text>
-      ) : null}
-
-      {canCancel && !isCancelled && !marked ? (
-        <Button
-          label="Cancel booking"
-          variant="outline"
-          loading={cancelMutation.isPending}
-          onPress={() =>
+      <View style={styles.actions}>
+        <AttendanceActions
+          canAttend={canAttend}
+          canCancel={canCancel}
+          cancelled={isCancelled}
+          present={/present/i.test(attendance ?? '')}
+          absent={/absent/i.test(attendance ?? '')}
+          pending={attendMutation.isPending}
+          onPresent={() => attendMutation.mutate('Present')}
+          onAbsent={() => attendMutation.mutate('Absent')}
+          onRemove={() =>
             Alert.alert('Cancel booking', 'This will free the seat on this shift.', [
               { text: 'Keep', style: 'cancel' },
               {
@@ -166,8 +149,13 @@ export function BookingShiftDetailScreen({ route, navigation }: Props) {
               },
             ])
           }
-          style={styles.cancel}
         />
+      </View>
+
+      {marked && !isCancelled ? (
+        <Text variant="bodySmall" color="textMuted" style={styles.note}>
+          Attendance recorded as {attendance}.
+        </Text>
       ) : null}
     </StackScreen>
   );
@@ -188,13 +176,9 @@ const styles = StyleSheet.create({
     marginTop: tokens.spacing.md,
   },
   actions: {
-    gap: tokens.spacing.sm,
     marginTop: tokens.spacing.xl,
   },
   note: {
     marginTop: tokens.spacing.md,
-  },
-  cancel: {
-    marginTop: tokens.spacing.lg,
   },
 });

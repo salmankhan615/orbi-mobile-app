@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { StackScreen } from '@/components/custom/StackScreen';
+import { AttendanceActions } from '@/features/bookings/components/AttendanceActions';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { useBooking, useCancelBooking, useMarkAttendance } from '@/queries/useBookings';
 import { useHasPermission } from '@/hooks/useHasPermission';
@@ -64,8 +65,8 @@ export function StaffBookingDetailScreen({ route, navigation }: Props) {
   }
 
   const marked = Boolean(data.attendance);
-  const showAttendanceActions = canAttend && data.status !== 'cancelled' && !marked;
-  const showCancel = canCancel && data.status === 'confirmed' && !marked;
+  const isPresent = data.attendance === 'present';
+  const isAbsent = data.attendance === 'absent';
 
   return (
     <StackScreen title="Booking">
@@ -95,44 +96,27 @@ export function StaffBookingDetailScreen({ route, navigation }: Props) {
         ) : null}
       </View>
 
-      {showAttendanceActions ? (
-        <View style={styles.actions}>
-          <Button
-            label="Present"
-            variant="accent"
-            loading={mark.isPending}
-            onPress={() =>
-              mark.mutate(
-                { id: data.id, attendance: 'present' },
-                { onSuccess: () => showToast('Marked present', 'success') },
-              )
-            }
-          />
-          <Button
-            label="Absent"
-            variant="outline"
-            loading={mark.isPending}
-            onPress={() =>
-              mark.mutate(
-                { id: data.id, attendance: 'absent' },
-                { onSuccess: () => showToast('Marked absent', 'neutral') },
-              )
-            }
-          />
-        </View>
-      ) : null}
-
-      {marked && data.status !== 'cancelled' ? (
-        <Text variant="bodySmall" color="textMuted" style={styles.markedNote}>
-          Attendance recorded as {data.attendanceLabel || data.attendance}.
-        </Text>
-      ) : null}
-
-      {showCancel ? (
-        <Button
-          label="Cancel booking"
-          variant="outline"
-          onPress={() =>
+      <View style={styles.actions}>
+        <AttendanceActions
+          canAttend={canAttend}
+          canCancel={canCancel && data.status === 'confirmed'}
+          cancelled={data.status === 'cancelled'}
+          present={isPresent}
+          absent={isAbsent}
+          pending={mark.isPending}
+          onPresent={() =>
+            mark.mutate(
+              { id: data.id, attendance: 'present' },
+              { onSuccess: () => showToast('Marked present', 'success') },
+            )
+          }
+          onAbsent={() =>
+            mark.mutate(
+              { id: data.id, attendance: 'absent' },
+              { onSuccess: () => showToast('Marked absent', 'neutral') },
+            )
+          }
+          onRemove={() =>
             Alert.alert('Cancel booking', 'This will free the seat.', [
               { text: 'Keep', style: 'cancel' },
               {
@@ -148,8 +132,13 @@ export function StaffBookingDetailScreen({ route, navigation }: Props) {
               },
             ])
           }
-          style={styles.cancel}
         />
+      </View>
+
+      {marked && data.status !== 'cancelled' ? (
+        <Text variant="bodySmall" color="textMuted" style={styles.markedNote}>
+          Attendance recorded as {data.attendanceLabel || data.attendance}.
+        </Text>
       ) : null}
     </StackScreen>
   );
@@ -171,7 +160,7 @@ const styles = StyleSheet.create({
     marginBottom: tokens.spacing.xl,
   },
   actions: {
-    gap: tokens.spacing.sm,
+    marginTop: tokens.spacing.md,
   },
   markedNote: {
     marginTop: tokens.spacing.md,

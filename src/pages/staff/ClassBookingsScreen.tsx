@@ -4,11 +4,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
-import { ScalePressable } from '@/components/custom/ScalePressable';
+import { AttendanceActions } from '@/features/bookings/components/AttendanceActions';
 import { cancelClassBooking, markClassAttendance } from '@/api/crm';
 import { bookingKeys, useClassRoster } from '@/queries/useBookings';
 import { useHasPermission } from '@/hooks/useHasPermission';
@@ -20,7 +19,7 @@ import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'ClassBookings'>;
 
-export function ClassBookingsScreen({ route, navigation }: Props) {
+export function ClassBookingsScreen({ route }: Props) {
   const { classId, title, date, dateLabel, startTime, endTime, location } = route.params;
   const canAttend = useHasPermission('mark_attendance');
   const canCancel = useHasPermission('cancel_booking');
@@ -116,7 +115,11 @@ export function ClassBookingsScreen({ route, navigation }: Props) {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           renderItem={({ item: row, index }) => {
-            const marked = Boolean(row.attendance);
+            const isPresent = row.attendance === 'present';
+            const isAbsent = row.attendance === 'absent';
+            const isCancelled = row.status === 'cancelled';
+            const markingThis =
+              attendMutation.isPending && attendMutation.variables?.studentId === row.studentId;
             return (
               <View style={styles.row}>
                 <View style={styles.rowCopy}>
@@ -128,80 +131,46 @@ export function ClassBookingsScreen({ route, navigation }: Props) {
                   </Text>
                   <Text variant="caption" color="textSecondary">
                     Seat {row.seat ?? '—'}
-                    {row.statusLabel ? ` · ${row.statusLabel}` : ''}
                   </Text>
-                </View>
-                <View style={styles.actions}>
-                  {canAttend && row.status !== 'cancelled' ? (
-                    <View style={styles.attendRow}>
-                      <ScalePressable
-                        hapticStyle="select"
-                        onPress={() =>
-                          attendMutation.mutate({
-                            studentId: row.studentId,
-                            value: 'Present',
-                          })
-                        }
-                        style={[
-                          styles.attendBtn,
-                          styles.presentBtn,
-                          row.attendance === 'present' && styles.presentActive,
-                        ]}
-                      >
-                        <Text
-                          variant="caption"
-                          color={row.attendance === 'present' ? 'onPrimary' : 'success'}
-                        >
-                          Present
-                        </Text>
-                      </ScalePressable>
-                      <ScalePressable
-                        hapticStyle="select"
-                        onPress={() =>
-                          attendMutation.mutate({
-                            studentId: row.studentId,
-                            value: 'Absent',
-                          })
-                        }
-                        style={[
-                          styles.attendBtn,
-                          styles.absentBtn,
-                          row.attendance === 'absent' && styles.absentActive,
-                        ]}
-                      >
-                        <Text
-                          variant="caption"
-                          color={row.attendance === 'absent' ? 'onPrimary' : 'danger'}
-                        >
-                          Absent
-                        </Text>
-                      </ScalePressable>
-                    </View>
-                  ) : marked ? (
+                  {row.bookingDateLabel ? (
+                    <Text variant="caption" color="textMuted">
+                      Booked {row.bookingDateLabel}
+                    </Text>
+                  ) : null}
+                  <View style={styles.metaRow}>
                     <Badge
-                      label={row.attendanceLabel || row.attendance || 'Marked'}
-                      tone={row.attendance === 'absent' ? 'danger' : 'success'}
+                      label={row.statusLabel || row.status}
+                      tone={isCancelled ? 'danger' : 'success'}
                     />
-                  ) : null}
-                  {canCancel && row.status === 'confirmed' ? (
-                    <Button
-                      label="Remove"
-                      variant="outline"
-                      icon="trash-outline"
-                      onPress={() => confirmRemove(row)}
-                      style={styles.removeBtn}
-                    />
-                  ) : null}
-                  <Button
-                    label="Details"
-                    variant="outline"
-                    onPress={() => {
-                      client.setQueryData(bookingKeys.detail(row.id), row);
-                      navigation.navigate('StaffBookingDetail', { bookingId: row.id });
-                    }}
-                    style={styles.removeBtn}
-                  />
+                    {row.attendance ? (
+                      <Badge
+                        label={row.attendanceLabel || row.attendance}
+                        tone={isAbsent ? 'danger' : 'success'}
+                      />
+                    ) : null}
+                  </View>
                 </View>
+                <AttendanceActions
+                  canAttend={canAttend}
+                  canCancel={canCancel && row.status === 'confirmed'}
+                  cancelled={isCancelled}
+                  present={isPresent}
+                  absent={isAbsent}
+                  pending={markingThis}
+                  onPresent={() =>
+                    attendMutation.mutate({
+                      studentId: row.studentId,
+                      value: 'Present',
+                    })
+                  }
+                  onAbsent={() =>
+                    attendMutation.mutate({
+                      studentId: row.studentId,
+                      value: 'Absent',
+                    })
+                  }
+                  onRemove={() => confirmRemove(row)}
+                />
               </View>
             );
           }}
@@ -252,33 +221,10 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: tokens.fontFamily.medium,
   },
-  actions: {
-    gap: tokens.spacing.sm,
-  },
-  attendRow: {
+  metaRow: {
     flexDirection: 'row',
-    gap: tokens.spacing.sm,
-  },
-  attendBtn: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: tokens.spacing.sm,
-    borderRadius: tokens.radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  presentBtn: {
-    borderColor: tokens.colors.success,
-  },
-  presentActive: {
-    backgroundColor: tokens.colors.success,
-  },
-  absentBtn: {
-    borderColor: tokens.colors.danger,
-  },
-  absentActive: {
-    backgroundColor: tokens.colors.danger,
-  },
-  removeBtn: {
-    minHeight: 40,
+    flexWrap: 'wrap',
+    gap: tokens.spacing.xs,
+    marginTop: tokens.spacing.xs,
   },
 });
