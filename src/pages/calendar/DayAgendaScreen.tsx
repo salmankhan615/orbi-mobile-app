@@ -8,6 +8,7 @@ import { ScalePressable } from '@/components/custom/ScalePressable';
 import { sessionStatusBadge, type Session } from '@/api/sessions';
 import { useSessions } from '@/queries/useSessions';
 import { useCalendar } from '@/queries/useCalendars';
+import { DayActionsMenu } from '@/features/calendar/components/DayActionsMenu';
 import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { EmptyState } from '@/components/custom/EmptyState';
@@ -33,6 +34,7 @@ export function DayAgendaScreen({ route, navigation }: Props) {
   const dayDate = route.params.date;
   const isStaff = useIsStaff();
   const canViewBookings = useHasPermission('view_bookings');
+  const canClose = useHasPermission('close_calendar');
   const showToast = useToastStore((state) => state.show);
   const range = getMonthDateRange(new Date(`${dayDate}T12:00:00`));
   const { data: sessions, isLoading } = useSessions({
@@ -96,58 +98,65 @@ export function DayAgendaScreen({ route, navigation }: Props) {
         contentContainerStyle={styles.timeline}
         {...smoothScrollProps}
       >
+        {isStaff && canClose ? (
+          <DayActionsMenu
+            onCloseDay={() =>
+              navigation.navigate('CloseCalendar', {
+                date: dayDate,
+                calendarId: calendarId && calendarId !== 'all' ? calendarId : undefined,
+              })
+            }
+          />
+        ) : null}
         {isLoading ? (
           <EntityListSkeleton rows={4} />
         ) : (
           <>
             {daySessions.map((session, index) => {
-          const statusBadge = sessionStatusBadge(session);
-          return (
-          <View key={session.id} style={styles.timelineRow}>
-            <View style={styles.timeCol}>
-              <Text variant="caption" color="textSecondary" style={styles.timeLabel}>
-                {session.startTime}
-              </Text>
-            </View>
+              const statusBadge = sessionStatusBadge(session);
+              return (
+                <View key={session.id} style={styles.timelineRow}>
+                  <View style={styles.timeCol}>
+                    <Text variant="caption" color="textSecondary" style={styles.timeLabel}>
+                      {session.startTime}
+                    </Text>
+                  </View>
 
-            <View style={styles.timelineTrack}>
-              <View
-                style={[
-                  styles.dot,
-                  { backgroundColor: tokens.colors[SESSION_TYPE_COLOR[session.type]] },
-                ]}
+                  <View style={styles.timelineTrack}>
+                    <View
+                      style={[
+                        styles.dot,
+                        { backgroundColor: tokens.colors[SESSION_TYPE_COLOR[session.type]] },
+                      ]}
+                    />
+                    {index < daySessions.length - 1 && <View style={styles.line} />}
+                  </View>
+
+                  <ScalePressable style={styles.card} onPress={() => openSession(session)}>
+                    <Text variant="caption" color="textSecondary">
+                      {session.startTime} - {session.endTime}
+                    </Text>
+                    <Text variant="body" style={styles.title}>
+                      {session.title}
+                    </Text>
+                    <View style={styles.footer}>
+                      <Text variant="caption" color="textMuted">
+                        {session.code}
+                      </Text>
+                      <Badge label={statusBadge.label} tone={statusBadge.tone} />
+                    </View>
+                  </ScalePressable>
+                </View>
+              );
+            })}
+
+            {daySessions.length === 0 && (
+              <EmptyState
+                icon="calendar-outline"
+                title="Free day"
+                message={`No sessions this day${calendar && calendarId && calendarId !== 'all' ? ` in ${calendar.name}` : ''}.`}
               />
-              {index < daySessions.length - 1 && <View style={styles.line} />}
-            </View>
-
-            <ScalePressable
-              style={styles.card}
-              onPress={() => openSession(session)}
-            >
-              <Text variant="caption" color="textSecondary">
-                {session.startTime} - {session.endTime}
-              </Text>
-              <Text variant="body" style={styles.title}>
-                {session.title}
-              </Text>
-              <View style={styles.footer}>
-                <Text variant="caption" color="textMuted">
-                  {session.code}
-                </Text>
-                <Badge label={statusBadge.label} tone={statusBadge.tone} />
-              </View>
-            </ScalePressable>
-          </View>
-          );
-        })}
-
-        {daySessions.length === 0 && (
-          <EmptyState
-            icon="calendar-outline"
-            title="Free day"
-            message={`No sessions this day${calendar && calendarId && calendarId !== 'all' ? ` in ${calendar.name}` : ''}.`}
-          />
-        )}
+            )}
           </>
         )}
       </ScrollView>

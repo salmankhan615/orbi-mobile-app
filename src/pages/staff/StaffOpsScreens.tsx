@@ -7,16 +7,8 @@ import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { ScalePressable } from '@/components/custom/ScalePressable';
-import {
-  useInvoices,
-  useAgreements,
-  useShifts,
-  useClosedDays,
-  useCloseDay,
-  useOpenDay,
-} from '@/queries/useStaff';
+import { useInvoices, useAgreements, useShifts } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
-import { useToastStore } from '@/store/useToastStore';
 import { toISODate } from '@/utils/date';
 import type { Agreement, Invoice } from '@/api/staff';
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -378,74 +370,6 @@ function upcomingDates(count: number): string[] {
   });
 }
 
-export function CloseCalendarScreen() {
-  const allowed = useHasPermission('close_calendar');
-  const { data: closed = [], isLoading } = useClosedDays();
-  const closeDay = useCloseDay();
-  const openDay = useOpenDay();
-  const showToast = useToastStore((state) => state.show);
-  const dateOptions = upcomingDates(14);
-  const [iso, setIso] = useState(() => dateOptions[0] ?? toISODate(new Date()));
-
-  if (!allowed) {
-    return (
-      <StackScreen title="Close day">
-        <Text variant="body" color="textMuted">
-          You do not have permission to close calendar days.
-        </Text>
-      </StackScreen>
-    );
-  }
-
-  return (
-    <StackScreen title="Close calendar day">
-      <Text variant="body" color="textSecondary" style={styles.copy}>
-        Closed days cannot take new class or training bookings.
-      </Text>
-      <View style={styles.filters}>
-        {dateOptions.map((day) => (
-          <ScalePressable
-            key={day}
-            haptic={false}
-            onPress={() => setIso(day)}
-            style={iso === day ? styles.chipActive : styles.chip}
-          >
-            <Text variant="caption" color={iso === day ? 'onSecondary' : 'textSecondary'}>
-              {day}
-            </Text>
-          </ScalePressable>
-        ))}
-      </View>
-      <EntityRow
-        icon="lock-closed-outline"
-        title={closed.includes(iso) ? `${iso} is closed` : `${iso} is open`}
-        subtitle="Tap to toggle"
-        onPress={() => {
-          if (closed.includes(iso)) {
-            openDay.mutate(iso, { onSuccess: () => showToast('Day reopened', 'success') });
-          } else {
-            closeDay.mutate(iso, { onSuccess: () => showToast('Day closed', 'neutral') });
-          }
-        }}
-      />
-      <Text variant="title" style={styles.section}>
-        Currently closed
-      </Text>
-      {isLoading ? (
-        <EntityListSkeleton rows={3} />
-      ) : closed.length === 0 ? (
-        <Text variant="bodySmall" color="textMuted">
-          No closed days.
-        </Text>
-      ) : (
-        closed.map((day) => (
-          <EntityRow key={day} icon="close-circle-outline" title={day} subtitle="Closed" />
-        ))
-      )}
-    </StackScreen>
-  );
-}
-
 const styles = StyleSheet.create({
   copy: {
     marginBottom: tokens.spacing.lg,
@@ -471,10 +395,6 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.secondary,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.secondary,
-  },
-  section: {
-    marginTop: tokens.spacing.lg,
-    marginBottom: tokens.spacing.md,
   },
   list: {
     paddingBottom: tokens.spacing.xl,

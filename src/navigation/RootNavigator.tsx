@@ -41,8 +41,8 @@ import {
   InvoicesScreen,
   AgreementsScreen,
   BookingShiftsScreen,
-  CloseCalendarScreen,
 } from '@/pages/staff/StaffOpsScreens';
+import { CloseCalendarScreen } from '@/pages/staff/CloseCalendarScreen';
 import { InvoiceDetailScreen } from '@/pages/staff/InvoiceDetailScreen';
 import { AgreementDetailScreen } from '@/pages/staff/AgreementDetailScreen';
 import { BookingShiftDetailScreen } from '@/pages/staff/BookingShiftDetailScreen';

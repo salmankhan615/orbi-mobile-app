@@ -780,18 +780,134 @@ function mapAgreementArtifacts(raw: unknown, recipientId?: string): AgreementArt
   return out;
 }
 
-function mapClosureDates(raw: unknown): { id: string; date: string }[] {
-  const out: { id: string; date: string }[] = [];
+export type ClosureScope = 'global' | 'calendar';
+
+export interface CalendarClosure {
+  id: string;
+  scope: ClosureScope;
+  calendarId?: string;
+  calendarName?: string;
+  permanent: boolean;
+  date?: string;
+  dayOfWeek?: number;
+  reason?: string;
+}
+
+export interface AddClosureInput {
+  scope: ClosureScope;
+  calendarId?: string;
+  permanent: boolean;
+  date?: string;
+  dayOfWeek?: number;
+  reason?: string;
+}
+
+const WEEKDAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const;
+
+function dayOfWeekOf(value: unknown): number | undefined {
+  const n = typeof value === 'number' ? value : Number(str(value));
+  return Number.isInteger(n) && n >= 0 && n <= 6 ? n : undefined;
+}
+
+function mapClosures(raw: unknown): CalendarClosure[] {
+  const out: CalendarClosure[] = [];
   for (const item of unwrapList(raw)) {
     const row = asRecord(item);
     if (!row) continue;
     const id = idOf(row._id ?? row.id);
     if (!id) continue;
-    if (row.is_permanent) continue;
+    const permanent = row.is_permanent === true || row.is_permanent === 'true';
     const date = toISODay(row.date);
-    if (date) out.push({ id, date });
+    const dayOfWeek = dayOfWeekOf(row.day_of_week ?? row.dayOfWeek);
+    if (permanent && dayOfWeek == null) continue;
+    if (!permanent && !date) continue;
+    const calendarId = idOf(row.calendar_id ?? row.calendarId) ?? undefined;
+    const calendarRow = asRecord(row.calendar_id);
+    out.push({
+      id,
+      scope: row.scope === 'calendar' ? 'calendar' : 'global',
+      calendarId,
+      calendarName: str(calendarRow?.title, calendarRow?.name, row.calendarName) || undefined,
+      permanent,
+      date: permanent ? undefined : date,
+      dayOfWeek: permanent ? dayOfWeek : undefined,
+      reason: str(row.reason) || undefined,
+    });
   }
   return out;
+}
+
+export function formatClosureDetails(closure: CalendarClosure): string {
+  if (closure.permanent) {
+    const day = WEEKDAY_NAMES[closure.dayOfWeek ?? -1];
+    return day ? `Every ${day}` : 'Every week';
+  }
+  if (!closure.date) return '—';
+  const parsed = new Date(`${closure.date}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return closure.date;
+  return parsed.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/** Global closures always apply. On All calendars, every closure is visible. */
+export function closureAppliesToCalendar(closure: CalendarClosure, calendarId?: string): boolean {
+  if (closure.scope === 'global') return true;
+  const selected = calendarId && calendarId !== 'all' ? calendarId : '';
+  if (!selected) return true;
+  return closure.calendarId === selected;
+}
+
+export function closuresForDate(
+  closures: CalendarClosure[],
+  iso: string,
+  calendarId?: string,
+): CalendarClosure[] {
+  const day = new Date(`${iso}T12:00:00`).getDay();
+  if (Number.isNaN(day)) return [];
+  return closures.filter((closure) => {
+    if (!closureAppliesToCalendar(closure, calendarId)) return false;
+    if (closure.permanent) return closure.dayOfWeek === day;
+    return closure.date === iso;
+  });
+}
+
+export function closedDatesInRange(
+  closures: CalendarClosure[],
+  calendarId: string | undefined,
+  startDate: string,
+  endDate: string,
+): Set<string> {
+  const closed = new Set<string>();
+  const start = new Date(`${startDate}T12:00:00`);
+  const end = new Date(`${endDate}T12:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return closed;
+
+  for (const closure of closures) {
+    if (!closureAppliesToCalendar(closure, calendarId)) continue;
+    if (closure.permanent && closure.dayOfWeek != null) {
+      const cursor = new Date(start);
+      while (cursor.getTime() <= end.getTime()) {
+        if (cursor.getDay() === closure.dayOfWeek) closed.add(toISODate(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      continue;
+    }
+    if (closure.date && closure.date >= startDate && closure.date <= endDate) {
+      closed.add(closure.date);
+    }
+  }
+  return closed;
 }
 
 export const staffApi = {
@@ -1197,27 +1313,22 @@ export const staffApi = {
     return deletePracticalShift(shiftId);
   },
 
-  async closedDays(): Promise<string[]> {
-    const raw = await getCalendarClosures();
-    return [...new Set(mapClosureDates(raw).map((item) => item.date))].sort();
+  async closures(): Promise<CalendarClosure[]> {
+    return mapClosures(await getCalendarClosures());
   },
 
-  async closeDay(iso: string): Promise<string[]> {
+  async addClosure(input: AddClosureInput): Promise<void> {
     await addCalendarClosure({
-      scope: 'global',
-      is_permanent: false,
-      date: iso,
-      reason: 'Closed via staff app',
+      scope: input.scope,
+      calendar_id: input.scope === 'calendar' ? (input.calendarId ?? null) : null,
+      is_permanent: input.permanent,
+      date: input.permanent ? null : (input.date ?? null),
+      day_of_week: input.permanent ? (input.dayOfWeek ?? null) : null,
+      reason: input.reason?.trim() || undefined,
     });
-    return staffApi.closedDays();
   },
 
-  async openDay(iso: string): Promise<string[]> {
-    const raw = await getCalendarClosures();
-    const match = mapClosureDates(raw).find((item) => item.date === iso);
-    if (match) {
-      await deleteCalendarClosure(match.id);
-    }
-    return staffApi.closedDays();
+  async deleteClosure(id: string): Promise<void> {
+    await deleteCalendarClosure(id);
   },
 };

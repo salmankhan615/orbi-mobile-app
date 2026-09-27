@@ -258,10 +258,10 @@ export async function getCalendarClosures(calendarId?: string) {
 /** Dated or permanent weekday closure. Writes are adminOnly (includes type=staff). */
 export async function addCalendarClosure(payload: {
   scope: 'global' | 'calendar';
-  calendar_id?: string;
+  calendar_id?: string | null;
   is_permanent: boolean;
-  date?: string;
-  day_of_week?: number;
+  date?: string | null;
+  day_of_week?: number | null;
   reason?: string;
 }) {
   return apiClient.post<unknown>('/api/calendar-closure/crm/addClosure', payload);

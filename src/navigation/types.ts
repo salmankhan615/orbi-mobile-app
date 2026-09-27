@@ -118,7 +118,7 @@ export type RootStackParamList = {
     agreementType?: string;
     artifacts?: { id: string; filename: string; type: string; url: string }[];
   };
-  CloseCalendar: undefined;
+  CloseCalendar: { date?: string; calendarId?: string } | undefined;
   PracticalShifts: undefined;
   ShiftEditor: { shiftId?: string };
   BookingShifts: undefined;

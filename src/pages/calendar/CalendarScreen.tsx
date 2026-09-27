@@ -9,9 +9,11 @@ import { Screen } from '@/components/custom/Screen';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { useSessions } from '@/queries/useSessions';
 import { useCalendars } from '@/queries/useCalendars';
-import { useClosedDays } from '@/queries/useStaff';
+import { useClosures } from '@/queries/useStaff';
+import { closedDatesInRange, closuresForDate } from '@/api/staff';
 import type { Session } from '@/api/sessions';
 import { CalendarPicker } from '@/features/calendar/components/CalendarPicker';
+import { DayActionsMenu } from '@/features/calendar/components/DayActionsMenu';
 import { MonthGrid } from '@/features/calendar/components/MonthGrid';
 import { WeekGrid } from '@/features/calendar/components/WeekGrid';
 import { SessionListItem } from '@/features/calendar/components/SessionListItem';
@@ -72,8 +74,20 @@ export function CalendarScreen({ navigation }: Props) {
     endDate: range.endDate,
   });
   const showInitialLoad = isLoading && !sessions;
-  const { data: closedDays = [] } = useClosedDays();
-  const closedDateSet = useMemo(() => new Set(closedDays), [closedDays]);
+  const { data: closures = [] } = useClosures();
+  const closedDateSet = useMemo(
+    () => closedDatesInRange(closures, selectedCalendarId, range.startDate, range.endDate),
+    [closures, selectedCalendarId, range.startDate, range.endDate],
+  );
+  const selectedDayClosure = useMemo(
+    () => closuresForDate(closures, selectedDate, selectedCalendarId)[0] ?? null,
+    [closures, selectedCalendarId, selectedDate],
+  );
+  const selectedCalendarLabel =
+    selectedDayClosure?.scope === 'calendar'
+      ? (selectedDayClosure.calendarName ??
+        calendars?.find((calendar) => calendar.id === selectedDayClosure.calendarId)?.name)
+      : undefined;
 
   const selectedCalendar =
     calendars?.find((calendar) => calendar.id === selectedCalendarId) ?? calendars?.[0];
@@ -140,12 +154,21 @@ export function CalendarScreen({ navigation }: Props) {
   const handleSelectDate = useCallback(
     (iso: string) => {
       setSelectedDate(iso);
-      if ((sessionsByDate.get(iso) ?? []).length > 0) {
+      const hasSessions = (sessionsByDate.get(iso) ?? []).length > 0;
+      if (hasSessions || closedDateSet.has(iso) || (isStaff && canClose)) {
         setSheetOpen(true);
       }
     },
-    [sessionsByDate],
+    [canClose, closedDateSet, isStaff, sessionsByDate],
   );
+
+  function openCloseDay(iso: string) {
+    setSheetOpen(false);
+    navigation.navigate('CloseCalendar', {
+      date: iso,
+      calendarId: selectedCalendarId !== 'all' ? selectedCalendarId : undefined,
+    });
+  }
 
   function handleViewMode(mode: ViewMode) {
     if (mode === viewMode) return;
@@ -305,96 +328,112 @@ export function CalendarScreen({ navigation }: Props) {
           }
         />
       ) : (
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
-        {...smoothScrollProps}
-      >
-            <View style={styles.monthCard}>
-              {viewMode === 'Month' ? (
-                <MonthGrid
-                  year={cursor.getFullYear()}
-                  month={cursor.getMonth()}
-                  selectedDate={selectedDate}
-                  sessionsByDate={sessionsByDate}
-                  closedDates={closedDateSet}
-                  onSelectDate={handleSelectDate}
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.content, { paddingBottom: tabPadding }]}
+          {...smoothScrollProps}
+        >
+          <View style={styles.monthCard}>
+            {viewMode === 'Month' ? (
+              <MonthGrid
+                year={cursor.getFullYear()}
+                month={cursor.getMonth()}
+                selectedDate={selectedDate}
+                sessionsByDate={sessionsByDate}
+                closedDates={closedDateSet}
+                onSelectDate={handleSelectDate}
+              />
+            ) : (
+              <WeekGrid
+                anchor={cursor}
+                selectedDate={selectedDate}
+                sessionsByDate={sessionsByDate}
+                closedDates={closedDateSet}
+                onSelectDate={handleSelectDate}
+              />
+            )}
+          </View>
+
+          <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View style={styles.legendBooked} />
+              <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
+                Booked
+              </Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={styles.legendAvailable} />
+              <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
+                Available
+              </Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={styles.legendClosed} />
+              <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
+                Closed
+              </Text>
+            </View>
+          </View>
+
+          <Text variant="title" style={styles.sessionsHeader}>
+            Sessions on {formatSessionDate(selectedDate)}
+          </Text>
+
+          {!isStaff ? (
+            <Button
+              label="Book Practical Training"
+              icon="people-outline"
+              variant="accent"
+              onPress={() => navigation.navigate('BookTraining', { date: selectedDate })}
+              style={styles.bookTrainingBtn}
+            />
+          ) : (
+            <DayActionsMenu
+              closure={selectedDayClosure}
+              calendarLabel={selectedCalendarLabel}
+              onCloseDay={canClose ? () => openCloseDay(selectedDate) : undefined}
+            />
+          )}
+
+          {showInitialLoad ? (
+            <EntityListSkeleton rows={3} />
+          ) : (
+            <>
+              {sessionsForSelectedDate.map((session) => (
+                <SessionListItem
+                  key={session.id}
+                  session={session}
+                  onPress={() => openSession(session)}
                 />
-              ) : (
-                <WeekGrid
-                  anchor={cursor}
-                  selectedDate={selectedDate}
-                  sessionsByDate={sessionsByDate}
-                  closedDates={closedDateSet}
-                  onSelectDate={handleSelectDate}
+              ))}
+
+              {sessionsForSelectedDate.length === 0 && (
+                <EmptyState
+                  icon={selectedDayClosure ? 'lock-closed-outline' : 'calendar-outline'}
+                  title={selectedDayClosure ? 'Day closed' : 'Free day'}
+                  message={
+                    selectedDayClosure
+                      ? selectedDayClosure.reason || 'This date is closed for new bookings.'
+                      : `No sessions on this date${selectedCalendarId !== 'all' ? ` in ${selectedCalendar?.name}` : ''}.`
+                  }
                 />
               )}
-            </View>
+            </>
+          )}
 
-            <View style={styles.legend}>
-              <View style={styles.legendItem}>
-                <View style={styles.legendBooked} />
-                <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
-                  Booked
-                </Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={styles.legendAvailable} />
-                <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
-                  Available
-                </Text>
-              </View>
-            </View>
-
-            <Text variant="title" style={styles.sessionsHeader}>
-              Sessions on {formatSessionDate(selectedDate)}
-            </Text>
-
-            {!isStaff ? (
-              <Button
-                label="Book Practical Training"
-                icon="people-outline"
-                variant="accent"
-                onPress={() => navigation.navigate('BookTraining', { date: selectedDate })}
-                style={styles.bookTrainingBtn}
-              />
-            ) : null}
-
-            {showInitialLoad ? (
-              <EntityListSkeleton rows={3} />
-            ) : (
-              <>
-                {sessionsForSelectedDate.map((session) => (
-                  <SessionListItem
-                    key={session.id}
-                    session={session}
-                    onPress={() => openSession(session)}
-                  />
-                ))}
-
-                {sessionsForSelectedDate.length === 0 && (
-                  <EmptyState
-                    icon="calendar-outline"
-                    title="Free day"
-                    message={`No sessions on this date${selectedCalendarId !== 'all' ? ` in ${selectedCalendar?.name}` : ''}.`}
-                  />
-                )}
-              </>
-            )}
-
-            {sessionsForSelectedDate.length > 0 && (
-              <Button
-                label="View Full Day  →"
-                onPress={() =>
-                  navigation.navigate('DayAgenda', {
-                    date: selectedDate,
-                    calendarId: selectedCalendarId,
-                  })
-                }
-                style={styles.viewFullDay}
-              />
-            )}
-      </ScrollView>
+          {sessionsForSelectedDate.length > 0 && (
+            <Button
+              label="View Full Day  →"
+              onPress={() =>
+                navigation.navigate('DayAgenda', {
+                  date: selectedDate,
+                  calendarId: selectedCalendarId,
+                })
+              }
+              style={styles.viewFullDay}
+            />
+          )}
+        </ScrollView>
       )}
 
       <Modal
@@ -424,7 +463,13 @@ export function CalendarScreen({ navigation }: Props) {
                 }}
                 style={styles.sheetBookTraining}
               />
-            ) : null}
+            ) : (
+              <DayActionsMenu
+                closure={selectedDayClosure}
+                calendarLabel={selectedCalendarLabel}
+                onCloseDay={canClose ? () => openCloseDay(selectedDate) : undefined}
+              />
+            )}
             <ScrollView style={styles.sheetList} {...smoothScrollProps}>
               {sessionsForSelectedDate.map((session, index) => (
                 <SessionListItem
@@ -579,6 +624,14 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: tokens.colors.secondary,
+  },
+  legendClosed: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: tokens.colors.dangerMuted,
+    borderWidth: 1.5,
+    borderColor: tokens.colors.danger,
   },
   legendLabel: {
     fontFamily: tokens.fontFamily.medium,

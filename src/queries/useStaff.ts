@@ -20,7 +20,7 @@ export const staffKeys = {
   shifts: ['staff', 'shifts'] as const,
   practicalShifts: (filters?: { location?: string; isActive?: string }) =>
     ['staff', 'practicalShifts', filters?.location ?? 'all', filters?.isActive ?? 'all'] as const,
-  closedDays: ['staff', 'closedDays'] as const,
+  closures: ['staff', 'closures'] as const,
 };
 
 const STAFF_QUERY = {
@@ -281,28 +281,28 @@ export function useDeletePracticalShift() {
   });
 }
 
-export function useClosedDays() {
+export function useClosures() {
   const ready = useAfterInteractions();
   return useQuery({
-    queryKey: staffKeys.closedDays,
-    queryFn: staffApi.closedDays,
+    queryKey: staffKeys.closures,
+    queryFn: staffApi.closures,
     enabled: ready,
     ...STAFF_QUERY,
   });
 }
 
-export function useCloseDay() {
+export function useAddClosure() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: staffApi.closeDay,
-    onSuccess: () => client.invalidateQueries({ queryKey: staffKeys.closedDays }),
+    mutationFn: staffApi.addClosure,
+    onSuccess: () => client.invalidateQueries({ queryKey: staffKeys.closures }),
   });
 }
 
-export function useOpenDay() {
+export function useDeleteClosure() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: staffApi.openDay,
-    onSuccess: () => client.invalidateQueries({ queryKey: staffKeys.closedDays }),
+    mutationFn: staffApi.deleteClosure,
+    onSuccess: () => client.invalidateQueries({ queryKey: staffKeys.closures }),
   });
 }

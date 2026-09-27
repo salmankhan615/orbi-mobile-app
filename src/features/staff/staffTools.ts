@@ -108,7 +108,7 @@ export const STAFF_TOOLS: StaffTool[] = [
   {
     id: 'close-calendar',
     label: 'Manage closures',
-    description: 'Close or reopen a training/class date',
+    description: 'Close a date or weekday, globally or per calendar',
     icon: 'close-circle-outline',
     permission: 'close_calendar',
     route: 'CloseCalendar',

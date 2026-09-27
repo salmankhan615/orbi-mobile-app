@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import type { Session } from '@/api/sessions';
@@ -58,8 +59,9 @@ export const MonthGrid = memo(function MonthGrid({
                     styles.dayCircle,
                     isToday && !isSelected && !hasBooked && styles.dayCircleToday,
                     hasBooked && !isSelected && styles.dayCircleBooked,
-                    isClosed && styles.dayCircleClosed,
+                    isClosed && !isSelected && styles.dayCircleClosed,
                     isSelected && styles.dayCircleSelected,
+                    isClosed && isSelected && styles.dayCircleClosedSelected,
                   ]}
                 >
                   <Text
@@ -73,9 +75,13 @@ export const MonthGrid = memo(function MonthGrid({
                   </Text>
                 </View>
                 <View style={styles.dotsRow}>
-                  {Array.from({ length: availableDots }, (_, index) => (
-                    <View key={`${day.iso}-dot-${index}`} style={styles.dot} />
-                  ))}
+                  {isClosed ? (
+                    <Ionicons name="lock-closed" size={9} color={tokens.colors.danger} />
+                  ) : (
+                    Array.from({ length: availableDots }, (_, index) => (
+                      <View key={`${day.iso}-dot-${index}`} style={styles.dot} />
+                    ))
+                  )}
                 </View>
               </Pressable>
             );
@@ -127,7 +133,13 @@ const styles = StyleSheet.create({
     ...tokens.shadows.sm,
   },
   dayCircleClosed: {
-    backgroundColor: tokens.colors.tertiaryMuted,
+    backgroundColor: tokens.colors.dangerMuted,
+    borderWidth: 1.5,
+    borderColor: tokens.colors.danger,
+  },
+  dayCircleClosedSelected: {
+    borderWidth: 2,
+    borderColor: tokens.colors.danger,
   },
   daySelectedLabel: {
     fontFamily: tokens.fontFamily.bold,
