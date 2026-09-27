@@ -416,6 +416,12 @@ export async function getAllPaymentPlans() {
   );
 }
 
+export async function getPaymentPlanById(planId: string) {
+  return apiClient.get<unknown>(
+    `/api/paymentPlan/crm/getPaymentPlan/${encodeURIComponent(planId)}`,
+  );
+}
+
 export async function getAgreementSubmissions(params?: {
   status?: string;
   bucket?: string;

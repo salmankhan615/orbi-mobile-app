@@ -8,6 +8,7 @@ import {
   deleteStaffCoursework,
   getAgreementSubmissions,
   getAllPaymentPlans,
+  getPaymentPlanById,
   getCalendarClosures,
   getCalendarUsersLite,
   getCourseSettings,
@@ -605,14 +606,80 @@ function moneyLabel(amount: number, currencyRaw?: string): string {
   return `${symbol}${amount.toFixed(2)}`;
 }
 
+function parseMoney(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const raw = String(value ?? '').replace(/[^0-9.-]/g, '');
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function installmentSources(raw: UnknownRecord): unknown[] {
+  const keys = [
+    'installments',
+    'installment',
+    'installmentList',
+    'invoices',
+    'payments',
+    'paymentSchedule',
+    'schedule',
+    'terms',
+    'fees',
+    'lineItems',
+    'invoiceItems',
+    'paymentDetails',
+    'splits',
+  ];
+  for (const key of keys) {
+    const value = raw[key];
+    if (Array.isArray(value) && value.length > 0) return value;
+    const rec = asRecord(value);
+    if (!rec) continue;
+    for (const inner of ['items', 'rows', 'data', 'list', 'installments']) {
+      const list = rec[inner];
+      if (Array.isArray(list) && list.length > 0) return list;
+    }
+    const values = Object.values(rec).filter((item) => asRecord(item));
+    if (values.length > 0) return values;
+  }
+  const nested = asRecord(raw.paymentPlan) ?? asRecord(raw.plan) ?? asRecord(raw.invoice);
+  if (nested) return installmentSources(nested);
+
+  const numbered: unknown[] = [];
+  const count = Math.min(parseMoney(raw.noOfInstallments ?? raw.numberOfInstallments ?? raw.installmentCount), 24);
+  const max = count > 0 ? count : 12;
+  for (let index = 1; index <= max; index += 1) {
+    const amount =
+      raw[`installment${index}`] ??
+      raw[`installment${index}Amount`] ??
+      raw[`amount${index}`];
+    const date =
+      raw[`installment${index}Date`] ??
+      raw[`installment${index}Due`] ??
+      raw[`dueDate${index}`];
+    if (amount == null && date == null) {
+      if (count > 0) continue;
+      break;
+    }
+    numbered.push({
+      name: `Installment ${index}`,
+      amount,
+      dueDate: date,
+      status: raw[`installment${index}Status`] ?? raw.status,
+    });
+  }
+  return numbered;
+}
+
 function mapInvoiceAmount(raw: UnknownRecord): string {
   const total =
-    num(raw.totalAmount) ||
-    num(raw.amount) ||
-    num(raw.total) ||
-    asArray(raw.installments ?? raw.invoices).reduce<number>((sum, item) => {
+    parseMoney(raw.totalAmount) ||
+    parseMoney(raw.amount) ||
+    parseMoney(raw.total) ||
+    parseMoney(raw.grandTotal) ||
+    parseMoney(raw.planAmount) ||
+    installmentSources(raw).reduce<number>((sum, item) => {
       const row = asRecord(item);
-      return sum + num(row?.amount ?? row?.total);
+      return sum + parseMoney(row?.amount ?? row?.total ?? row?.fee ?? row?.price);
     }, 0);
   return moneyLabel(total, str(raw.currency));
 }
@@ -621,7 +688,7 @@ function mapInvoiceStatus(raw: UnknownRecord): Invoice['status'] {
   const status = str(raw.status, raw.paymentStatus, raw.planStatus).toLowerCase();
   if (status.includes('paid') || status.includes('complete')) return 'paid';
   if (status.includes('overdue') || status.includes('late')) return 'overdue';
-  const installments = asArray(raw.installments ?? raw.invoices);
+  const installments = installmentSources(raw);
   if (installments.length > 0) {
     const allPaid = installments.every((item) => {
       const row = asRecord(item);
@@ -642,20 +709,44 @@ function mapInvoiceStatus(raw: UnknownRecord): Invoice['status'] {
 function mapInstallments(raw: UnknownRecord): InvoiceInstallment[] {
   const currency = str(raw.currency, '£');
   const out: InvoiceInstallment[] = [];
-  for (const [index, item] of asArray(raw.installments ?? raw.invoices).entries()) {
+  for (const [index, item] of installmentSources(raw).entries()) {
     const row = asRecord(item);
     if (!row) continue;
     const id = idOf(row._id ?? row.id) ?? `installment-${index}`;
-    const amount = num(row.amount ?? row.total);
+    const amount = parseMoney(row.amount ?? row.total ?? row.fee ?? row.price ?? row.value);
+    const rawAmount = str(row.amount, row.total, row.fee, row.price);
     out.push({
       id,
-      label: str(row.label, row.name, row.title, `Installment ${index + 1}`),
-      amountLabel: moneyLabel(amount, currency),
-      dueDate: formatCourseworkDate(row.dueDate ?? row.date ?? row.paymentDate),
+      label: str(row.label, row.name, row.title, row.description, `Installment ${index + 1}`),
+      amountLabel: amount > 0 ? moneyLabel(amount, currency) : rawAmount || '—',
+      dueDate: formatCourseworkDate(
+        row.dueDate ?? row.date ?? row.paymentDate ?? row.installmentDate,
+      ),
       status: str(row.status, row.paymentStatus, 'due') || 'due',
     });
   }
   return out;
+}
+
+function mapInvoiceRow(row: UnknownRecord): Invoice | null {
+  const id = idOf(row._id ?? row.id);
+  if (!id) return null;
+  const student = asRecord(row.studentId) ?? asRecord(row.student) ?? asRecord(row.user);
+  const installments = mapInstallments(row);
+  return {
+    id,
+    studentName: personName(student) || str(row.studentName, 'Student'),
+    studentEmail: str(student?.email, row.studentEmail) || undefined,
+    amountLabel: mapInvoiceAmount(row),
+    status: mapInvoiceStatus(row),
+    issuedOn: formatCourseworkDate(row.createdAt ?? row.issuedOn ?? row.startDate),
+    planName: str(row.planName, row.name, row.title, row.courseName) || undefined,
+    invoiceNumber: str(row.invoiceNumber, row.invoiceNo, row.number) || undefined,
+    dueOn: formatCourseworkDate(row.dueDate ?? row.nextDueDate) || undefined,
+    paidOn: formatCourseworkDate(row.paidAt ?? row.paidOn) || undefined,
+    notes: stripHtml(str(row.notes, row.description)) || undefined,
+    installments: installments.length > 0 ? installments : undefined,
+  };
 }
 
 function mapAgreementStatus(raw: string): Agreement['status'] {
@@ -961,26 +1052,28 @@ export const staffApi = {
       if (out.length >= 40) break;
       const row = asRecord(item);
       if (!row) continue;
-      const id = idOf(row._id ?? row.id);
-      if (!id) continue;
-      const student = asRecord(row.studentId) ?? asRecord(row.student) ?? asRecord(row.user);
-      const installments = mapInstallments(row);
-      out.push({
-        id,
-        studentName: personName(student) || str(row.studentName, 'Student'),
-        studentEmail: str(student?.email, row.studentEmail) || undefined,
-        amountLabel: mapInvoiceAmount(row),
-        status: mapInvoiceStatus(row),
-        issuedOn: formatCourseworkDate(row.createdAt ?? row.issuedOn ?? row.startDate),
-        planName: str(row.planName, row.name, row.title, row.courseName) || undefined,
-        invoiceNumber: str(row.invoiceNumber, row.invoiceNo, row.number) || undefined,
-        dueOn: formatCourseworkDate(row.dueDate ?? row.nextDueDate) || undefined,
-        paidOn: formatCourseworkDate(row.paidAt ?? row.paidOn) || undefined,
-        notes: stripHtml(str(row.notes, row.description)) || undefined,
-        installments: installments.length > 0 ? installments : undefined,
-      });
+      const mapped = mapInvoiceRow(row);
+      if (mapped) out.push(mapped);
     }
     return out;
+  },
+
+  async invoice(invoiceId: string): Promise<Invoice | null> {
+    try {
+      const raw = await getPaymentPlanById(invoiceId);
+      const row =
+        asRecord(asRecord(raw)?.data) ??
+        asRecord(asRecord(raw)?.paymentPlan) ??
+        asRecord(raw);
+      if (row) {
+        const mapped = mapInvoiceRow({ ...row, _id: row._id ?? row.id ?? invoiceId });
+        if (mapped) return mapped;
+      }
+    } catch {
+      // Fall through to the list payload.
+    }
+    const list = await this.invoices();
+    return list.find((item) => item.id === invoiceId) ?? null;
   },
 
   async agreements(): Promise<Agreement[]> {

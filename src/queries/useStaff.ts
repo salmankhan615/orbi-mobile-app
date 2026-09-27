@@ -15,6 +15,7 @@ export const staffKeys = {
   coursework: ['staff', 'coursework'] as const,
   submissions: (id?: string) => ['staff', 'submissions', id ?? 'all'] as const,
   invoices: ['staff', 'invoices'] as const,
+  invoice: (id: string) => ['staff', 'invoices', id] as const,
   agreements: ['staff', 'agreements'] as const,
   shifts: ['staff', 'shifts'] as const,
   practicalShifts: (filters?: { location?: string; isActive?: string }) =>
@@ -203,6 +204,16 @@ export function useInvoices() {
     queryKey: staffKeys.invoices,
     queryFn: staffApi.invoices,
     enabled: ready,
+    ...STAFF_QUERY,
+  });
+}
+
+export function useInvoice(invoiceId: string) {
+  const ready = useAfterInteractions();
+  return useQuery({
+    queryKey: staffKeys.invoice(invoiceId),
+    queryFn: () => staffApi.invoice(invoiceId),
+    enabled: ready && Boolean(invoiceId),
     ...STAFF_QUERY,
   });
 }
