@@ -6,6 +6,7 @@ import { mobileAuthApi } from '@/api/mobileAuth';
 import { pushDevicesApi } from '@/api/pushDevices';
 import { getDeviceInfo } from '@/api/deviceInfo';
 import { registerPushToken, initializePushNotifications } from '@/services/pushNotifications';
+import { startPushNotificationPolling, stopPushNotificationPolling } from '@/services/pushNotificationHandler';
 
 /**
  * Complete mobile auth management.
@@ -137,6 +138,8 @@ export function useAuth() {
           await initializePushNotifications();
           console.log('[Auth] Registering push token...');
           await registerPushToken(response.accessToken);
+          console.log('[Auth] Starting push notification polling...');
+          startPushNotificationPolling(response.accessToken);
           console.log('[Auth] ✓ Push notifications set up');
         } catch (error) {
           console.warn('[Auth] Push setup failed (non-blocking):', error);
@@ -159,6 +162,9 @@ export function useAuth() {
   const logout = useCallback(async () => {
     try {
       console.log('[Auth] Logging out...');
+
+      // Stop push notification polling
+      stopPushNotificationPolling();
 
       // Get device info for deregistration
       const device = await getDeviceInfo();

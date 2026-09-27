@@ -52,12 +52,14 @@ export default function App() {
   useEffect(() => {
     const checkVersion = async () => {
       try {
-        console.log('[App] Checking app version...');
+        console.log('[App] Checking app version on launch...');
         const config = await appConfigApi.getConfig();
+        console.log('[App] App config loaded, checking version requirement');
         setAppConfig(config);
         setVersionChecked(true);
       } catch (error) {
         console.error('[App] Version check error:', error);
+        console.warn('[App] Proceeding without version check');
         setVersionChecked(true); // Proceed anyway
       }
     };
@@ -108,19 +110,24 @@ export default function App() {
   }
 
   // Show update screen if version not supported
-  if (appConfig && !appConfigApi.isVersionSupported('1.0.0', appConfig.minSupportedVersion)) {
-    return (
-      <GestureHandlerRootView style={rootStyles.flexFill}>
-        <SafeAreaProvider>
-          <UpdateScreen
-            minVersion={appConfig.minSupportedVersion}
-            storeUrls={appConfig.storeUrls}
-            message={appConfig.updateMessage}
-          />
-          <StatusBar style="dark" />
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
-    );
+  if (appConfig) {
+    const isSupported = appConfigApi.isVersionSupported('1.0.0', appConfig.minSupportedVersion);
+    if (!isSupported) {
+      console.warn('[App] App version is not supported - showing update screen');
+      return (
+        <GestureHandlerRootView style={rootStyles.flexFill}>
+          <SafeAreaProvider>
+            <UpdateScreen
+              minVersion={appConfig.minSupportedVersion}
+              storeUrls={appConfig.storeUrls}
+              message={appConfig.updateMessage}
+            />
+            <StatusBar style="dark" />
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      );
+    }
+    console.log('[App] ✓ App version is supported');
   }
 
   return (

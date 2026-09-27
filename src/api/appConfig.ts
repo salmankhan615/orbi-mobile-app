@@ -23,7 +23,8 @@ export const appConfigApi = {
    */
   async getConfig(): Promise<MobileConfig> {
     try {
-      console.log('[Config] Fetching app configuration...');
+      console.log('[Config] Fetching app configuration from /api/mobile/config');
+      console.log('[Config] Current app version:', APP_VERSION);
       const response = await fetch(`${API_BASE_URL}/api/mobile/config`, {
         method: 'GET',
         headers: {
@@ -32,7 +33,8 @@ export const appConfigApi = {
       });
 
       if (!response.ok) {
-        console.warn('[Config] Failed to fetch:', response.status);
+        console.warn('[Config] Failed to fetch config:', response.status, response.statusText);
+        console.warn('[Config] Using fallback defaults');
         // Return safe defaults if config unavailable
         return {
           minSupportedVersion: '0.0.0',
@@ -45,10 +47,14 @@ export const appConfigApi = {
       }
 
       const data = (await response.json()) as MobileConfig;
-      console.log('[Config] ✓ Config fetched');
+      console.log('[Config] ✓ Config fetched successfully:', {
+        minSupportedVersion: data.minSupportedVersion,
+        latestVersion: data.latestVersion,
+      });
       return data;
     } catch (error) {
       console.error('[Config] Fetch error:', error);
+      console.warn('[Config] Using fallback defaults');
       // Return safe defaults
       return {
         minSupportedVersion: '0.0.0',
@@ -68,7 +74,16 @@ export const appConfigApi = {
   isVersionSupported(currentVersion: string, minVersion: string): boolean {
     const current = parseVersion(currentVersion);
     const minimum = parseVersion(minVersion);
-    return compareVersions(current, minimum) >= 0;
+    const supported = compareVersions(current, minimum) >= 0;
+    console.log('[Config] Version support check:', {
+      current: currentVersion,
+      minimum: minVersion,
+      supported,
+    });
+    if (!supported) {
+      console.warn('[Config] ⚠️ App version not supported - update required');
+    }
+    return supported;
   },
 
   /**
@@ -77,7 +92,14 @@ export const appConfigApi = {
   isUpdateAvailable(currentVersion: string, latestVersion: string): boolean {
     const current = parseVersion(currentVersion);
     const latest = parseVersion(latestVersion);
-    return compareVersions(current, latest) < 0;
+    const updateAvailable = compareVersions(current, latest) < 0;
+    if (updateAvailable) {
+      console.log('[Config] Update available:', {
+        current: currentVersion,
+        latest: latestVersion,
+      });
+    }
+    return updateAvailable;
   },
 };
 
