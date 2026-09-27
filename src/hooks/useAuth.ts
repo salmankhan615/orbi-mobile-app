@@ -5,6 +5,7 @@ import { setApiSession, setTokenRefreshHandler } from '@/api/client';
 import { mobileAuthApi } from '@/api/mobileAuth';
 import { pushDevicesApi } from '@/api/pushDevices';
 import { getDeviceInfo } from '@/api/deviceInfo';
+import { registerPushToken, initializePushNotifications } from '@/services/pushNotifications';
 
 /**
  * Complete mobile auth management.
@@ -129,6 +130,17 @@ export function useAuth() {
 
         // Schedule token refresh
         scheduleTokenRefresh(response.expiresIn);
+
+        // Initialize and register push notifications
+        try {
+          console.log('[Auth] Initializing push notifications...');
+          await initializePushNotifications();
+          console.log('[Auth] Registering push token...');
+          await registerPushToken(response.accessToken);
+          console.log('[Auth] ✓ Push notifications set up');
+        } catch (error) {
+          console.warn('[Auth] Push setup failed (non-blocking):', error);
+        }
 
         console.log('[Auth] ✓ Login successful');
         return response;

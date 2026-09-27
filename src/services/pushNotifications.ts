@@ -82,22 +82,29 @@ export async function registerPushToken(accessToken: string) {
 
     console.log('[Push] Getting push token...');
     const pushToken = await Notifications.getExpoPushTokenAsync();
-    console.log('[Push] Token:', pushToken.data.substring(0, 20) + '...');
+    console.log('[Push] Token obtained:', pushToken.data.substring(0, 20) + '...');
 
     // Get device info
     const device = await getDeviceInfo();
+    console.log('[Push] Device info:', device);
 
     // Register with backend
+    console.log('[Push] Registering token with backend...');
     await pushDevicesApi.register(pushToken.data, accessToken, {
       expoPushToken: pushToken.data,
       ...device,
     });
+    console.log('[Push] ✓ Token registered successfully');
 
     // Set up token change listener
     const subscription = Notifications.addPushTokenListener((event: any) => {
-      console.log('[Push] Token updated:', event.pushToken?.data.substring(0, 20) + '...');
+      const newToken = event.pushToken?.data;
+      console.log('[Push] Token changed:', newToken?.substring(0, 20) + '...');
       // Immediately re-register with new token
-      pushTokenUpdateHandler?.(event.pushToken?.data || '');
+      if (newToken) {
+        console.log('[Push] Re-registering with new token');
+        pushTokenUpdateHandler?.(newToken);
+      }
     });
 
     return () => {

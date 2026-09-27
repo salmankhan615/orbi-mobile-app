@@ -9,13 +9,17 @@ let handleNotificationsPollInterval: ReturnType<typeof setInterval> | null = nul
  * Handles: announcements, class reminders, booking reminders, course nudges
  */
 export function startPushNotificationPolling(accessToken: string) {
-  if (!accessToken) return;
+  if (!accessToken) {
+    console.warn('[Push] No access token for polling');
+    return;
+  }
 
-  console.log('[Push] Starting notification polling...');
+  console.log('[Push] Starting notification polling every 30 seconds');
 
   // Poll every 30 seconds for new announcements
   handleNotificationsPollInterval = setInterval(async () => {
     try {
+      console.log('[Push] Polling for announcements...');
       await pollAndSendAnnouncements(accessToken);
     } catch (error) {
       console.error('[Push] Polling error:', error);
@@ -23,6 +27,7 @@ export function startPushNotificationPolling(accessToken: string) {
   }, 30000); // 30 seconds
 
   // Do initial check immediately
+  console.log('[Push] Initial poll check');
   pollAndSendAnnouncements(accessToken).catch(console.error);
 }
 
@@ -43,11 +48,13 @@ export function stopPushNotificationPolling() {
  */
 async function pollAndSendAnnouncements(accessToken: string) {
   try {
+    console.log('[Push] Fetching unnotified announcements...');
     const announcements = await announcementPushApi.getUnnotifiedAnnouncements(accessToken);
+    console.log('[Push] Found', announcements.length, 'announcements');
 
     for (const announcement of announcements) {
       try {
-        console.log('[Push] Sending announcement:', announcement.title);
+        console.log('[Push] Sending announcement:', announcement.title || 'N/A');
 
         // Send local notification (in production, this would come from Expo Push Service)
         await Notifications.scheduleNotificationAsync({
@@ -66,7 +73,7 @@ async function pollAndSendAnnouncements(accessToken: string) {
 
         // Mark as notified
         await announcementPushApi.markNotified(announcement.announcementId, accessToken);
-        console.log('[Push] ✓ Announcement sent');
+        console.log('[Push] ✓ Announcement sent and marked as notified');
       } catch (error) {
         console.error('[Push] Failed to send announcement:', error);
       }
