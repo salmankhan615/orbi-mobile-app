@@ -7,18 +7,31 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development"
+      "channel": "development",
+      "android": {
+        "env": {
+          "GOOGLE_SERVICES_JSON": "./google-services.json"
+        }
+      }
     },
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "env": {
+          "GOOGLE_SERVICES_JSON": "./google-services.json"
+        }
       },
       "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "android": {
+        "env": {
+          "GOOGLE_SERVICES_JSON": "./google-services.json"
+        }
+      }
     }
   },
   "submit": {

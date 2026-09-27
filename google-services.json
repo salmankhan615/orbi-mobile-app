@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "434890247891",
+    "project_id": "orbi-mobile-app-50f4a",
+    "storage_bucket": "orbi-mobile-app-50f4a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:434890247891:android:c80cbcb20e4694cd900e26",
+        "android_client_info": {
+          "package_name": "com.kbmgroups.kbmtrainingrecruitment"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVDbvicZmaExYZRBvURR9RqpI0Slpr-xA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
