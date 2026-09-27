@@ -5,13 +5,15 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
 import { ScalePressable } from '@/components/custom/ScalePressable';
-import { sessionStatusBadge } from '@/api/sessions';
+import { sessionStatusBadge, type Session } from '@/api/sessions';
 import { useSessions } from '@/queries/useSessions';
 import { useCalendar } from '@/queries/useCalendars';
 import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { EmptyState } from '@/components/custom/EmptyState';
-import { getMonthDateRange } from '@/utils/date';
+import { formatPortalDate, getMonthDateRange } from '@/utils/date';
+import { useIsStaff, useHasPermission } from '@/hooks/useHasPermission';
+import { useToastStore } from '@/store/useToastStore';
 import { smoothScrollProps } from '@/utils/scroll';
 import type { RootStackScreenProps } from '@/navigation/types';
 
@@ -29,6 +31,9 @@ function formatDayTitle(iso: string) {
 export function DayAgendaScreen({ route, navigation }: Props) {
   const calendarId = route.params.calendarId;
   const dayDate = route.params.date;
+  const isStaff = useIsStaff();
+  const canViewBookings = useHasPermission('view_bookings');
+  const showToast = useToastStore((state) => state.show);
   const range = getMonthDateRange(new Date(`${dayDate}T12:00:00`));
   const { data: sessions, isLoading } = useSessions({
     calendarId,
@@ -36,6 +41,35 @@ export function DayAgendaScreen({ route, navigation }: Props) {
     endDate: range.endDate,
   });
   const { data: calendar } = useCalendar(calendarId ?? 'all');
+
+  function openSession(session: Session) {
+    if (!isStaff) {
+      navigation.navigate('SessionDetails', { sessionId: session.id });
+      return;
+    }
+    if (!canViewBookings) {
+      showToast("You don't have permission to view bookings.", 'danger');
+      return;
+    }
+    if (session.kind === 'training') {
+      navigation.navigate('TrainingLocationBookings', {
+        date: session.date,
+        locationName: session.location || session.code || 'Location',
+        locationId: session.locationId,
+        dayId: session.dayId,
+      });
+      return;
+    }
+    navigation.navigate('ClassBookings', {
+      classId: session.id,
+      title: session.title,
+      date: session.date,
+      dateLabel: formatPortalDate(session.date),
+      startTime: session.startTime,
+      endTime: session.endTime,
+      location: session.location || session.code || '—',
+    });
+  }
 
   const daySessions = (sessions ?? [])
     .filter((session) => session.date === dayDate)
@@ -88,7 +122,7 @@ export function DayAgendaScreen({ route, navigation }: Props) {
 
             <ScalePressable
               style={styles.card}
-              onPress={() => navigation.navigate('SessionDetails', { sessionId: session.id })}
+              onPress={() => openSession(session)}
             >
               <Text variant="caption" color="textSecondary">
                 {session.startTime} - {session.endTime}

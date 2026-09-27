@@ -18,6 +18,7 @@ import { SessionListItem } from '@/features/calendar/components/SessionListItem'
 import { CalendarSkeleton, EntityListSkeleton } from '@/components/custom/Skeletons';
 import { EmptyState } from '@/components/custom/EmptyState';
 import {
+  formatPortalDate,
   formatWeekRange,
   getVisibleCalendarRange,
   getWeekRange,
@@ -57,7 +58,6 @@ export function CalendarScreen({ navigation }: Props) {
   const canClose = useHasPermission('close_calendar');
   const canShifts = useHasPermission('view_shifts');
   const canViewBookings = useHasPermission('view_bookings');
-  const canEditCalendar = useHasPermission('edit_calendar');
   const showToast = useToastStore((state) => state.show);
   const [, startViewTransition] = useTransition();
   const [viewMode, setViewMode] = useState<ViewMode>('Month');
@@ -163,11 +163,11 @@ export function CalendarScreen({ navigation }: Props) {
         navigation.navigate('SessionDetails', { sessionId: session.id });
         return;
       }
+      if (!canViewBookings) {
+        showToast("You don't have permission to view bookings.", 'danger');
+        return;
+      }
       if (session.kind === 'training') {
-        if (!canViewBookings) {
-          showToast("You don't have permission to view bookings for this location.", 'danger');
-          return;
-        }
         navigation.navigate('TrainingLocationBookings', {
           date: session.date,
           locationName: session.location || session.code || 'Location',
@@ -176,13 +176,17 @@ export function CalendarScreen({ navigation }: Props) {
         });
         return;
       }
-      if (canEditCalendar) {
-        navigation.navigate('EditTimetable', { classId: session.id });
-        return;
-      }
-      showToast("You don't have permission to edit this class.", 'danger');
+      navigation.navigate('ClassBookings', {
+        classId: session.id,
+        title: session.title,
+        date: session.date,
+        dateLabel: formatPortalDate(session.date),
+        startTime: session.startTime,
+        endTime: session.endTime,
+        location: session.location || session.code || '—',
+      });
     },
-    [canEditCalendar, canViewBookings, isStaff, navigation, showToast],
+    [canViewBookings, isStaff, navigation, showToast],
   );
 
   return (
