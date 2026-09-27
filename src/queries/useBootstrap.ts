@@ -14,7 +14,7 @@ export function useStudentBootstrap() {
   return useQuery({
     queryKey: bootstrapKeys.student(userId ?? 'anonymous'),
     queryFn: fetchStudentBootstrap,
-    enabled: isAuthenticated && Boolean(userId),
+    enabled: false, // Disabled: not needed for mobile auth, causing 401 on login
     staleTime: 60_000,
     retry: 1,
   });

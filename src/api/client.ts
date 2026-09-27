@@ -1,16 +1,19 @@
 import { Platform } from 'react-native';
-import { API_BASE_URL } from '@/api/config';
+import { API_BASE_URL, APP_VERSION } from '@/api/config';
 import { clearStoredSession, patchStoredSession } from '@/store/sessionPersistence';
+import { tokenManager } from '@/store/tokenManager';
 
 export class ApiError extends Error {
   status: number;
   body: unknown;
+  code?: string;
 
-  constructor(message: string, status: number, body?: unknown) {
+  constructor(message: string, status: number, body?: unknown, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.body = body;
+    this.code = code;
   }
 }
 
@@ -26,10 +29,16 @@ type RequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
 let sessionCookie: string | null = null;
 let sessionToken: string | null = null;
 let unauthorizedHandler: (() => void) | null = null;
+let tokenRefreshHandler: (() => Promise<void>) | null = null;
 
 /** Called once per 401 on an authenticated call — the auth store signs out here. */
 export function setUnauthorizedHandler(handler: (() => void) | null) {
   unauthorizedHandler = handler;
+}
+
+/** Called to refresh tokens when TOKEN_EXPIRED. */
+export function setTokenRefreshHandler(handler: (() => Promise<void>) | null) {
+  tokenRefreshHandler = handler;
 }
 
 /**
@@ -142,12 +151,20 @@ const REQUEST_TIMEOUT_MS = 20_000;
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers, skipAuth, signal, timeoutMs, ...rest } = options;
-  const authHeaders: Record<string, string> = {};
+  const authHeaders: Record<string, string> = {
+    'X-App-Version': APP_VERSION,
+  };
 
   if (!skipAuth) {
-    // credentials: 'omit' — do not await jar clears here; that stalled every CRM call.
-    const cookie = sessionCookie ?? (sessionToken ? `token=${sessionToken}` : null);
-    if (cookie) authHeaders.Cookie = cookie;
+    // Prefer Bearer token (mobile); fall back to Cookie (web)
+    // Document: Prefer the Authorization header (mobile); fall back to the cookie the web uses.
+    const bearerToken = sessionToken;
+    if (bearerToken) {
+      authHeaders.Authorization = `Bearer ${bearerToken}`;
+    } else {
+      const cookie = sessionCookie ?? (sessionToken ? `token=${sessionToken}` : null);
+      if (cookie) authHeaders.Cookie = cookie;
+    }
   }
 
   const formData = isFormDataBody(body);
@@ -193,14 +210,38 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const parsed = await parseBody(response);
 
   if (response.status === 401 && !skipAuth && (sessionCookie || sessionToken)) {
+    // Document: Handle TOKEN_EXPIRED vs TOKEN_INVALID differently
+    const code = (parsed as any)?.code;
+
+    if (code === 'TOKEN_EXPIRED' && tokenRefreshHandler) {
+      console.log('[API] Token expired, attempting refresh...');
+      try {
+        await tokenRefreshHandler();
+        // Retry the request with new token
+        return request<T>(path, options);
+      } catch (refreshError) {
+        console.error('[API] Token refresh failed, logging out');
+        unauthorizedHandler?.();
+        throw new ApiError(
+          'Session expired. Please login again.',
+          401,
+          parsed,
+          'SESSION_EXPIRED',
+        );
+      }
+    }
+
+    // TOKEN_INVALID, REFRESH_TOKEN_EXPIRED, or ACCOUNT_INACTIVE
     unauthorizedHandler?.();
   }
 
   if (!response.ok) {
+    const code = (parsed as any)?.code;
     throw new ApiError(
       messageFromBody(parsed, `Request to ${path} failed (${response.status})`),
       response.status,
       parsed,
+      code,
     );
   }
 

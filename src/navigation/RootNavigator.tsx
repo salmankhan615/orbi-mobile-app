@@ -4,6 +4,7 @@ import { tokens } from '@/theme';
 import { LoginScreen } from '@/pages/auth/LoginScreen';
 import { ForgotPasswordScreen } from '@/pages/auth/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '@/pages/auth/ResetPasswordScreen';
+import type { MobileConfig } from '@/api/appConfig';
 import { CourseDetailScreen } from '@/pages/courses/CourseDetailScreen';
 import { LessonPlayerScreen } from '@/pages/courses/LessonPlayerScreen';
 import { DashboardScreen } from '@/pages/home/DashboardScreen';
@@ -57,7 +58,11 @@ import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export function RootNavigator() {
+interface RootNavigatorProps {
+  appConfig?: MobileConfig | null;
+}
+
+export function RootNavigator({ appConfig }: RootNavigatorProps) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const role = useAuthStore((state) => state.user?.role ?? 'student');
   const sessionExpiresAt = useAuthStore((state) => state.sessionExpiresAt);

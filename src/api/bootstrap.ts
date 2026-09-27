@@ -67,7 +67,8 @@ export async function fetchStudentBootstrap(): Promise<StudentBootstrap> {
   const companyId = resolveCompanyId(user) || resolveCompanyId(useAuthStore.getState().user) || '';
 
   const [loginStatusRes, modulesRes, announcementsRes, settingsRes] = await Promise.all([
-    settled(authApi.getLoginStatus()),
+    // settled(authApi.getLoginStatus()), // Disabled: not needed for mobile auth
+    Promise.resolve({ ok: true as const, value: null }),
     settled(getModules()),
     settled(getMyAnnouncements()),
     settled(getCourseSettings()),

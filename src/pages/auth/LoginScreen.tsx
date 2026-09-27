@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { Screen } from '@/components/custom/Screen';
 import { AuthHero } from '@/features/auth/components/AuthHero';
-import { loginErrorMessage, useLogin } from '@/queries/useAuth';
 import { useToastStore } from '@/store/useToastStore';
+import { useAuth } from '@/hooks/useAuth';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'Login'>;
@@ -15,16 +15,29 @@ type Props = RootStackScreenProps<'Login'>;
 export function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const login = useLogin();
+  const [isLoading, setIsLoading] = useState(false);
   const showToast = useToastStore((state) => state.show);
+  const { login } = useAuth();
 
-  function handleSignIn() {
-    login.mutate(
-      { email, password },
-      {
-        onError: (error) => showToast(loginErrorMessage(error), 'danger'),
-      },
-    );
+  async function handleSignIn() {
+    if (!email || !password) {
+      showToast('Please enter email and password', 'danger');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      console.log('[Login] Attempting login with:', email);
+      await login(email, password);
+      // Navigation happens automatically when auth state changes
+      console.log('[Login] ✓ Login successful');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed';
+      console.error('[Login] Error:', message);
+      showToast(message, 'danger');
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -66,10 +79,10 @@ export function LoginScreen({ navigation }: Props) {
             </Text>
 
             <Button
-              label={login.isPending ? 'Signing in…' : 'Sign In'}
+              label={isLoading ? 'Signing in…' : 'Sign In'}
               onPress={handleSignIn}
-              disabled={login.isPending || !email || !password}
-              loading={login.isPending}
+              disabled={isLoading || !email || !password}
+              loading={isLoading}
               style={styles.submit}
             />
           </View>

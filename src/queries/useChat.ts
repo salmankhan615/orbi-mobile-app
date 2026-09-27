@@ -12,6 +12,7 @@ export function useConversations() {
     queryKey: chatKeys.conversations,
     queryFn: chatRestApi.listConversations,
     staleTime: 30_000, // 30 seconds
+    enabled: false, // Chat API not available yet
   });
 }
 
@@ -19,7 +20,7 @@ export function useConversation(id: string) {
   return useQuery({
     queryKey: ['conversations', id],
     queryFn: () => chatRestApi.getConversation(id),
-    enabled: Boolean(id),
+    enabled: false, // Chat API not available yet
     staleTime: 30_000,
   });
 }
@@ -30,7 +31,7 @@ export function useMessages(conversationId: string) {
   const query = useQuery({
     queryKey: chatKeys.messages(conversationId),
     queryFn: () => chatRestApi.listMessages(conversationId),
-    enabled: Boolean(conversationId),
+    enabled: false, // Chat API not available yet
     staleTime: 5_000, // 5 seconds
   });
 

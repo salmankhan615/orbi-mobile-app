@@ -67,14 +67,25 @@ export const chatRestApi = {
       });
 
       if (!response.ok) {
+        console.error('[Chat] Response status:', response.status, response.statusText);
+        const text = await response.text();
+        console.error('[Chat] Response body:', text.substring(0, 200));
         throw new Error(`Failed to fetch conversations: ${response.statusText}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) {
+        const text = await response.text();
+        console.error('[Chat] Invalid content type:', contentType);
+        console.error('[Chat] Response body:', text.substring(0, 200));
+        return [];
       }
 
       const data = (await response.json()) as Conversation[];
       return data || [];
     } catch (error) {
       console.error('[Chat] Failed to list conversations:', error);
-      throw error;
+      return []; // Return empty array instead of throwing
     }
   },
 
@@ -87,7 +98,7 @@ export const chatRestApi = {
       return conversations.find((c) => c._id === id || c.id === id);
     } catch (error) {
       console.error('[Chat] Failed to get conversation:', error);
-      throw error;
+      return undefined; // Return undefined instead of throwing
     }
   },
 
@@ -108,7 +119,18 @@ export const chatRestApi = {
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch messages: ${response.statusText}`);
+        console.error('[Chat] Response status:', response.status, response.statusText);
+        const text = await response.text();
+        console.error('[Chat] Response body:', text.substring(0, 200));
+        return [];
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) {
+        const text = await response.text();
+        console.error('[Chat] Invalid content type:', contentType);
+        console.error('[Chat] Response body:', text.substring(0, 200));
+        return [];
       }
 
       const data = (await response.json()) as ChatMessage[];
@@ -120,7 +142,7 @@ export const chatRestApi = {
       }));
     } catch (error) {
       console.error('[Chat] Failed to list messages:', error);
-      throw error;
+      return []; // Return empty array instead of throwing
     }
   },
 
@@ -142,38 +164,49 @@ export const chatRestApi = {
 
       if (!socket?.connected) {
         // Fallback to REST if socket not connected
-        const response = await fetch(`${CHAT_BASE_URL}/api/message/sendMessage`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${getApiSession().token}`,
-            'X-App-Version': APP_VERSION,
-          },
-          body: JSON.stringify({
-            conversation_id: conversationId,
-            text,
-          }),
-        });
+        try {
+          const response = await fetch(`${CHAT_BASE_URL}/api/message/sendMessage`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${getApiSession().token}`,
+              'X-App-Version': APP_VERSION,
+            },
+            body: JSON.stringify({
+              conversation_id: conversationId,
+              text,
+            }),
+          });
 
-        if (!response.ok) {
-          throw new Error(`Failed to send message: ${response.statusText}`);
+          if (!response.ok) {
+            console.error('[Chat] Send failed:', response.status, response.statusText);
+            return [];
+          }
+
+          // Return updated message list after send
+          return chatRestApi.listMessages(conversationId);
+        } catch (error) {
+          console.error('[Chat] Failed to send via REST:', error);
+          return [];
         }
-
-        // Return updated message list after send
-        return chatRestApi.listMessages(conversationId);
       }
 
       // Use socket.io for real-time send
-      await emitChatEvent('sendMessage', {
-        conversationId,
-        text,
-      });
+      try {
+        await emitChatEvent('sendMessage', {
+          conversationId,
+          text,
+        });
 
-      // Return updated message list
-      return chatRestApi.listMessages(conversationId);
+        // Return updated message list
+        return chatRestApi.listMessages(conversationId);
+      } catch (error) {
+        console.error('[Chat] Failed to send via socket:', error);
+        return [];
+      }
     } catch (error) {
       console.error('[Chat] Failed to send message:', error);
-      throw error;
+      return []; // Return empty array instead of throwing
     }
   },
 };

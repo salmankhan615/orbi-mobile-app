@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { clearApiSession, getApiSession, setApiSession } from '@/api/client';
-import { initChat, closeChat } from '@/api/chat';
+// import { initChat, closeChat } from '@/api/chat';
+// import { closeChat } from '@/api/chat';
 import type { StaffPermission, UserRole } from '@/features/auth/permissions';
 import {
   clearStoredSession,
@@ -74,14 +75,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     set({ user, isAuthenticated: true, sessionExpiresAt });
     const creds = getApiSession();
-    void saveStoredSession({
+    saveStoredSession({
       user,
       sessionExpiresAt,
       cookie: creds.cookie,
       token: creds.token,
+    }).catch((error) => {
+      console.error('[Auth] Failed to save session:', error);
     });
-    // Initialize chat connection after successful login
-    initChat();
   },
   updateUser: (patch) => {
     set((state) => {
@@ -104,7 +105,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
   signOut: () => {
-    closeChat();
+    console.log('[AuthStore] signOut called');
+    // closeChat();
     clearApiSession();
     void clearStoredSession();
     set({ user: null, isAuthenticated: false, sessionExpiresAt: null });
@@ -127,6 +129,11 @@ export async function restoreAuthSession() {
     isAuthenticated: true,
     sessionExpiresAt: session.sessionExpiresAt,
   });
-  // Initialize chat connection when restoring session
-  initChat();
+  // Initialize chat connection when restoring session (non-blocking)
+  // Commented out: socket connection not required for now
+  // try {
+  //   initChat();
+  // } catch (error) {
+  //   console.warn('[Auth] Chat init optional, proceeding without it');
+  // }
 }
