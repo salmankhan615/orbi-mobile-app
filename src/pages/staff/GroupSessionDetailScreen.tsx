@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { StackScreen } from '@/components/custom/StackScreen';
-import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
@@ -22,14 +21,9 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 function str(...values: unknown[]): string {
   for (const value of values) {
     if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   }
   return '';
-}
-
-function personName(raw: unknown): string {
-  const row = asRecord(raw);
-  if (!row) return '';
-  return `${str(row.name, row.firstName)} ${str(row.lname, row.lastName)}`.trim() || str(row.email);
 }
 
 type AttendanceRow = {
@@ -38,6 +32,20 @@ type AttendanceRow = {
   state: string;
   tone: 'success' | 'danger' | 'warning' | 'primary';
 };
+
+function attendanceLabel(raw: unknown): { state: string; tone: AttendanceRow['tone'] } {
+  const value = str(raw);
+  if (/absent/i.test(value)) return { state: 'Absent', tone: 'danger' };
+  if (/present/i.test(value)) return { state: 'Present', tone: 'success' };
+  if (/late/i.test(value)) return { state: 'Late', tone: 'warning' };
+  return { state: 'Booked', tone: 'primary' };
+}
+
+function personName(raw: unknown): string {
+  const row = asRecord(raw);
+  if (!row) return '';
+  return `${str(row.name, row.firstName)} ${str(row.lname, row.lastName)}`.trim() || str(row.email);
+}
 
 export function GroupSessionDetailScreen({ route }: Props) {
   const { groupId, classId, title, date, startTime, endTime, location } = route.params;
@@ -51,16 +59,12 @@ export function GroupSessionDetailScreen({ route }: Props) {
         const row = asRecord(item);
         if (!row) continue;
         const student = asRecord(row.student) ?? asRecord(row.user) ?? row;
-        const attendance = str(row.attendance, row.status) || 'Booked';
+        const { state, tone } = attendanceLabel(row.attendance);
         rows.push({
           id: str(row._id, row.id, student._id, `b-${rows.length}`),
           name: personName(student) || 'Student',
-          state: attendance,
-          tone: /absent/i.test(attendance)
-            ? 'danger'
-            : /present/i.test(attendance)
-              ? 'success'
-              : 'warning',
+          state,
+          tone,
         });
       }
       for (const item of unwrapList(payload.notBooked ?? payload.notBookedStudents)) {
@@ -74,8 +78,13 @@ export function GroupSessionDetailScreen({ route }: Props) {
           tone: 'primary',
         });
       }
+      const bookedRows = rows.filter((row) => row.state !== 'Not booked');
       return {
-        counts: asRecord(payload.counts) ?? {},
+        counts: {
+          present: bookedRows.filter((row) => row.state === 'Present').length,
+          absent: bookedRows.filter((row) => row.state === 'Absent').length,
+          booked: bookedRows.length,
+        },
         rows,
       };
     },
@@ -101,11 +110,10 @@ export function GroupSessionDetailScreen({ route }: Props) {
           initialNumToRender={12}
           contentContainerStyle={styles.list}
           ListHeaderComponent={
-            data?.counts ? (
+            data ? (
               <Text variant="caption" color="textMuted" style={styles.counts}>
-                Present {str(data.counts.presentCount, data.counts.present) || '0'} · Absent{' '}
-                {str(data.counts.absentCount, data.counts.absent) || '0'} · Booked{' '}
-                {str(data.counts.bookedCount, data.counts.booked) || String(data.rows.length)}
+                Present {data.counts.present} · Absent {data.counts.absent} · Booked{' '}
+                {data.counts.booked}
               </Text>
             ) : null
           }

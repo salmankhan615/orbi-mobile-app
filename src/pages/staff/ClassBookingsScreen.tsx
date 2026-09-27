@@ -139,15 +139,17 @@ export function ClassBookingsScreen({ route }: Props) {
                   ) : null}
                   <View style={styles.metaRow}>
                     <Badge
-                      label={row.statusLabel || row.status}
-                      tone={isCancelled ? 'danger' : 'success'}
+                      label={
+                        isCancelled
+                          ? row.statusLabel || 'Cancelled'
+                          : isPresent
+                            ? row.attendanceLabel || 'Present'
+                            : isAbsent
+                              ? row.attendanceLabel || 'Absent'
+                              : 'Booked'
+                      }
+                      tone={isCancelled || isAbsent ? 'danger' : isPresent ? 'success' : 'primary'}
                     />
-                    {row.attendance ? (
-                      <Badge
-                        label={row.attendanceLabel || row.attendance}
-                        tone={isAbsent ? 'danger' : 'success'}
-                      />
-                    ) : null}
                   </View>
                 </View>
                 <AttendanceActions
