@@ -834,24 +834,19 @@ export const staffApi = {
   },
 
   async directory(): Promise<DirectoryUser[]> {
-    // Avoid getAllUsersActive — full company dumps freeze the RN bridge.
-    let rows: unknown[] = [];
-    try {
-      rows = unwrapList(await getCalendarUsersLite());
-    } catch {
-      const settled = await Promise.allSettled([
-        getUsersByType({ userType: 'student' }),
-        getUsersByType({ userType: 'staff' }),
-      ]);
-      for (const result of settled) {
-        if (result.status === 'fulfilled') rows.push(...unwrapList(result.value));
-      }
+    // users-lite is staff-only (`excludeStudents=1`). Directory needs both types.
+    const settled = await Promise.allSettled([
+      getUsersByType({ userType: 'student' }),
+      getUsersByType({ userType: 'staff' }),
+    ]);
+    const rows: unknown[] = [];
+    for (const result of settled) {
+      if (result.status === 'fulfilled') rows.push(...unwrapList(result.value));
     }
 
     const out: DirectoryUser[] = [];
     const seen = new Set<string>();
     for (const item of rows) {
-      if (out.length >= 80) break;
       const row = asRecord(item);
       if (!row) continue;
       const id = idOf(row._id ?? row.id);
@@ -865,7 +860,7 @@ export const staffApi = {
         status: mapDirectoryStatus(row),
       });
     }
-    return out;
+    return out.sort((a, b) => a.name.localeCompare(b.name));
   },
 
   async coursework(): Promise<CourseworkItem[]> {
