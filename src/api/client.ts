@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { API_BASE_URL } from '@/api/config';
+import { clearStoredSession, patchStoredSession } from '@/store/sessionPersistence';
 
 export class ApiError extends Error {
   status: number;
@@ -60,12 +61,14 @@ export function setApiSession(
   if (options?.clearJar) {
     void clearNativeCookies();
   }
+  void patchStoredSession({ cookie: sessionCookie, token: sessionToken });
 }
 
 export function clearApiSession() {
   sessionCookie = null;
   sessionToken = null;
   void clearNativeCookies();
+  void clearStoredSession();
 }
 
 export function getApiSession() {

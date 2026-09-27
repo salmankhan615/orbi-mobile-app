@@ -1,6 +1,11 @@
 import { create } from 'zustand';
-import { clearApiSession, setApiSession } from '@/api/client';
+import { clearApiSession, getApiSession, setApiSession } from '@/api/client';
 import type { StaffPermission, UserRole } from '@/features/auth/permissions';
+import {
+  clearStoredSession,
+  loadStoredSession,
+  saveStoredSession,
+} from '@/store/sessionPersistence';
 
 export interface AuthUser {
   id: string;
@@ -67,8 +72,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       setApiSession(session.cookie ?? null, session.token ?? null, { clearJar: true });
     }
     set({ user, isAuthenticated: true, sessionExpiresAt });
+    const creds = getApiSession();
+    void saveStoredSession({
+      user,
+      sessionExpiresAt,
+      cookie: creds.cookie,
+      token: creds.token,
+    });
   },
-  updateUser: (patch) =>
+  updateUser: (patch) => {
     set((state) => {
       if (!state.user) return state;
       const next = { ...state.user, ...patch };
@@ -77,9 +89,38 @@ export const useAuthStore = create<AuthState>((set) => ({
         next.companyId = state.user.companyId;
       }
       return { user: next };
-    }),
+    });
+    const { user, sessionExpiresAt } = useAuthStore.getState();
+    if (!user || !sessionExpiresAt) return;
+    const creds = getApiSession();
+    void saveStoredSession({
+      user,
+      sessionExpiresAt,
+      cookie: creds.cookie,
+      token: creds.token,
+    });
+  },
   signOut: () => {
     clearApiSession();
+    void clearStoredSession();
     set({ user: null, isAuthenticated: false, sessionExpiresAt: null });
   },
 }));
+
+/** Restore a 7-day session from disk before the navigator chooses Login vs app. */
+export async function restoreAuthSession() {
+  const session = await loadStoredSession();
+  if (!session) return;
+
+  if (session.sessionExpiresAt <= Date.now() || !(session.cookie || session.token)) {
+    await clearStoredSession();
+    return;
+  }
+
+  setApiSession(session.cookie, session.token);
+  useAuthStore.setState({
+    user: session.user,
+    isAuthenticated: true,
+    sessionExpiresAt: session.sessionExpiresAt,
+  });
+}

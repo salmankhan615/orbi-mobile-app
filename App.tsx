@@ -6,7 +6,7 @@ import {
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
 import 'react-native-gesture-handler';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { tokens } from '@/theme';
@@ -16,6 +16,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import { queryClient } from '@/queries/queryClient';
 import { RootNavigator } from '@/navigation/RootNavigator';
+import { restoreAuthSession } from '@/store/useAuthStore';
 import { rootStyles } from '@/theme/rootStyles';
 import { Toast } from '@/components/custom/Toast';
 
@@ -41,20 +42,27 @@ export default function App() {
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    if (fontsLoaded) {
+    void restoreAuthSession().finally(() => setSessionReady(true));
+  }, []);
+
+  const ready = fontsLoaded && sessionReady;
+
+  useEffect(() => {
+    if (ready) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [ready]);
 
   const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded) {
+    if (ready) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [ready]);
 
-  if (!fontsLoaded) {
+  if (!ready) {
     return null;
   }
 
