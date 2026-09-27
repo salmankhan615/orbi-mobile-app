@@ -5,6 +5,7 @@ import {
   isSettingsActive,
   type TrainingShiftRaw,
 } from '@/api/crm';
+import { formatClock } from '@/utils/date';
 
 export type TrainingLocation = {
   id: string;
@@ -68,8 +69,8 @@ export const trainingApi = {
         return {
           id,
           name: shift.name?.trim() || 'Shift',
-          startTime: shift.startTime || '—',
-          endTime: shift.endTime || '—',
+          startTime: formatClock(shift.startTime),
+          endTime: formatClock(shift.endTime),
           freeSeats,
           availableCount,
           bookingLimit,

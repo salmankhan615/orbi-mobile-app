@@ -17,7 +17,7 @@ import {
   type TrainingShiftRaw,
 } from '@/api/crm';
 import { useAuthStore } from '@/store/useAuthStore';
-import { formatPortalDate, getRollingDateRange } from '@/utils/date';
+import { formatClock, formatPortalDate, getRollingDateRange } from '@/utils/date';
 
 export type BookingKind = 'class' | 'training';
 export type BookingStatus = 'confirmed' | 'attended' | 'cancelled' | 'available';
@@ -200,17 +200,6 @@ function toISODate(value: unknown): string {
     if (!Number.isNaN(parsed.getTime())) return localDayFromDate(parsed);
   }
   return '';
-}
-
-function formatClock(value: unknown): string {
-  const raw = str(value);
-  if (!raw) return '—';
-  if (/[ap]m/i.test(raw)) return raw;
-  const iso = raw.match(/T(\d{2}):(\d{2})/);
-  if (iso) return `${iso[1]}:${iso[2]}`;
-  const match = raw.match(/^(\d{1,2}):(\d{2})/);
-  if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
-  return raw;
 }
 
 function bookedSeats(row: UnknownRecord): number[] {

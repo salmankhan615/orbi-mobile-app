@@ -29,9 +29,10 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     transform: [{ translateY: translateY.value }],
   }));
 
-  const time = new Date(message.timestamp).toLocaleTimeString('en-US', {
-    hour: 'numeric',
+  const time = new Date(message.timestamp).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   });
 
   return (

@@ -10,7 +10,7 @@ import {
 import { collectAllocatedCalendarScope } from '@/features/calendar/allocatedScope';
 import { requireStudentContext } from '@/api/sessionUser';
 import { useAuthStore } from '@/store/useAuthStore';
-import { toISODate } from '@/utils/date';
+import { formatClock, toISODate } from '@/utils/date';
 
 export type SessionType = 'green' | 'red' | 'amber' | 'blue';
 export type SessionStatus = 'upcoming' | 'completed' | 'cancelled';
@@ -107,24 +107,6 @@ function str(...values: unknown[]): string {
 function num(value: unknown): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
-}
-
-/** CRM stores start/end as ISO datetimes — show 12-hour clock for combineDateAndTime. */
-function formatClock(value: unknown): string {
-  const raw = str(value);
-  if (!raw) return '12:00 AM';
-  if (/[ap]m/i.test(raw)) return raw;
-  const iso = raw.match(/T(\d{2}):(\d{2})/);
-  if (iso) {
-    const hour = Number(iso[1]);
-    const minute = iso[2];
-    const suffix = hour >= 12 ? 'PM' : 'AM';
-    const h12 = hour % 12 || 12;
-    return `${String(h12).padStart(2, '0')}:${minute} ${suffix}`;
-  }
-  const match = raw.match(/^(\d{1,2}):(\d{2})/);
-  if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
-  return raw;
 }
 
 /** Occurrence day — prefer classDate/startTime; `date` is often the series start. */
@@ -429,8 +411,8 @@ export const sessionsApi = {
         const total = num(props.totalBookings ?? row.totalBookings);
         const startRaw = props.startTime ?? row.startTime ?? row.start ?? props.start;
         const endRaw = props.endTime ?? row.endTime ?? row.end ?? props.end;
-        const startTime = formatClock(startRaw) || '09:00 AM';
-        const endTime = formatClock(endRaw) || '05:00 PM';
+        const startTime = formatClock(startRaw, '09:00');
+        const endTime = formatClock(endRaw, '17:00');
         // Web FullCalendar title is already e.g. "Barking (5)".
         const title =
           str(row.title) ||

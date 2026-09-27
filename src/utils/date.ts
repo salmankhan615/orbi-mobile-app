@@ -89,18 +89,34 @@ export function formatPortalDate(value: string | Date | undefined | null): strin
   return `${day}/${month}/${year}`;
 }
 
-/** Portal-style 24h clock, e.g. 14:00. */
-export function formatPortalTime(time: string | undefined | null): string {
-  if (!time) return '—';
-  const ampm = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+/**
+ * 24-hour clock, e.g. 13:00 or 18:30.
+ * Accepts ISO datetimes, `HH:mm`, or leftover 12-hour `10:00 AM` values.
+ */
+export function formatClock(value: unknown, empty = '—'): string {
+  if (value == null) return empty;
+  const raw = String(value).trim();
+  if (!raw) return empty;
+
+  const ampm = raw.match(/(\d{1,2}):(\d{2})\s*([AaPp][Mm])/);
   if (ampm) {
     let hour = Number(ampm[1]) % 12;
     if (ampm[3].toUpperCase() === 'PM') hour += 12;
     return `${String(hour).padStart(2, '0')}:${ampm[2]}`;
   }
-  const match = time.match(/^(\d{1,2}):(\d{2})/);
+
+  const iso = raw.match(/T(\d{2}):(\d{2})/);
+  if (iso) return `${iso[1]}:${iso[2]}`;
+
+  const match = raw.match(/(\d{1,2}):(\d{2})/);
   if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
-  return time;
+
+  return raw;
+}
+
+/** Portal-style 24h clock, e.g. 14:00. */
+export function formatPortalTime(time: string | undefined | null): string {
+  return formatClock(time, '—');
 }
 
 export function getWeekRange(date: Date): { start: Date; end: Date } {
@@ -163,19 +179,13 @@ export function formatWeekRange(start: Date, end: Date): string {
 }
 
 /**
- * Combines an ISO date ('2026-08-04') with a 12-hour clock time
- * ('10:00 AM') into a real Date — used to build calendar events from
- * session mock data.
+ * Combines an ISO date ('2026-08-04') with a 24-hour clock ('13:00')
+ * or leftover 12-hour value ('10:00 AM') into a Date.
  */
 export function combineDateAndTime(isoDate: string, time: string): Date {
   const [year, month, day] = isoDate.split('-').map(Number);
-  const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-
+  const clock = formatClock(time, '');
+  const match = clock.match(/^(\d{1,2}):(\d{2})/);
   if (!match) return new Date(year, month - 1, day);
-
-  const [, hourStr, minuteStr, meridiem] = match;
-  let hour = Number(hourStr) % 12;
-  if (meridiem.toUpperCase() === 'PM') hour += 12;
-
-  return new Date(year, month - 1, day, hour, Number(minuteStr));
+  return new Date(year, month - 1, day, Number(match[1]), Number(match[2]));
 }

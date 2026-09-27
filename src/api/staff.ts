@@ -39,7 +39,7 @@ import {
 } from '@/api/coursework';
 import { requireStudentContext } from '@/api/sessionUser';
 import { unwrapList } from '@/api/unwrap';
-import { toISODate } from '@/utils/date';
+import { formatClock, toISODate } from '@/utils/date';
 import { stripHtml } from '@/utils/stripHtml';
 
 export interface StaffGroupMember {
@@ -313,17 +313,6 @@ function toISODay(value: unknown): string {
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return '';
   return parsed.toISOString().slice(0, 10);
-}
-
-function formatClock(value: unknown): string {
-  const raw = str(value);
-  if (!raw) return '—';
-  if (/[ap]m/i.test(raw)) return raw;
-  const iso = raw.match(/T(\d{2}):(\d{2})/);
-  if (iso) return `${iso[1]}:${iso[2]}`;
-  const match = raw.match(/^(\d{1,2}):(\d{2})/);
-  if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
-  return raw;
 }
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;

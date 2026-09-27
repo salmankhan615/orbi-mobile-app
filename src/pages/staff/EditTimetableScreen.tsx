@@ -23,6 +23,7 @@ import { sessionsKeys } from '@/queries/useSessions';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useToastStore } from '@/store/useToastStore';
+import { formatClock } from '@/utils/date';
 import { haptics } from '@/utils/haptics';
 import type { RootStackScreenProps } from '@/navigation/types';
 
@@ -90,24 +91,10 @@ function toDay(value: unknown): string {
   return parsed.toISOString().slice(0, 10);
 }
 
-/** CRM `<input type="time">` uses 24h `HH:mm` (UTC components from ISO). */
+/** CRM `<input type="time">` uses 24h `HH:mm`. */
 function toTimeInput(value: unknown): string {
-  const raw = str(value);
-  if (!raw) return '';
-  const iso = raw.match(/T(\d{2}):(\d{2})/);
-  if (iso) return `${iso[1]}:${iso[2]}`;
-  const meridiem = raw.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
-  if (meridiem) {
-    let hour = Number(meridiem[1]);
-    const minute = meridiem[2];
-    const suffix = meridiem[3].toLowerCase();
-    if (suffix === 'pm' && hour < 12) hour += 12;
-    if (suffix === 'am' && hour === 12) hour = 0;
-    return `${String(hour).padStart(2, '0')}:${minute}`;
-  }
-  const match = raw.match(/^(\d{1,2}):(\d{2})/);
-  if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
-  return '';
+  const clock = formatClock(value, '');
+  return /^\d{2}:\d{2}$/.test(clock) ? clock : '';
 }
 
 function normalizeHHmm(value: string): string {
