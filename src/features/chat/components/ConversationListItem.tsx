@@ -23,7 +23,7 @@ export function ConversationListItem({
   return (
     <FadeInView delay={staggerDelay(index)}>
       <ScalePressable onPress={onPress} style={styles.card}>
-        <Avatar initial={conversation.avatarInitial} online={conversation.online} size={48} />
+        <Avatar initial={conversation.avatarInitial || 'U'} online={conversation.online ?? false} size={48} />
         <View style={styles.body}>
           <View style={styles.top}>
             <Text variant="bodySmall" style={styles.name} numberOfLines={1}>

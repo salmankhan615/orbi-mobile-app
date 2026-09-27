@@ -47,13 +47,17 @@ export function ChatThreadScreen({ route, navigation }: Props) {
         <IconButton name="arrow-back" onPress={() => navigation.goBack()} />
         {conversation && (
           <View style={styles.headerInfo}>
-            <Avatar initial={conversation.avatarInitial} online={conversation.online} size={36} />
+            <Avatar
+              initial={(conversation.displayName || conversation.name || 'U')[0]?.toUpperCase() || 'U'}
+              online={conversation.online ?? false}
+              size={36}
+            />
             <View>
               <Text variant="body" style={styles.headerName}>
-                {conversation.name}
+                {conversation.displayName || conversation.name || 'Unknown'}
               </Text>
-              <Text variant="caption" color={conversation.online ? 'success' : 'textMuted'}>
-                {conversation.online ? 'Online' : conversation.role}
+              <Text variant="caption" color={(conversation.online ? 'success' : 'textMuted') as any}>
+                {(conversation.online ? 'Online' : conversation.role) || 'Offline'}
               </Text>
             </View>
           </View>
@@ -69,7 +73,7 @@ export function ChatThreadScreen({ route, navigation }: Props) {
         <FlatList
           ref={listRef}
           data={messages ?? []}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item._id || item.id || ''}
           contentContainerStyle={styles.messages}
           ListEmptyComponent={isLoading ? <Spinner label="Loading messages…" /> : null}
           renderItem={({ item }) => <MessageBubble message={item} />}

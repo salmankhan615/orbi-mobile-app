@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { clearApiSession, getApiSession, setApiSession } from '@/api/client';
+import { initChat, closeChat } from '@/api/chat';
 import type { StaffPermission, UserRole } from '@/features/auth/permissions';
 import {
   clearStoredSession,
@@ -79,6 +80,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       cookie: creds.cookie,
       token: creds.token,
     });
+    // Initialize chat connection after successful login
+    initChat();
   },
   updateUser: (patch) => {
     set((state) => {
@@ -101,6 +104,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
   signOut: () => {
+    closeChat();
     clearApiSession();
     void clearStoredSession();
     set({ user: null, isAuthenticated: false, sessionExpiresAt: null });
@@ -123,4 +127,6 @@ export async function restoreAuthSession() {
     isAuthenticated: true,
     sessionExpiresAt: session.sessionExpiresAt,
   });
+  // Initialize chat connection when restoring session
+  initChat();
 }

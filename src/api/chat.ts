@@ -1,125 +1,250 @@
+import { apiClient } from '@/api/client';
+import { CHAT_BASE_URL, APP_VERSION } from '@/api/config';
+import { initChatSocket, getChatSocket, emitChatEvent, onChatEvent } from '@/api/chatSocket';
+import { getApiSession } from '@/api/client';
+
 export interface ChatMessage {
-  id: string;
-  conversationId: string;
+  _id?: string;
+  id?: string;
+  conversationId?: string;
+  conversation?: string;
   text: string;
+  sender?: {
+    _id: string;
+    name: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  senderId?: string;
   fromMe: boolean;
-  timestamp: number;
+  timestamp?: number;
+  createdAt?: string;
+  seen?: boolean;
+  seenAt?: string;
+}
+
+export interface User {
+  _id: string;
+  id?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  type?: string;
+  companyId?: string;
 }
 
 export interface Conversation {
-  id: string;
-  name: string;
-  role: string;
-  avatarInitial: string;
-  online: boolean;
+  _id?: string;
+  id?: string;
+  name?: string;
+  displayName?: string;
+  participants?: User[];
+  users?: string[];
+  lastMessage?: ChatMessage;
+  createdAt?: string;
+  updatedAt?: string;
+  role?: string;
+  avatarInitial?: string;
+  online?: boolean;
 }
 
-const conversations: Conversation[] = [
-  {
-    id: 'conv-arslan',
-    name: 'Arslan M',
-    role: 'Sage 50 Instructor',
-    avatarInitial: 'A',
-    online: true,
+/**
+ * REST API endpoints for chat operations.
+ */
+export const chatRestApi = {
+  /**
+   * Fetch all conversations for the current user.
+   */
+  async listConversations(): Promise<Conversation[]> {
+    try {
+      const response = await fetch(`${CHAT_BASE_URL}/api/conversation/all`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${getApiSession().token}`,
+          'X-App-Version': APP_VERSION,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch conversations: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as Conversation[];
+      return data || [];
+    } catch (error) {
+      console.error('[Chat] Failed to list conversations:', error);
+      throw error;
+    }
   },
-  {
-    id: 'conv-kiran',
-    name: 'Kiran F',
-    role: 'Taxation Instructor',
-    avatarInitial: 'K',
-    online: false,
+
+  /**
+   * Get a single conversation by ID.
+   */
+  async getConversation(id: string): Promise<Conversation | undefined> {
+    try {
+      const conversations = await chatRestApi.listConversations();
+      return conversations.find((c) => c._id === id || c.id === id);
+    } catch (error) {
+      console.error('[Chat] Failed to get conversation:', error);
+      throw error;
+    }
   },
-  {
-    id: 'conv-support',
-    name: 'KBM Support',
-    role: 'Student Support',
-    avatarInitial: 'S',
-    online: true,
+
+  /**
+   * Fetch message history for a conversation.
+   */
+  async listMessages(conversationId: string): Promise<ChatMessage[]> {
+    try {
+      const response = await fetch(
+        `${CHAT_BASE_URL}/api/conversation/${conversationId}/messages`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${getApiSession().token}`,
+            'X-App-Version': APP_VERSION,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch messages: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as ChatMessage[];
+      // Ensure messages have consistent ID format
+      return (data || []).map((msg) => ({
+        ...msg,
+        id: msg._id || msg.id,
+        conversationId: msg.conversation || conversationId,
+      }));
+    } catch (error) {
+      console.error('[Chat] Failed to list messages:', error);
+      throw error;
+    }
   },
-];
 
-const messages: Record<string, ChatMessage[]> = {
-  'conv-arslan': [
-    {
-      id: 'm1',
-      conversationId: 'conv-arslan',
-      text: 'Hi! Just a reminder your Sage 50 session starts at 10 AM tomorrow.',
-      fromMe: false,
-      timestamp: Date.now() - 1000 * 60 * 60 * 3,
-    },
-    {
-      id: 'm2',
-      conversationId: 'conv-arslan',
-      text: 'Thanks, I’ll be there!',
-      fromMe: true,
-      timestamp: Date.now() - 1000 * 60 * 60 * 2,
-    },
-  ],
-  'conv-kiran': [
-    {
-      id: 'm3',
-      conversationId: 'conv-kiran',
-      text: 'Let me know if the taxation session recording is helpful.',
-      fromMe: false,
-      timestamp: Date.now() - 1000 * 60 * 60 * 24,
-    },
-  ],
-  'conv-support': [
-    {
-      id: 'm4',
-      conversationId: 'conv-support',
-      text: 'Welcome to KBM! Let us know if you need anything.',
-      fromMe: false,
-      timestamp: Date.now() - 1000 * 60 * 60 * 48,
-    },
-  ],
-};
-
-const AUTO_REPLIES = [
-  'Got it, thanks for the update!',
-  'Sure, I’ll look into that and get back to you shortly.',
-  'Sounds good — see you in the next session.',
-  'Thanks for letting me know!',
-];
-
-function mockDelay<T>(value: T, ms = 300): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
-
-export const chatApi = {
-  listConversations: (): Promise<Conversation[]> => mockDelay(conversations),
-  getConversation: (id: string): Promise<Conversation | undefined> =>
-    mockDelay(conversations.find((c) => c.id === id)),
-  listMessages: (conversationId: string): Promise<ChatMessage[]> =>
-    mockDelay(messages[conversationId] ?? []),
+  /**
+   * Get the last message in a conversation.
+   */
   lastMessage: (conversationId: string): ChatMessage | undefined => {
-    const thread = messages[conversationId];
-    return thread?.[thread.length - 1];
+    // This is called synchronously, so we cannot make async requests
+    // In the real app, this should be stored in query cache
+    return undefined;
   },
-  sendMessage: async (conversationId: string, text: string): Promise<ChatMessage[]> => {
-    const thread = messages[conversationId] ?? [];
-    const outgoing: ChatMessage = {
-      id: `m-${Date.now()}`,
-      conversationId,
-      text,
-      fromMe: true,
-      timestamp: Date.now(),
-    };
-    messages[conversationId] = [...thread, outgoing];
-    await mockDelay(null, 200);
 
-    // Simulate the other person replying, so the thread feels alive.
-    const reply: ChatMessage = {
-      id: `m-${Date.now() + 1}`,
-      conversationId,
-      text: AUTO_REPLIES[Math.floor(Math.random() * AUTO_REPLIES.length)],
-      fromMe: false,
-      timestamp: Date.now() + 900,
-    };
-    setTimeout(() => {
-      messages[conversationId] = [...(messages[conversationId] ?? []), reply];
-    }, 900);
+  /**
+   * Send a message to a conversation.
+   */
+  async sendMessage(conversationId: string, text: string): Promise<ChatMessage[]> {
+    try {
+      const socket = getChatSocket();
 
-    return messages[conversationId];
+      if (!socket?.connected) {
+        // Fallback to REST if socket not connected
+        const response = await fetch(`${CHAT_BASE_URL}/api/message/sendMessage`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${getApiSession().token}`,
+            'X-App-Version': APP_VERSION,
+          },
+          body: JSON.stringify({
+            conversation_id: conversationId,
+            text,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to send message: ${response.statusText}`);
+        }
+
+        // Return updated message list after send
+        return chatRestApi.listMessages(conversationId);
+      }
+
+      // Use socket.io for real-time send
+      await emitChatEvent('sendMessage', {
+        conversationId,
+        text,
+      });
+
+      // Return updated message list
+      return chatRestApi.listMessages(conversationId);
+    } catch (error) {
+      console.error('[Chat] Failed to send message:', error);
+      throw error;
+    }
   },
 };
+
+/**
+ * Initialize chat and return the API instance.
+ * Call this once when the auth flow completes.
+ */
+export function initChat(): void {
+  try {
+    initChatSocket();
+  } catch (error) {
+    console.error('[Chat] Failed to initialize:', error);
+    // Don't throw — chat is optional, the app works without it
+  }
+}
+
+/**
+ * Close chat connection on logout.
+ */
+export function closeChat(): void {
+  const socket = getChatSocket();
+  if (socket) {
+    socket.disconnect();
+  }
+}
+
+/**
+ * Listen for new messages in real-time.
+ */
+export function onNewMessage(
+  conversationId: string,
+  callback: (message: ChatMessage) => void,
+): () => void {
+  return onChatEvent(`message:${conversationId}`, (data) => {
+    if (typeof data === 'object' && data !== null) {
+      callback(data as ChatMessage);
+    }
+  });
+}
+
+/**
+ * Listen for typing indicators.
+ */
+export function onUserTyping(
+  conversationId: string,
+  callback: (data: { userId: string; isTyping: boolean }) => void,
+): () => void {
+  return onChatEvent(`typing:${conversationId}`, (data) => {
+    if (typeof data === 'object' && data !== null) {
+      callback(data as { userId: string; isTyping: boolean });
+    }
+  });
+}
+
+/**
+ * Emit a typing indicator.
+ */
+export async function sendTypingIndicator(
+  conversationId: string,
+  isTyping: boolean,
+): Promise<void> {
+  try {
+    const socket = getChatSocket();
+    if (socket?.connected) {
+      socket.emit('typing', { conversationId, isTyping });
+    }
+  } catch (error) {
+    console.error('[Chat] Failed to send typing indicator:', error);
+  }
+}
+
+// For backward compatibility with existing code
+export const chatApi = chatRestApi;

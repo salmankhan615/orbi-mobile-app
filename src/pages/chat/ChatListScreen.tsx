@@ -11,7 +11,6 @@ import { ConversationListSkeleton } from '@/components/custom/Skeletons';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothListProps } from '@/utils/scroll';
 import { useToastStore } from '@/store/useToastStore';
-import { chatApi } from '@/api/chat';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Chat'>;
@@ -27,7 +26,9 @@ export function ChatListScreen({ navigation }: Props) {
     if (!query.trim()) return list;
     const needle = query.trim().toLowerCase();
     return list.filter(
-      (c) => c.name.toLowerCase().includes(needle) || c.role.toLowerCase().includes(needle),
+      (c) =>
+        (c.displayName || c.name || '').toLowerCase().includes(needle) ||
+        (c.role || '').toLowerCase().includes(needle),
     );
   }, [conversations, query]);
 
@@ -46,7 +47,7 @@ export function ChatListScreen({ navigation }: Props) {
           onPress={() => {
             const first = conversations?.[0];
             if (first) {
-              navigation.navigate('ChatThread', { conversationId: first.id });
+              navigation.navigate('ChatThread', { conversationId: first._id || first.id || '' });
             } else {
               showToast('No conversations available yet', 'neutral');
             }
@@ -69,7 +70,7 @@ export function ChatListScreen({ navigation }: Props) {
       <FlatList
         style={styles.listFlex}
         data={filtered}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id || item.id || ''}
         contentContainerStyle={[styles.list, { paddingBottom: tabPadding }]}
         {...smoothListProps}
         ListEmptyComponent={
@@ -88,10 +89,16 @@ export function ChatListScreen({ navigation }: Props) {
         }
         renderItem={({ item, index }) => (
           <ConversationListItem
-            conversation={item}
-            preview={chatApi.lastMessage(item.id)?.text}
+            conversation={{
+              id: item._id || item.id || '',
+              name: item.displayName || item.name || 'Unknown',
+              role: item.role || 'Contact',
+              avatarInitial: (item.displayName || item.name || 'U')[0]?.toUpperCase() || 'U',
+              online: false, // Would come from presence state
+            }}
+            preview={item.lastMessage?.text || 'No messages yet'}
             index={index}
-            onPress={() => navigation.navigate('ChatThread', { conversationId: item.id })}
+            onPress={() => navigation.navigate('ChatThread', { conversationId: item._id || item.id || '' })}
           />
         )}
       />

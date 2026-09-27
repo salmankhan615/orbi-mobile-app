@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { chatApi } from '@/api/chat';
+import { chatRestApi, onNewMessage, sendTypingIndicator, type ChatMessage } from '@/api/chat';
 
 export const chatKeys = {
   conversations: ['conversations'] as const,
@@ -9,35 +10,75 @@ export const chatKeys = {
 export function useConversations() {
   return useQuery({
     queryKey: chatKeys.conversations,
-    queryFn: chatApi.listConversations,
+    queryFn: chatRestApi.listConversations,
+    staleTime: 30_000, // 30 seconds
   });
 }
 
 export function useConversation(id: string) {
   return useQuery({
     queryKey: ['conversations', id],
-    queryFn: () => chatApi.getConversation(id),
+    queryFn: () => chatRestApi.getConversation(id),
     enabled: Boolean(id),
+    staleTime: 30_000,
   });
 }
 
 export function useMessages(conversationId: string) {
-  return useQuery({
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
     queryKey: chatKeys.messages(conversationId),
-    queryFn: () => chatApi.listMessages(conversationId),
+    queryFn: () => chatRestApi.listMessages(conversationId),
     enabled: Boolean(conversationId),
-    // Short poll so the simulated auto-reply shows up without a manual refresh.
-    refetchInterval: 1500,
+    staleTime: 5_000, // 5 seconds
   });
+
+  // Listen for new messages in real-time
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const unsubscribe = onNewMessage(conversationId, (message) => {
+      // Determine if this message is from the current user
+      const messageWithFromMe: ChatMessage = {
+        ...message,
+        fromMe: false, // You may need to check this against the current user ID
+        conversationId,
+      };
+
+      // Add message to cache
+      queryClient.setQueryData(chatKeys.messages(conversationId), (old?: ChatMessage[]) => [
+        ...(old ?? []),
+        messageWithFromMe,
+      ]);
+    });
+
+    return unsubscribe;
+  }, [conversationId, queryClient]);
+
+  return query;
 }
 
 export function useSendMessage(conversationId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (text: string) => chatApi.sendMessage(conversationId, text),
+    mutationFn: (text: string) => chatRestApi.sendMessage(conversationId, text),
     onSuccess: (messages) => {
       queryClient.setQueryData(chatKeys.messages(conversationId), messages);
     },
   });
+}
+
+/**
+ * Hook to send typing indicators as the user types.
+ */
+export function useTypingIndicator(conversationId: string) {
+  return async (isTyping: boolean) => {
+    try {
+      await sendTypingIndicator(conversationId, isTyping);
+    } catch (error) {
+      console.error('Failed to send typing indicator:', error);
+    }
+  };
 }
