@@ -1,7 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -142,19 +141,6 @@ function BookingDetailsContent({
   const dateLabel = formatPortalDate(session.date);
   const timeLabel = `${formatPortalTime(session.startTime)} - ${formatPortalTime(session.endTime)}`;
 
-  async function openJoinLink() {
-    if (!session.joinUrl) {
-      showToast('No join link available', 'danger');
-      return;
-    }
-    try {
-      await Linking.openURL(session.joinUrl);
-      haptics.success();
-    } catch {
-      showToast('Unable to open join link', 'danger');
-    }
-  }
-
   function handleConfirmBooking() {
     if (!user || effectiveSeat == null) return;
     book.mutate(
@@ -205,16 +191,6 @@ function BookingDetailsContent({
       >
         <FadeInView>
           <View style={styles.card}>
-            {booked && session.joinUrl ? (
-              <DetailRow label="Link">
-                <Pressable onPress={openJoinLink}>
-                  <Text variant="bodySmall" color="secondary" style={styles.link}>
-                    Click to join.
-                  </Text>
-                </Pressable>
-              </DetailRow>
-            ) : null}
-
             <DetailRow label="Class">
               <Text variant="bodySmall">{session.title}</Text>
             </DetailRow>
@@ -428,10 +404,6 @@ const styles = StyleSheet.create({
   },
   pastHint: {
     fontFamily: tokens.fontFamily.semibold,
-  },
-  link: {
-    fontFamily: tokens.fontFamily.semibold,
-    textDecorationLine: 'underline',
   },
   confirmedBox: {
     backgroundColor: tokens.colors.successMuted,
