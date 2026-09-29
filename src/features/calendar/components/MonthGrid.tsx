@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import type { Session } from '@/api/sessions';
-import { daySessionMarkers } from '../sessionStyle';
+import { daySessionMarkers, SESSION_TYPE_COLOR } from '../sessionStyle';
 import { getMonthGrid, toISODate, WEEKDAY_LABELS } from '@/utils/date';
 
 interface MonthGridProps {
@@ -48,9 +48,8 @@ export const MonthGrid = memo(function MonthGrid({
             const isSelected = day.iso === selectedDate;
             const isClosed = closedDates?.has(day.iso) ?? false;
             const daySessions = sessionsByDate.get(day.iso) ?? [];
-            const { hasBooked, availableCount } = daySessionMarkers(daySessions);
+            const { hasBooked, dots } = daySessionMarkers(daySessions);
             const isToday = day.iso === todayIso;
-            const availableDots = Math.min(availableCount, 3);
 
             return (
               <Pressable key={day.iso} style={styles.dayCell} onPress={() => onSelectDate(day.iso)}>
@@ -78,8 +77,14 @@ export const MonthGrid = memo(function MonthGrid({
                   {isClosed ? (
                     <Ionicons name="lock-closed" size={9} color={tokens.colors.danger} />
                   ) : (
-                    Array.from({ length: availableDots }, (_, index) => (
-                      <View key={`${day.iso}-dot-${index}`} style={styles.dot} />
+                    dots.map((type, index) => (
+                      <View
+                        key={`${day.iso}-dot-${type}-${index}`}
+                        style={[
+                          styles.dot,
+                          { backgroundColor: tokens.colors[SESSION_TYPE_COLOR[type]] },
+                        ]}
+                      />
                     ))
                   )}
                 </View>

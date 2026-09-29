@@ -7,7 +7,10 @@ import {
   getPracticalTrainingAdminCalendar,
   getPracticalTrainingCalendar,
 } from '@/api/crm';
-import { collectAllocatedCalendarScope } from '@/features/calendar/allocatedScope';
+import {
+  collectAllocatedCalendarRules,
+  studentClassVisible,
+} from '@/features/calendar/allocatedScope';
 import { requireStudentContext } from '@/api/sessionUser';
 import { useAuthStore } from '@/store/useAuthStore';
 import { formatClock, toISODate } from '@/utils/date';
@@ -251,17 +254,18 @@ export const sessionsApi = {
     const studentId = user?.id;
     if (!studentId) throw new Error('Not signed in.');
 
-    let classTypeAllow: Set<string> | null = null;
-    let categoryAllow: Set<string> | null = null;
+    let allocationRules = collectAllocatedCalendarRules([]);
+    let allocationLoaded = false;
     if (!isStaff) {
       try {
         const { userId, companyId } = requireStudentContext();
         const allocated = await getAllocatedCourses(userId, companyId, { slim: true });
-        const scope = collectAllocatedCalendarScope(asArray(asRecord(allocated)?.data ?? allocated));
-        if (scope.classTypeIds.size > 0) classTypeAllow = scope.classTypeIds;
-        if (scope.categoryIds.size > 0) categoryAllow = scope.categoryIds;
+        allocationRules = collectAllocatedCalendarRules(
+          asArray(asRecord(allocated)?.data ?? allocated),
+        );
+        allocationLoaded = true;
       } catch {
-        // Missing company: show unfiltered calendar range.
+        // Missing company / allocate-course failure — keep theory rows rather than blanking.
       }
     }
 
@@ -287,7 +291,9 @@ export const sessionsApi = {
         : getPracticalTrainingCalendar({
             startDate,
             endDate,
+            // Web sends both — studentId scopes bookings; viewAsStudentId matches ORBI Network.
             studentId,
+            viewAsStudentId: studentId,
             ...(cateIdFilter ? { cateId: cateIdFilter } : {}),
           }).catch(() => ({ data: [] as unknown[] })),
       getCalendarUsersLite().catch(() => [] as unknown[]),
@@ -299,9 +305,7 @@ export const sessionsApi = {
     const categoryTitles = new Map(
       (settings.categories ?? []).map((c) => [String(c._id), c.title]),
     );
-    const locationTitles = new Map(
-      (settings.locations ?? []).map((l) => [String(l._id), l.title]),
-    );
+    const locationTitles = new Map((settings.locations ?? []).map((l) => [String(l._id), l.title]));
     const classToCategory = new Map<string, string>();
     for (const item of settings.classes ?? []) {
       if (item.classCate) classToCategory.set(String(item._id), String(item.classCate));
@@ -316,23 +320,31 @@ export const sessionsApi = {
       if (!id) continue;
 
       const classTypeId = idOf(row.classType) || str(row.classType);
-      const cateId =
-        idOf(row.cateId) || str(row.cateId) || classToCategory.get(classTypeId) || '';
+      const cateId = idOf(row.cateId) || str(row.cateId) || classToCategory.get(classTypeId) || '';
       const myBooking = mapMyBooking(row);
+      const date = occurrenceDate(row);
+      if (!date) continue;
 
-      // Always keep the student's own bookings; otherwise honour allocate scope.
-      if (!myBooking) {
-        if (classTypeAllow && classTypeId && !classTypeAllow.has(classTypeId)) {
-          if (!categoryAllow?.has(cateId)) continue;
-        } else if (!classTypeAllow && categoryAllow && cateId && !categoryAllow.has(cateId)) {
+      const groupId = idOf(row.groupId) || str(row.groupId) || undefined;
+      const statusLabel = str(row.status) || undefined;
+
+      // Student Network calendar: keep practical-training separately; theory classes
+      // must be active and inside allocate-course group/class + date windows.
+      if (!isStaff && allocationLoaded) {
+        if (
+          !studentClassVisible({
+            rules: allocationRules,
+            statusLabel,
+            classTypeId: classTypeId || undefined,
+            groupId,
+            date,
+          })
+        ) {
           continue;
         }
       }
 
       if (calendarId && calendarId !== 'all' && cateId !== calendarId) continue;
-
-      const date = occurrenceDate(row);
-      if (!date) continue;
 
       const title =
         str(row.className, row.title) ||
@@ -352,9 +364,7 @@ export const sessionsApi = {
 
       const status = mapStatus(row.status, date);
       const instructor =
-        displayPersonName(row.instructor) ||
-        instructorNames.get(instructorId) ||
-        'Instructor';
+        displayPersonName(row.instructor) || instructorNames.get(instructorId) || 'Instructor';
 
       sessions.push({
         id,
@@ -363,7 +373,9 @@ export const sessionsApi = {
         date,
         startTime: formatClock(row.startTime ?? row.start),
         endTime: formatClock(row.endTime ?? row.end),
-        code: str(row.code, row.bookingCode, classTitles.get(classTypeId)) || id.slice(-6).toUpperCase(),
+        code:
+          str(row.code, row.bookingCode, classTitles.get(classTypeId)) ||
+          id.slice(-6).toUpperCase(),
         type: typeFromBooking(myBooking, status),
         status,
         instructor,
@@ -379,9 +391,9 @@ export const sessionsApi = {
         activeBookingsCount: Number(row.activeBookingsCount) || undefined,
         classTypeId: classTypeId || undefined,
         instructorId: instructorId || undefined,
-        groupId: idOf(row.groupId) || str(row.groupId) || undefined,
+        groupId,
         locationId: locationId || undefined,
-        statusLabel: str(row.status) || undefined,
+        statusLabel,
         kind: 'class',
       });
     }
@@ -400,7 +412,9 @@ export const sessionsApi = {
           occurrenceDate(row);
         if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
         // When a course category is selected, server already applied cateId — keep PT rows.
-        const locationId = idOf(props.locationId ?? props.location ?? row.locationId ?? row.location);
+        const locationId = idOf(
+          props.locationId ?? props.location ?? row.locationId ?? row.location,
+        );
         const locationName =
           locationTitles.get(locationId) ||
           str(props.locationName, row.locationName, 'Training centre');
@@ -414,9 +428,7 @@ export const sessionsApi = {
         const startTime = formatClock(startRaw, '09:00');
         const endTime = formatClock(endRaw, '17:00');
         // Web FullCalendar title is already e.g. "Barking (5)".
-        const title =
-          str(row.title) ||
-          `${locationName}${total ? ` (${total})` : ''}`;
+        const title = str(row.title) || `${locationName}${total ? ` (${total})` : ''}`;
         sessions.push({
           id: `training-day:${dayId}`,
           calendarId: 'training',
@@ -445,42 +457,53 @@ export const sessionsApi = {
         if (!row) continue;
         const bookingId = idOf(row.bookingId) || idOf(row._id ?? row.id);
         const dayId = idOf(row.dayId);
+        const date = str(row.date).slice(0, 10);
+        if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+
+        const locationId = idOf(row.location) || str(row.location);
+        const locationName =
+          locationTitles.get(locationId) ||
+          str(row.locationName, 'Training centre') ||
+          'Training centre';
+        const shiftName = str(row.shift, row.title, 'Practical training') || 'Practical training';
         const id =
           bookingId && dayId
             ? `training:${dayId}:${bookingId}`
-            : `training:${str(row.date)}:${idOf(row.shift) || str(row.shift)}`;
-        const date = str(row.date).slice(0, 10);
-        if (!date) continue;
+            : `training:${date}:${idOf(row.shift) || shiftName}`;
 
         const shiftTime = str(row.shiftTime);
         const [shiftStart, shiftEnd] = shiftTime.includes('-')
           ? shiftTime.split('-').map((part) => part.trim())
           : ['', ''];
-        const title =
-          str(row.shift, row.title, row.locationName, 'Practical training') || 'Practical training';
+        // Web title: "Barking (Morning)" — location + shift name.
+        const title = `${locationName} (${shiftName})`;
+        const bookingStatus = str(row.status, 'Active') || 'Active';
         const myBooking: SessionMyBooking = {
           seat: Number(row.seat) || undefined,
-          status: 'Active',
+          status: bookingStatus,
+          attendance: str(row.attendance) || undefined,
         };
-        const status = mapStatus('active', date);
+        const status = mapStatus(bookingStatus, date);
         sessions.push({
           id,
           calendarId: 'training',
           title,
           date,
-          startTime: formatClock(shiftStart || row.startTime),
-          endTime: formatClock(shiftEnd || row.endTime),
-          code: str(row.locationName) || id.slice(-6).toUpperCase(),
+          startTime: formatClock(shiftStart || row.startTime, '09:00'),
+          endTime: formatClock(shiftEnd || row.endTime, '17:00'),
+          code: locationName,
           type: typeFromBooking(myBooking, status),
           status,
           instructor: 'Trainer',
           mode: 'In-Person',
-          description: `${title}${row.locationName ? ` · ${str(row.locationName)}` : ''}`,
+          description: title,
           attachments: [],
-          location: str(row.locationName) || 'Training centre',
+          location: locationName,
           seatsLeft: 0,
           myBooking,
           dayId: dayId || undefined,
+          locationId: locationId || undefined,
+          statusLabel: bookingStatus,
           kind: 'training',
         });
       }

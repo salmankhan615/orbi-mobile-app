@@ -31,11 +31,10 @@ export const WeekGrid = memo(function WeekGrid({
     <View style={styles.root}>
       {days.map((day) => {
         const daySessions = sessionsByDate.get(day.iso) ?? [];
-        const { hasBooked, availableCount } = daySessionMarkers(daySessions);
+        const { hasBooked, dots } = daySessionMarkers(daySessions);
         const isSelected = day.iso === selectedDate;
         const isClosed = closedDates?.has(day.iso) ?? false;
         const isToday = day.iso === todayIso;
-        const availableDots = Math.min(availableCount, 3);
 
         return (
           <Pressable key={day.iso} style={styles.dayCol} onPress={() => onSelectDate(day.iso)}>
@@ -64,8 +63,14 @@ export const WeekGrid = memo(function WeekGrid({
               {isClosed ? (
                 <Ionicons name="lock-closed" size={9} color={tokens.colors.danger} />
               ) : (
-                Array.from({ length: availableDots }, (_, index) => (
-                  <View key={`${day.iso}-dot-${index}`} style={styles.dot} />
+                dots.map((type, index) => (
+                  <View
+                    key={`${day.iso}-dot-${type}-${index}`}
+                    style={[
+                      styles.dot,
+                      { backgroundColor: tokens.colors[SESSION_TYPE_COLOR[type]] },
+                    ]}
+                  />
                 ))
               )}
             </View>
@@ -135,7 +140,13 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.secondary,
   },
   dayCircleClosed: {
-    backgroundColor: tokens.colors.tertiaryMuted,
+    backgroundColor: tokens.colors.dangerMuted,
+    borderWidth: 1.5,
+    borderColor: tokens.colors.danger,
+  },
+  dayCircleClosedSelected: {
+    borderWidth: 2,
+    borderColor: tokens.colors.danger,
   },
   daySelectedLabel: {
     fontFamily: tokens.fontFamily.bold,

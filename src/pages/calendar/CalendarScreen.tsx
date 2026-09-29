@@ -362,9 +362,21 @@ export function CalendarScreen({ navigation }: Props) {
               </Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={styles.legendAvailable} />
+              <View style={[styles.legendDot, styles.legendAvailable]} />
               <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
-                Available
+                Open
+              </Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, styles.legendPast]} />
+              <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
+                Past
+              </Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, styles.legendCancelled]} />
+              <Text variant="caption" color="textSecondary" style={styles.legendLabel}>
+                Cancelled
               </Text>
             </View>
             <View style={styles.legendItem}>
@@ -379,7 +391,15 @@ export function CalendarScreen({ navigation }: Props) {
             Sessions on {formatSessionDate(selectedDate)}
           </Text>
 
-          {!isStaff ? (
+          {selectedDayClosure ? (
+            <DayActionsMenu
+              closure={selectedDayClosure}
+              calendarLabel={selectedCalendarLabel}
+              onCloseDay={
+                isStaff && canClose ? () => openCloseDay(selectedDate) : undefined
+              }
+            />
+          ) : !isStaff ? (
             <Button
               label="Book Practical Training"
               icon="people-outline"
@@ -389,8 +409,6 @@ export function CalendarScreen({ navigation }: Props) {
             />
           ) : (
             <DayActionsMenu
-              closure={selectedDayClosure}
-              calendarLabel={selectedCalendarLabel}
               onCloseDay={canClose ? () => openCloseDay(selectedDate) : undefined}
             />
           )}
@@ -452,7 +470,15 @@ export function CalendarScreen({ navigation }: Props) {
               <Text variant="title">{formatSessionDate(selectedDate)}</Text>
               <IconButton name="close" onPress={() => setSheetOpen(false)} />
             </View>
-            {!isStaff ? (
+            {selectedDayClosure ? (
+              <DayActionsMenu
+                closure={selectedDayClosure}
+                calendarLabel={selectedCalendarLabel}
+                onCloseDay={
+                  isStaff && canClose ? () => openCloseDay(selectedDate) : undefined
+                }
+              />
+            ) : !isStaff ? (
               <Button
                 label="Book Practical Training"
                 icon="people-outline"
@@ -465,8 +491,6 @@ export function CalendarScreen({ navigation }: Props) {
               />
             ) : (
               <DayActionsMenu
-                closure={selectedDayClosure}
-                calendarLabel={selectedCalendarLabel}
                 onCloseDay={canClose ? () => openCloseDay(selectedDate) : undefined}
               />
             )}
@@ -608,9 +632,9 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.spacing.xs,
   },
   legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   legendBooked: {
     width: 14,
@@ -620,10 +644,13 @@ const styles = StyleSheet.create({
     borderColor: tokens.colors.success,
   },
   legendAvailable: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: tokens.colors.secondary,
+    backgroundColor: tokens.colors.categoryGreen,
+  },
+  legendPast: {
+    backgroundColor: tokens.colors.textMuted,
+  },
+  legendCancelled: {
+    backgroundColor: tokens.colors.categoryRed,
   },
   legendClosed: {
     width: 14,

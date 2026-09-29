@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
@@ -8,7 +9,9 @@ import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { HeroBanner } from '@/components/custom/HeroBanner';
 import { FadeInView } from '@/components/custom/FadeInView';
+import { closuresForDate } from '@/api/staff';
 import { useBookableSlots, useBookSlot } from '@/queries/useBookings';
+import { useClosures } from '@/queries/useStaff';
 import { CardListSkeleton } from '@/components/custom/Skeletons';
 import { useAuthStore, displayName } from '@/store/useAuthStore';
 import { useToastStore } from '@/store/useToastStore';
@@ -23,10 +26,16 @@ interface BookSlotListProps {
 
 export function BookSlotList({ kind, title }: BookSlotListProps) {
   const { data: slots, isLoading } = useBookableSlots(kind);
+  const { data: closures = [] } = useClosures();
   const book = useBookSlot();
   const user = useAuthStore((state) => state.user);
   const showToast = useToastStore((state) => state.show);
   const isClass = kind === 'class';
+
+  const openSlots = useMemo(
+    () => (slots ?? []).filter((slot) => closuresForDate(closures, slot.date).length === 0),
+    [closures, slots],
+  );
 
   function handleBook(slotId: string, slotTitle: string, seat?: number) {
     if (!user) return;
@@ -61,14 +70,14 @@ export function BookSlotList({ kind, title }: BookSlotListProps) {
 
       {isLoading ? (
         <CardListSkeleton rows={3} />
-      ) : (slots ?? []).length === 0 ? (
+      ) : openSlots.length === 0 ? (
         <EmptyState
           icon="calendar-outline"
           title="Nothing open right now"
           message="No bookable slots are available. Check back later or pick another day."
         />
       ) : (
-        (slots ?? []).map((slot, index) => (
+        openSlots.map((slot, index) => (
           <FadeInView key={slot.id} delay={staggerDelay(index)}>
             <View style={styles.card}>
               <View style={styles.top}>

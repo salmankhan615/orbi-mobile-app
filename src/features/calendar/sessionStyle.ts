@@ -44,16 +44,55 @@ function isActiveBooking(session: Session): boolean {
   return !(mb.status ?? '').toLowerCase().includes('cancel');
 }
 
-/** Month/week day markers: green ring = booked, purple dots = available. */
+/**
+ * Month/week day markers:
+ * - green ring = at least one booked session
+ * - colored dots = open / past / cancelled (and booked when ring isn't enough alone)
+ */
 export function daySessionMarkers(sessions: Session[]): {
   hasBooked: boolean;
   availableCount: number;
+  /** Up to 3 status dots to render under the day number. */
+  dots: SessionType[];
 } {
   let hasBooked = false;
   let availableCount = 0;
+  const seen = new Set<SessionType>();
+  const dots: SessionType[] = [];
+
+  const pushDot = (type: SessionType) => {
+    if (seen.has(type) || dots.length >= 3) return;
+    seen.add(type);
+    dots.push(type);
+  };
+
   for (const session of sessions) {
-    if (isActiveBooking(session)) hasBooked = true;
-    else if (session.type === 'green') availableCount += 1;
+    if (isActiveBooking(session)) {
+      hasBooked = true;
+      pushDot('blue');
+      continue;
+    }
+    if (session.type === 'green') {
+      availableCount += 1;
+      pushDot('green');
+      continue;
+    }
+    if (session.type === 'amber') {
+      pushDot('amber');
+      continue;
+    }
+    if (session.type === 'red') {
+      pushDot('red');
+    }
   }
-  return { hasBooked, availableCount };
+
+  // Prefer showing open/past/cancelled dots under a booked ring (matches CRM chips).
+  if (hasBooked) {
+    const withoutBooked = dots.filter((type) => type !== 'blue');
+    if (withoutBooked.length > 0) {
+      return { hasBooked, availableCount, dots: withoutBooked.slice(0, 3) };
+    }
+  }
+
+  return { hasBooked, availableCount, dots };
 }

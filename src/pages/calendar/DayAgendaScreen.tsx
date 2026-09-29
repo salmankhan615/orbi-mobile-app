@@ -13,6 +13,7 @@ import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { formatPortalDate, getMonthDateRange } from '@/utils/date';
+import { useDayClosure } from '@/hooks/useDayClosure';
 import { useIsStaff, useHasPermission } from '@/hooks/useHasPermission';
 import { useToastStore } from '@/store/useToastStore';
 import { smoothScrollProps } from '@/utils/scroll';
@@ -43,6 +44,10 @@ export function DayAgendaScreen({ route, navigation }: Props) {
     endDate: range.endDate,
   });
   const { data: calendar } = useCalendar(calendarId ?? 'all');
+  const dayClosure = useDayClosure(
+    dayDate,
+    calendarId && calendarId !== 'all' ? calendarId : undefined,
+  );
 
   function openSession(session: Session) {
     if (!isStaff) {
@@ -98,7 +103,25 @@ export function DayAgendaScreen({ route, navigation }: Props) {
         contentContainerStyle={styles.timeline}
         {...smoothScrollProps}
       >
-        {isStaff && canClose ? (
+        {dayClosure ? (
+          <DayActionsMenu
+            closure={dayClosure}
+            calendarLabel={
+              dayClosure.scope === 'calendar'
+                ? (dayClosure.calendarName ?? calendar?.name)
+                : undefined
+            }
+            onCloseDay={
+              isStaff && canClose
+                ? () =>
+                    navigation.navigate('CloseCalendar', {
+                      date: dayDate,
+                      calendarId: calendarId && calendarId !== 'all' ? calendarId : undefined,
+                    })
+                : undefined
+            }
+          />
+        ) : isStaff && canClose ? (
           <DayActionsMenu
             onCloseDay={() =>
               navigation.navigate('CloseCalendar', {
@@ -152,9 +175,13 @@ export function DayAgendaScreen({ route, navigation }: Props) {
 
             {daySessions.length === 0 && (
               <EmptyState
-                icon="calendar-outline"
-                title="Free day"
-                message={`No sessions this day${calendar && calendarId && calendarId !== 'all' ? ` in ${calendar.name}` : ''}.`}
+                icon={dayClosure ? 'lock-closed-outline' : 'calendar-outline'}
+                title={dayClosure ? 'Day closed' : 'Free day'}
+                message={
+                  dayClosure
+                    ? dayClosure.reason || 'This date is closed for new bookings.'
+                    : `No sessions this day${calendar && calendarId && calendarId !== 'all' ? ` in ${calendar.name}` : ''}.`
+                }
               />
             )}
           </>

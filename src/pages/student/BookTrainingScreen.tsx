@@ -16,6 +16,8 @@ import {
   useTrainingLocations,
 } from '@/queries/useBookings';
 import { ApiError } from '@/api/client';
+import { DayActionsMenu } from '@/features/calendar/components/DayActionsMenu';
+import { useDayClosure } from '@/hooks/useDayClosure';
 import { useToastStore } from '@/store/useToastStore';
 import { haptics } from '@/utils/haptics';
 import { formatHeroDate, toISODate } from '@/utils/date';
@@ -41,13 +43,14 @@ export function BookTrainingScreen({ route, navigation }: Props) {
   const date = route.params?.date ?? toISODate(new Date());
   const showToast = useToastStore((state) => state.show);
   const heroDate = formatHeroDate(date);
+  const dayClosure = useDayClosure(date);
 
   const { data: locations = [], isLoading: loadingLocations } = useTrainingLocations();
   const [locationId, setLocationId] = useState<string | null>(null);
   const [shiftId, setShiftId] = useState<string | null>(null);
   const [seat, setSeat] = useState<number | null>(null);
 
-  const shiftsQuery = useAvailableTrainingShifts(date, locationId ?? '');
+  const shiftsQuery = useAvailableTrainingShifts(date, dayClosure ? '' : (locationId ?? ''));
   const book = useBookTrainingShift();
 
   const shifts = shiftsQuery.data ?? [];
@@ -97,10 +100,12 @@ export function BookTrainingScreen({ route, navigation }: Props) {
 
   const step = !locationId ? 1 : !shiftId ? 2 : 3;
   const canConfirm =
-    Boolean(locationId && shiftId && seat != null && freeSeats.includes(seat)) && !book.isPending;
+    !dayClosure &&
+    Boolean(locationId && shiftId && seat != null && freeSeats.includes(seat)) &&
+    !book.isPending;
 
   function handleConfirm() {
-    if (!locationId || !shiftId || seat == null) return;
+    if (dayClosure || !locationId || !shiftId || seat == null) return;
     book.mutate(
       { locationId, shiftId, date, seat },
       {
@@ -136,130 +141,152 @@ export function BookTrainingScreen({ route, navigation }: Props) {
           <HeroBanner
             kicker={heroDate.weekday}
             title={heroDate.rest}
-            subtitle="Pick a location, shift, and seat to confirm."
-            icon="people-outline"
+            subtitle={
+              dayClosure
+                ? 'This date is closed for new bookings.'
+                : 'Pick a location, shift, and seat to confirm.'
+            }
+            icon={dayClosure ? 'lock-closed-outline' : 'people-outline'}
           />
 
-          <View style={styles.steps}>
-            <Step n={1} label="Location" active={step === 1} done={step > 1} />
-            <View style={styles.stepLine} />
-            <Step n={2} label="Shift" active={step === 2} done={step > 2} />
-            <View style={styles.stepLine} />
-            <Step n={3} label="Seat" active={step === 3} done={canConfirm} />
-          </View>
-
-          <View style={styles.formCard}>
-            <SelectDropdown
-              label="Location"
-              required
-              placeholder="Choose a location..."
-              value={locationId}
-              options={locationOptions}
-              onChange={setLocationId}
-              loading={loadingLocations}
-              emptyMessage="No training locations available."
-            />
-
-            {locationId ? (
-              shifts.length === 0 && !shiftsQuery.isLoading ? (
-                <View style={styles.fieldBlock}>
-                  <Text variant="bodySmall" style={styles.fieldLabel}>
-                    Shift <Text color="danger">*</Text>
-                  </Text>
-                  <View style={styles.warningBox}>
-                    <Ionicons name="warning" size={20} color={tokens.colors.warning} />
-                    <Text variant="caption" color="textSecondary" style={styles.warningText}>
-                      No practical training shifts are available for your allocated access type on
-                      this date.
-                    </Text>
-                  </View>
-                </View>
-              ) : (
-                <SelectDropdown
-                  label="Shift"
-                  required
-                  placeholder="Choose a shift..."
-                  value={shiftId}
-                  options={shiftOptions}
-                  onChange={setShiftId}
-                  loading={shiftsQuery.isLoading}
-                />
-              )
-            ) : null}
-
-            {selectedShift && freeSeats.length > 0 ? (
-              <View style={styles.fieldBlock}>
-                <Text variant="bodySmall" style={styles.fieldLabel}>
-                  Seat <Text color="danger">*</Text>
-                </Text>
-                <Text variant="caption" color="textSecondary">
-                  {selectedShift.bookingLimit > 0
-                    ? `${selectedShift.bookedCount} of ${selectedShift.bookingLimit} seats already booked`
-                    : `${selectedShift.bookedCount} seats already booked`}
-                  {` · ${selectedShift.availableCount} left`}
-                </Text>
-                <View style={styles.seatGrid}>
-                  {freeSeats.map((n) => {
-                    const selected = seat === n;
-                    return (
-                      <ScalePressable
-                        key={n}
-                        hapticStyle="select"
-                        onPress={() => setSeat(n)}
-                        style={[styles.seatChip, selected && styles.seatChipActive]}
-                      >
-                        <Text
-                          variant="caption"
-                          color={selected ? 'onSecondary' : 'textSecondary'}
-                          style={styles.seatLabel}
-                        >
-                          {n}
-                        </Text>
-                      </ScalePressable>
-                    );
-                  })}
-                </View>
+          {dayClosure ? (
+            <DayActionsMenu closure={dayClosure} />
+          ) : (
+            <>
+              <View style={styles.steps}>
+                <Step n={1} label="Location" active={step === 1} done={step > 1} />
+                <View style={styles.stepLine} />
+                <Step n={2} label="Shift" active={step === 2} done={step > 2} />
+                <View style={styles.stepLine} />
+                <Step n={3} label="Seat" active={step === 3} done={canConfirm} />
               </View>
-            ) : null}
-          </View>
 
-          {selectedLocation && selectedShift && seat != null ? (
-            <View style={styles.summary}>
-              <Text variant="overline" color="textMuted">
-                Booking summary
-              </Text>
-              <Text variant="bodySmall" style={styles.summaryTitle}>
-                {selectedShift.name} · Seat {seat}
-              </Text>
-              <Text variant="caption" color="textSecondary">
-                {selectedLocation.title} · {selectedShift.startTime} – {selectedShift.endTime}
-              </Text>
-              <Text variant="caption" color="textSecondary">
-                {selectedShift.bookingLimit > 0
-                  ? `${selectedShift.bookedCount} of ${selectedShift.bookingLimit} seats already booked`
-                  : `${selectedShift.bookedCount} seats already booked`}
-              </Text>
-            </View>
-          ) : null}
+              <View style={styles.formCard}>
+                <SelectDropdown
+                  label="Location"
+                  required
+                  placeholder="Choose a location..."
+                  value={locationId}
+                  options={locationOptions}
+                  onChange={setLocationId}
+                  loading={loadingLocations}
+                  emptyMessage="No training locations available."
+                />
+
+                {locationId ? (
+                  shifts.length === 0 && !shiftsQuery.isLoading ? (
+                    <View style={styles.fieldBlock}>
+                      <Text variant="bodySmall" style={styles.fieldLabel}>
+                        Shift <Text color="danger">*</Text>
+                      </Text>
+                      <View style={styles.warningBox}>
+                        <Ionicons name="warning" size={20} color={tokens.colors.warning} />
+                        <Text variant="caption" color="textSecondary" style={styles.warningText}>
+                          No practical training shifts are available for your allocated access type
+                          on this date.
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <SelectDropdown
+                      label="Shift"
+                      required
+                      placeholder="Choose a shift..."
+                      value={shiftId}
+                      options={shiftOptions}
+                      onChange={setShiftId}
+                      loading={shiftsQuery.isLoading}
+                    />
+                  )
+                ) : null}
+
+                {selectedShift && freeSeats.length > 0 ? (
+                  <View style={styles.fieldBlock}>
+                    <Text variant="bodySmall" style={styles.fieldLabel}>
+                      Seat <Text color="danger">*</Text>
+                    </Text>
+                    <Text variant="caption" color="textSecondary">
+                      {selectedShift.bookingLimit > 0
+                        ? `${selectedShift.bookedCount} of ${selectedShift.bookingLimit} seats already booked`
+                        : `${selectedShift.bookedCount} seats already booked`}
+                      {` · ${selectedShift.availableCount} left`}
+                    </Text>
+                    <View style={styles.seatGrid}>
+                      {freeSeats.map((n) => {
+                        const selected = seat === n;
+                        return (
+                          <ScalePressable
+                            key={n}
+                            hapticStyle="select"
+                            onPress={() => setSeat(n)}
+                            style={[styles.seatChip, selected && styles.seatChipActive]}
+                          >
+                            <Text
+                              variant="caption"
+                              color={selected ? 'onSecondary' : 'textSecondary'}
+                              style={styles.seatLabel}
+                            >
+                              {n}
+                            </Text>
+                          </ScalePressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+
+              {selectedLocation && selectedShift && seat != null ? (
+                <View style={styles.summary}>
+                  <Text variant="overline" color="textMuted">
+                    Booking summary
+                  </Text>
+                  <Text variant="bodySmall" style={styles.summaryTitle}>
+                    {selectedShift.name} · Seat {seat}
+                  </Text>
+                  <Text variant="caption" color="textSecondary">
+                    {selectedLocation.title} · {selectedShift.startTime} – {selectedShift.endTime}
+                  </Text>
+                  <Text variant="caption" color="textSecondary">
+                    {selectedShift.bookingLimit > 0
+                      ? `${selectedShift.bookedCount} of ${selectedShift.bookingLimit} seats already booked`
+                      : `${selectedShift.bookedCount} seats already booked`}
+                  </Text>
+                </View>
+              ) : null}
+            </>
+          )}
         </FadeInView>
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button
-          label="Cancel"
-          variant="outline"
-          onPress={() => navigation.goBack()}
-          style={styles.footerBtn}
-        />
-        <Button
-          label="Confirm Booking"
-          icon="checkmark"
-          variant="accent"
-          disabled={!canConfirm}
-          loading={book.isPending}
-          onPress={handleConfirm}
-          style={styles.footerBtn}
-        />
+        {dayClosure ? (
+          <Button
+            label="Go Back"
+            icon="arrow-back"
+            variant="outline"
+            onPress={() => navigation.goBack()}
+            style={styles.footerBtn}
+          />
+        ) : (
+          <>
+            <Button
+              label="Cancel"
+              variant="outline"
+              onPress={() => navigation.goBack()}
+              style={styles.footerBtn}
+            />
+            <Button
+              label="Confirm Booking"
+              icon="checkmark"
+              variant="accent"
+              disabled={!canConfirm}
+              loading={book.isPending}
+              onPress={handleConfirm}
+              style={styles.footerBtn}
+            />
+          </>
+        )}
       </View>
     </Screen>
   );

@@ -24,6 +24,8 @@ import {
   useClassAvailability,
 } from '@/queries/useBookings';
 import { useAuthStore, displayName } from '@/store/useAuthStore';
+import { useDayClosure } from '@/hooks/useDayClosure';
+import { DayActionsMenu } from '@/features/calendar/components/DayActionsMenu';
 import { useToastStore } from '@/store/useToastStore';
 import { haptics } from '@/utils/haptics';
 import { formatPortalDate, formatPortalTime, toISODate } from '@/utils/date';
@@ -83,10 +85,15 @@ function BookingDetailsContent({
 }) {
   const user = useAuthStore((state) => state.user);
   const showToast = useToastStore((state) => state.show);
+  const dayClosure = useDayClosure(session.date, session.calendarId);
   const booked = isActiveBooking(session);
   const past = isPastSession(session);
   const canBook =
-    user?.role !== 'staff' && !booked && !past && session.kind !== 'training';
+    user?.role !== 'staff' &&
+    !booked &&
+    !past &&
+    !dayClosure &&
+    session.kind !== 'training';
   const canCancelOwn = user?.role !== 'staff' && booked && !past;
 
   const availabilityQuery = useClassAvailability(session.id, canBook);
@@ -291,6 +298,10 @@ function BookingDetailsContent({
                 </Text>
               </View>
             </View>
+          ) : null}
+
+          {dayClosure && !booked && user?.role !== 'staff' ? (
+            <DayActionsMenu closure={dayClosure} />
           ) : null}
 
           {canBook ? (
