@@ -20,6 +20,7 @@ import { rootStyles } from '@/theme/rootStyles';
 import { Toast } from '@/components/custom/Toast';
 import { appConfigApi } from '@/api/appConfig';
 import { UpdateScreen } from '@/pages/common/UpdateScreen';
+import { SplashScreen as AppSplashScreen } from '@/pages/common/SplashScreen';
 import type { MobileConfig } from '@/api/appConfig';
 
 SplashScreen.preventAutoHideAsync();
@@ -71,19 +72,29 @@ export default function App() {
   useEffect(() => {
     const restoreSession = async () => {
       try {
-        console.log('[App] Restoring auth session...');
+        console.log('[App] Starting session restoration...');
+        console.log('[App] Checking local/secure storage for tokens...');
         const { tokenManager } = await import('@/store/tokenManager');
+        const { restoreAuthSession } = await import('@/store/useAuthStore');
         const tokens = await tokenManager.load();
 
-        if (tokens && tokens.expiresAt > Date.now()) {
-          // Tokens are still valid
-          const { setApiSession } = await import('@/api/client');
-          setApiSession(null, tokens.accessToken);
-          console.log('[App] ✓ Session restored');
+        if (tokens) {
+          console.log('[App] Found stored tokens');
+          if (tokens.expiresAt > Date.now()) {
+            // Tokens are still valid
+            console.log('[App] Restoring auth session to store...');
+            await restoreAuthSession();
+            console.log('[App] ✓ Session restored with valid tokens');
+          } else {
+            console.log('[App] Stored tokens expired');
+          }
+        } else {
+          console.log('[App] No stored tokens found - user will see login');
         }
       } catch (error) {
         console.error('[App] Session restore error:', error);
       } finally {
+        console.log('[App] Session check complete');
         setSessionReady(true);
       }
     };
@@ -106,7 +117,14 @@ export default function App() {
   }, [ready]);
 
   if (!ready) {
-    return null;
+    return (
+      <GestureHandlerRootView style={rootStyles.flexFill}>
+        <SafeAreaProvider>
+          <AppSplashScreen />
+          <StatusBar style="dark" />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
   }
 
   // Show update screen if version not supported

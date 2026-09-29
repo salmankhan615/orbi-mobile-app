@@ -1,4 +1,4 @@
-import { Modal, StyleSheet, View } from 'react-native';
+import { Modal, StyleSheet, View, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
@@ -33,19 +33,21 @@ export function AnnouncementModal({
             {announcement.pinned ? <Badge label="Pinned" tone="warning" /> : null}
           </View>
 
-          <Text variant="title" style={styles.title}>
-            {announcement.title}
-          </Text>
-          <Text variant="caption" color="textMuted" style={styles.meta}>
-            {new Date(announcement.createdAt).toLocaleDateString(undefined, {
-              day: 'numeric',
-              month: 'short',
-            })}{' '}
-            · {announcement.author}
-          </Text>
-          <Text variant="body" color="textSecondary" style={styles.message}>
-            {announcement.body}
-          </Text>
+          <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={true}>
+            <Text variant="title" style={styles.title}>
+              {announcement.title}
+            </Text>
+            <Text variant="caption" color="textMuted" style={styles.meta}>
+              {new Date(announcement.createdAt).toLocaleDateString(undefined, {
+                day: 'numeric',
+                month: 'short',
+              })}{' '}
+              · {announcement.author}
+            </Text>
+            <Text variant="body" color="textSecondary" style={styles.message}>
+              {announcement.body}
+            </Text>
+          </ScrollView>
 
           <Button
             label="I Acknowledge & Understand"
@@ -69,11 +71,13 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 400,
+    maxHeight: '80%',
     borderRadius: tokens.radius.xl,
     backgroundColor: tokens.colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.border,
     padding: tokens.spacing.lg,
+    flexDirection: 'column',
     ...tokens.shadows.md,
   },
   headerRow: {
@@ -98,8 +102,14 @@ const styles = StyleSheet.create({
   headerLabel: {
     fontFamily: tokens.fontFamily.semibold,
   },
+  scrollContent: {
+    flexGrow: 1,
+    marginBottom: tokens.spacing.lg,
+    paddingRight: 4,
+  },
   title: {
-    marginBottom: 4,
+    marginBottom: 8,
+    fontFamily: tokens.fontFamily.semibold,
   },
   meta: {
     marginBottom: tokens.spacing.md,
