@@ -89,6 +89,25 @@ export function useLogout() {
   return useMutation({
     mutationFn: async () => {
       try {
+        const { stopPushNotificationPolling } = await import(
+          '@/services/pushNotificationHandler'
+        );
+        stopPushNotificationPolling();
+
+        try {
+          const { getDeviceInfo } = await import('@/api/deviceInfo');
+          const { pushDevicesApi } = await import('@/api/pushDevices');
+          const { getApiSession } = await import('@/api/client');
+          const { tokenManager } = await import('@/store/tokenManager');
+          const device = await getDeviceInfo();
+          const accessToken = getApiSession().token ?? (await tokenManager.getAccessToken());
+          if (accessToken) {
+            await pushDevicesApi.deregister(device.deviceId, accessToken);
+          }
+        } catch (error) {
+          console.warn('[Auth] Push deregister skipped:', error);
+        }
+
         await authApi.logout();
       } finally {
         signOut();

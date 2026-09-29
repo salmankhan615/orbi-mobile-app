@@ -13,9 +13,13 @@ export const announcementKeys = {
 /** Home banner polls `announcements/my` so a new announcement appears without a restart. */
 export const ANNOUNCEMENT_POLL_MS = 60_000;
 
-export function useAnnouncements(audience?: AnnouncementAudience, options?: { pollMs?: number }) {
+export function useAnnouncements(
+  audience?: AnnouncementAudience,
+  options?: { pollMs?: number; /** Staff personal inbox (`/my`) instead of manage list */ personal?: boolean },
+) {
   const role = useAuthStore((state) => state.user?.role ?? 'student');
-  const manage = role === 'staff';
+  // Staff management screens use the manage list; home/notifications need the personal feed.
+  const manage = role === 'staff' && !options?.personal;
   const ready = useAfterInteractions(manage);
 
   return useQuery({

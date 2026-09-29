@@ -19,6 +19,9 @@
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM",
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR"
       ],
@@ -37,6 +40,15 @@
     "plugins": [
       "expo-font",
       "expo-splash-screen",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#E31C25",
+          "defaultChannel": "default",
+          "sounds": []
+        }
+      ],
       [
         "expo-image-picker",
         {

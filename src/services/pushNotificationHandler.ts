@@ -14,21 +14,19 @@ export function startPushNotificationPolling(accessToken: string) {
     return;
   }
 
+  // Avoid duplicate intervals when login + hook both fire
+  stopPushNotificationPolling();
+
   console.log('[Push] Starting notification polling every 30 seconds');
 
-  // Poll every 30 seconds for new announcements
-  handleNotificationsPollInterval = setInterval(async () => {
-    try {
-      console.log('[Push] Polling for announcements...');
-      await pollAndSendAnnouncements(accessToken);
-    } catch (error) {
+  handleNotificationsPollInterval = setInterval(() => {
+    void pollAndSendAnnouncements(accessToken).catch((error) => {
       console.error('[Push] Polling error:', error);
-    }
-  }, 30000); // 30 seconds
+    });
+  }, 30000);
 
-  // Do initial check immediately
   console.log('[Push] Initial poll check');
-  pollAndSendAnnouncements(accessToken).catch(console.error);
+  void pollAndSendAnnouncements(accessToken).catch(console.error);
 }
 
 /**

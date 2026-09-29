@@ -53,6 +53,7 @@ import { PracticalShiftsScreen } from '@/pages/staff/PracticalShiftsScreen';
 import { ShiftEditorScreen } from '@/pages/staff/ShiftEditorScreen';
 import { setUnauthorizedHandler } from '@/api/client';
 import { useAuthStore } from '@/store/useAuthStore';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { MainTabNavigator } from './MainTabNavigator';
 import type { RootStackParamList } from './types';
 
@@ -68,6 +69,8 @@ export function RootNavigator({ appConfig }: RootNavigatorProps) {
   const sessionExpiresAt = useAuthStore((state) => state.sessionExpiresAt);
   const signOut = useAuthStore((state) => state.signOut);
   const isStaff = role === 'staff';
+
+  usePushNotifications(isAuthenticated);
 
   // CRM rejects an expired/revoked token with 401 — drop the local session too.
   useEffect(() => {

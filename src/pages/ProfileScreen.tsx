@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
@@ -8,9 +8,13 @@ import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
 import { MenuRow } from '@/features/profile/components/MenuRow';
+import { pushDevicesApi } from '@/api/pushDevices';
+import { getApiSession } from '@/api/client';
 import { useCrmUser, useLogout } from '@/queries/useAuth';
 import { useAuthStore, displayName, displayPhone } from '@/store/useAuthStore';
+import { tokenManager } from '@/store/tokenManager';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import { useToastStore } from '@/store/useToastStore';
 import { smoothScrollProps } from '@/utils/scroll';
 import { haptics } from '@/utils/haptics';
 import type { MainTabScreenProps } from '@/navigation/types';
@@ -27,18 +31,42 @@ const DETAIL_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Role: 'ribbon-outline',
 };
 
+async function resolveAccessToken() {
+  return getApiSession().token ?? (await tokenManager.getAccessToken());
+}
+
 export function ProfileScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const storeUser = useAuthStore((state) => state.user);
   const logout = useLogout();
   const { data: crmUser, refetch } = useCrmUser();
+  const showToast = useToastStore((state) => state.show);
   const [notificationsOn, setNotificationsOn] = useState(true);
+  const [prefsLoading, setPrefsLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       void refetch();
     }, [refetch]),
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPrefs = async () => {
+      try {
+        const accessToken = await resolveAccessToken();
+        if (!accessToken) return;
+        const prefs = await pushDevicesApi.getPreferences(accessToken);
+        if (!cancelled) setNotificationsOn(prefs.pushEnabled);
+      } catch {
+        // Keep default enabled
+      }
+    };
+    void loadPrefs();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const user = crmUser ?? storeUser;
   const name = displayName(user);
@@ -61,6 +89,25 @@ export function ProfileScreen({ navigation }: Props) {
     if (statusLabel) rows.push({ label: 'Status', value: statusLabel });
     return rows;
   }, [user, phone, statusLabel, roleLabel, appRoleLabel]);
+
+  async function handleNotificationsToggle(value: boolean) {
+    haptics.select();
+    const previous = notificationsOn;
+    setNotificationsOn(value);
+    setPrefsLoading(true);
+    try {
+      const accessToken = await resolveAccessToken();
+      if (!accessToken) {
+        throw new Error('Not signed in');
+      }
+      await pushDevicesApi.updatePreferences(value, accessToken);
+    } catch {
+      setNotificationsOn(previous);
+      showToast('Could not update notification settings', 'danger');
+    } finally {
+      setPrefsLoading(false);
+    }
+  }
 
   function handleSignOut() {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -183,9 +230,9 @@ export function ProfileScreen({ navigation }: Props) {
             <Switch
               value={notificationsOn}
               onValueChange={(value) => {
-                haptics.select();
-                setNotificationsOn(value);
+                void handleNotificationsToggle(value);
               }}
+              disabled={prefsLoading}
               trackColor={{ true: tokens.colors.secondary, false: tokens.colors.border }}
               thumbColor={tokens.colors.onPrimary}
             />

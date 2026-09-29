@@ -1,64 +1,79 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
+import { getApiSession } from '@/api/client';
+import { tokenManager } from '@/store/tokenManager';
 import {
   initializePushNotifications,
   registerPushToken,
   setPushTokenUpdateHandler,
   createNotificationChannels,
 } from '@/services/pushNotifications';
+import {
+  startPushNotificationPolling,
+  stopPushNotificationPolling,
+} from '@/services/pushNotificationHandler';
+
+async function resolveAccessToken(): Promise<string | null> {
+  const fromSession = getApiSession().token;
+  if (fromSession) return fromSession;
+  return tokenManager.getAccessToken();
+}
 
 /**
- * Set up push notifications when user logs in.
- * Handles token registration and renewal.
+ * Set up push notifications whenever the user is authenticated.
+ * Handles token registration, renewal, and announcement polling.
  * Document: Area 3 - Push notifications
  */
-export function usePushNotifications(accessToken: string | null, isLoggedIn: boolean) {
-  const handlePushTokenUpdate = useCallback(
-    async (newToken: string) => {
-      if (!accessToken) return;
+export function usePushNotifications(isLoggedIn: boolean) {
+  const registeredForToken = useRef<string | null>(null);
 
-      try {
-        console.log('[Push] Re-registering with new token...');
-        await registerPushToken(accessToken);
-        console.log('[Push] ✓ Re-registered');
-      } catch (error) {
-        console.error('[Push] Re-registration failed:', error);
-      }
-    },
-    [accessToken],
-  );
-
-  // Initialize push notifications
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
+    let cancelled = false;
 
     const setup = async () => {
+      if (!isLoggedIn) {
+        stopPushNotificationPolling();
+        registeredForToken.current = null;
+        setPushTokenUpdateHandler(null);
+        return;
+      }
+
       try {
-        // Create Android notification channels
         await createNotificationChannels();
+        await initializePushNotifications();
 
-        // Initialize push handler
-        cleanup = await initializePushNotifications();
+        const accessToken = await resolveAccessToken();
+        if (!accessToken || cancelled) {
+          console.warn('[Push] No access token available after login');
+          return;
+        }
 
-        if (isLoggedIn && accessToken) {
-          // Register push token on login
-          const tokenCleanup = await registerPushToken(accessToken);
-          cleanup = () => {
-            tokenCleanup?.();
-          };
+        setPushTokenUpdateHandler(async () => {
+          const token = await resolveAccessToken();
+          if (!token) return;
+          await registerPushToken(token);
+        });
 
-          // Set up handler for token updates
-          setPushTokenUpdateHandler(handlePushTokenUpdate);
+        if (registeredForToken.current !== accessToken) {
+          const expoToken = await registerPushToken(accessToken);
+          if (expoToken) {
+            registeredForToken.current = accessToken;
+          }
+        }
+
+        if (!cancelled) {
+          startPushNotificationPolling(accessToken);
         }
       } catch (error) {
         console.error('[Push] Setup error:', error);
       }
     };
 
-    setup();
+    void setup();
 
     return () => {
-      cleanup?.();
+      cancelled = true;
+      stopPushNotificationPolling();
       setPushTokenUpdateHandler(null);
     };
-  }, [isLoggedIn, accessToken, handlePushTokenUpdate]);
+  }, [isLoggedIn]);
 }

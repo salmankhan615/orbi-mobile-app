@@ -7,8 +7,14 @@ import { Screen } from '@/components/custom/Screen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { BellButton } from '@/components/custom/BellButton';
 import { ScalePressable } from '@/components/custom/ScalePressable';
+import { AnnouncementModal } from '@/features/announcements/components/AnnouncementModal';
 import { toolsForPermissions, type StaffTool } from '@/features/staff/staffTools';
 import { openStaffTool } from '@/features/staff/openStaffTool';
+import {
+  ANNOUNCEMENT_POLL_MS,
+  useAcknowledgeAnnouncement,
+  useAnnouncements,
+} from '@/queries/useAnnouncements';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothScrollProps } from '@/utils/scroll';
@@ -20,6 +26,13 @@ export function StaffHomeScreen({ navigation }: Props) {
   const tabPadding = useTabBarPadding();
   const user = useAuthStore((state) => state.user);
   const tools = useMemo(() => toolsForPermissions(user?.permissions ?? []), [user?.permissions]);
+  const { data: announcements } = useAnnouncements('staff', {
+    personal: true,
+    pollMs: ANNOUNCEMENT_POLL_MS,
+  });
+  const acknowledgeAnnouncement = useAcknowledgeAnnouncement();
+
+  const pendingAnnouncement = (announcements ?? []).find((item) => !item.isAcknowledged);
 
   function openTool(tool: StaffTool) {
     openStaffTool(navigation, tool);
@@ -77,6 +90,14 @@ export function StaffHomeScreen({ navigation }: Props) {
           </View>
         )}
       </ScrollView>
+
+      {pendingAnnouncement ? (
+        <AnnouncementModal
+          visible
+          announcement={pendingAnnouncement}
+          onAcknowledge={() => acknowledgeAnnouncement.mutate(pendingAnnouncement.id)}
+        />
+      ) : null}
     </Screen>
   );
 }

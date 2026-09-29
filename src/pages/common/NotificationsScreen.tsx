@@ -15,7 +15,9 @@ import { useIsStaff } from '@/hooks/useHasPermission';
 export function NotificationsScreen() {
   const isStaff = useIsStaff();
   const { data, isLoading } = useNotifications();
-  const { data: announcements } = useAnnouncements(isStaff ? 'staff' : 'students');
+  const { data: announcements } = useAnnouncements(isStaff ? 'staff' : 'students', {
+    personal: isStaff,
+  });
   const acknowledgeAnnouncement = useAcknowledgeAnnouncement();
   const [openId, setOpenId] = useState<string | null>(null);
 

@@ -11,7 +11,7 @@ import { AnnouncementModal } from '@/features/announcements/components/Announcem
 import { HomePulseCard } from '@/features/home/components/HomePulseCard';
 import { buildStudentDashboard, EMPTY_DASHBOARD } from '@/features/home/dashboardStats';
 import { useAllocatedCoursePacks, useCourses } from '@/queries/useCourses';
-import { useAnnouncements, useAcknowledgeAnnouncement } from '@/queries/useAnnouncements';
+import { useAnnouncements, useAcknowledgeAnnouncement, ANNOUNCEMENT_POLL_MS } from '@/queries/useAnnouncements';
 import { useStudentBootstrap } from '@/queries/useBootstrap';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
@@ -31,7 +31,9 @@ export function HomeScreen({ navigation }: Props) {
   const { data: bootstrap, isLoading: bootstrapLoading } = useStudentBootstrap();
   const packsQuery = useAllocatedCoursePacks();
   const { data: courses, isLoading: coursesLoading, allocateError, missingCompanyId } = useCourses();
-  const { data: announcements } = useAnnouncements('students');
+  const { data: announcements } = useAnnouncements('students', {
+    pollMs: ANNOUNCEMENT_POLL_MS,
+  });
   const acknowledgeAnnouncement = useAcknowledgeAnnouncement();
   const [query, setQuery] = useState('');
 
