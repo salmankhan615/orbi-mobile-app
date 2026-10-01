@@ -94,13 +94,16 @@ export function useLogout() {
         );
         stopPushNotificationPolling();
 
+        const { getApiSession } = await import('@/api/client');
+        const { tokenManager } = await import('@/store/tokenManager');
+        const accessToken = getApiSession().token ?? (await tokenManager.getAccessToken());
+        const refreshToken = await tokenManager.getRefreshToken();
+
+        // Keep explicit device deregister (client-side), independent of session revoke.
         try {
           const { getDeviceInfo } = await import('@/api/deviceInfo');
           const { pushDevicesApi } = await import('@/api/pushDevices');
-          const { getApiSession } = await import('@/api/client');
-          const { tokenManager } = await import('@/store/tokenManager');
           const device = await getDeviceInfo();
-          const accessToken = getApiSession().token ?? (await tokenManager.getAccessToken());
           if (accessToken) {
             await pushDevicesApi.deregister(device.deviceId, accessToken);
           }
@@ -108,7 +111,13 @@ export function useLogout() {
           console.warn('[Auth] Push deregister skipped:', error);
         }
 
-        await authApi.logout();
+        // Mobile session logout — revoke refresh token family (no cookies).
+        if (refreshToken) {
+          const { mobileAuthApi } = await import('@/api/mobileAuth');
+          await mobileAuthApi.logout({ refreshToken });
+        }
+
+        await tokenManager.clear();
       } finally {
         signOut();
         queryClient.clear();
