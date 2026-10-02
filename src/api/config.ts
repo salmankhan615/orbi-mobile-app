@@ -20,4 +20,4 @@ export const CHAT_BASE_URL = (process.env.EXPO_PUBLIC_CHAT_URL ?? 'https://chat.
 export const AUTH_API_PREFIX = '/api/users/crm';
 
 /** App version for X-App-Version header. */
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.0.1';

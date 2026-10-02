@@ -3,7 +3,7 @@
     "name": "KBM Training & Recruitment",
     "slug": "kbm-training-recruitment",
     "owner": "kbm-groups",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,6 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kbmgroup.training",
+      "buildNumber": "4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -25,6 +26,7 @@
     },
     "android": {
       "package": "com.kbmgroups.kbmtrainingrecruitment",
+      "versionCode": 2,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.VIBRATE",
