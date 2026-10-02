@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
+import { Logo } from '@/components/ui/Logo';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { useIsStaff } from '@/hooks/useHasPermission';
 
@@ -72,6 +73,7 @@ export function HelpSupportScreen() {
 export function AboutKbmScreen() {
   return (
     <StackScreen title="About KBM">
+      <Logo variant="mark" size="lg" />
       <Text variant="heading" style={styles.h}>
         KBM Training & Recruitment
       </Text>

@@ -12,7 +12,7 @@ export function AuthHero({ title, subtitle }: AuthHeroProps) {
   return (
     <View style={styles.hero}>
       <View style={styles.logoCard}>
-        <Logo variant="full" size="md" />
+        <Logo variant="mark" size="lg" />
       </View>
       <Text variant="heading" style={styles.title}>
         {title}
