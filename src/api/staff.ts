@@ -24,6 +24,7 @@ import {
   getPracticalTrainingAdminCalendar,
   getStaffCoursework,
   getStaffGroups,
+  getAllUsersActive,
   getUsersByType,
   removeGroupStaff,
   updatePracticalShift,
@@ -1030,19 +1031,37 @@ export const staffApi = {
   },
 
   async directory(): Promise<DirectoryUser[]> {
-    // users-lite is staff-only (`excludeStudents=1`). Directory needs both types.
+    // Students: getAllUsersActive (full active list). Staff: getUserType (capped).
     const settled = await Promise.allSettled([
-      getUsersByType({ userType: 'student' }),
+      getAllUsersActive(),
       getUsersByType({ userType: 'staff' }),
     ]);
-    const rows: unknown[] = [];
-    for (const result of settled) {
-      if (result.status === 'fulfilled') rows.push(...unwrapList(result.value));
-    }
+    const activeRows =
+      settled[0].status === 'fulfilled' ? unwrapList(settled[0].value) : [];
+    const staffRows =
+      settled[1].status === 'fulfilled' ? unwrapList(settled[1].value) : [];
 
     const out: DirectoryUser[] = [];
     const seen = new Set<string>();
-    for (const item of rows) {
+
+    for (const item of activeRows) {
+      const row = asRecord(item);
+      if (!row) continue;
+      const id = idOf(row._id ?? row.id);
+      if (!id || seen.has(id)) continue;
+      // Active list can include staff — keep only non-staff for the Users tab.
+      if (mapDirectoryRole(row) !== 'student') continue;
+      seen.add(id);
+      out.push({
+        id,
+        name: personName(row),
+        email: str(row.email),
+        role: 'student',
+        status: mapDirectoryStatus(row),
+      });
+    }
+
+    for (const item of staffRows) {
       const row = asRecord(item);
       if (!row) continue;
       const id = idOf(row._id ?? row.id);
@@ -1052,10 +1071,11 @@ export const staffApi = {
         id,
         name: personName(row),
         email: str(row.email),
-        role: mapDirectoryRole(row),
+        role: 'staff',
         status: mapDirectoryStatus(row),
       });
     }
+
     return out.sort((a, b) => a.name.localeCompare(b.name));
   },
 

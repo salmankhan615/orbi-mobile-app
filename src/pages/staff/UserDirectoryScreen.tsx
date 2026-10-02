@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { ScalePressable } from '@/components/custom/ScalePressable';
+import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useDirectory } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
@@ -13,6 +14,9 @@ import { tokens } from '@/theme';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'UserDirectory'>;
+
+/** Rows per page — matches portal directory paging. */
+const PAGE_SIZE = 20;
 
 const FILTERS: { key: DirectoryUser['role']; label: string }[] = [
   { key: 'student', label: 'Students' },
@@ -24,6 +28,7 @@ export function UserDirectoryScreen({ navigation }: Props) {
   const { data, isLoading } = useDirectory();
   const [filter, setFilter] = useState<DirectoryUser['role']>('student');
   const [search, setSearch] = useState('');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const users = data ?? [];
 
   const visible = useMemo(() => {
@@ -35,8 +40,30 @@ export function UserDirectoryScreen({ navigation }: Props) {
     });
   }, [users, filter, search]);
 
+  const page = visible.slice(0, visibleCount);
+  const hasMore = visibleCount < visible.length;
+
   const studentCount = users.filter((user) => user.role === 'student').length;
   const staffCount = users.filter((user) => user.role === 'staff').length;
+
+  function resetPage() {
+    setVisibleCount(PAGE_SIZE);
+  }
+
+  function handleFilterChange(role: DirectoryUser['role']) {
+    setFilter(role);
+    resetPage();
+  }
+
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    resetPage();
+  }
+
+  function loadMore() {
+    if (!hasMore) return;
+    setVisibleCount((count) => count + PAGE_SIZE);
+  }
 
   if (!allowed) {
     return (
@@ -52,7 +79,7 @@ export function UserDirectoryScreen({ navigation }: Props) {
     <StackScreen title="Users directory" scroll={false}>
       <TextInput
         value={search}
-        onChangeText={setSearch}
+        onChangeText={handleSearchChange}
         placeholder="Search name or email"
         placeholderTextColor={tokens.colors.textMuted}
         style={styles.search}
@@ -66,7 +93,7 @@ export function UserDirectoryScreen({ navigation }: Props) {
           return (
             <ScalePressable
               key={item.key}
-              onPress={() => setFilter(item.key)}
+              onPress={() => handleFilterChange(item.key)}
               hapticStyle="select"
               style={styles.tabPress}
             >
@@ -91,13 +118,25 @@ export function UserDirectoryScreen({ navigation }: Props) {
         <EmptyState icon="people-outline" message="No users found." />
       ) : (
         <FlatList
-          data={visible}
+          data={page}
           keyExtractor={(item) => item.id}
-          initialNumToRender={12}
-          maxToRenderPerBatch={12}
+          initialNumToRender={PAGE_SIZE}
+          maxToRenderPerBatch={PAGE_SIZE}
           windowSize={7}
           removeClippedSubviews
           contentContainerStyle={styles.list}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            <View style={styles.footer}>
+              <Text variant="caption" color="textMuted" style={styles.pageInfo}>
+                Showing {page.length} of {visible.length}
+              </Text>
+              {hasMore ? (
+                <Button label="Load more" variant="outline" onPress={loadMore} />
+              ) : null}
+            </View>
+          }
           renderItem={({ item: user }) => (
             <EntityRow
               icon={user.role === 'staff' ? 'briefcase-outline' : 'person-outline'}
@@ -162,5 +201,13 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingBottom: tokens.spacing.xl,
+  },
+  footer: {
+    gap: tokens.spacing.sm,
+    paddingTop: tokens.spacing.md,
+    paddingBottom: tokens.spacing.lg,
+  },
+  pageInfo: {
+    textAlign: 'center',
   },
 });

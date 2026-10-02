@@ -242,7 +242,7 @@ export async function getCalendarUsersLite() {
   return apiClient.get<unknown[]>('/api/calendar/crm/users-lite?excludeStudents=1');
 }
 
-/** Search/list by type — capped server-side (~100). Prefer over getAllUsersActive. */
+/** Search/list by type — capped server-side (~100). Used for staff directory listing. */
 export async function getUsersByType(payload: { userType: string; filter?: string }) {
   return apiClient.post<unknown[]>('/api/users/crm/getUserType', {
     userType: payload.userType,
@@ -334,7 +334,7 @@ export async function getGroupSessions(groupId: string) {
   );
 }
 
-/** Active company users (country-filtered when EMS dataFilters set). */
+/** Active company users for the Users directory (students). Country-filtered when EMS dataFilters set. */
 export async function getAllUsersActive() {
   return apiClient.get<unknown[]>('/api/users/crm/getAllUsersActive');
 }
