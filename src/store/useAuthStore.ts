@@ -116,24 +116,26 @@ export const useAuthStore = create<AuthState>((set) => ({
 /** Restore a 7-day session from disk before the navigator chooses Login vs app. */
 export async function restoreAuthSession() {
   const session = await loadStoredSession();
-  if (!session) return;
+  if (!session) return false;
 
-  if (session.sessionExpiresAt <= Date.now() || !(session.cookie || session.token)) {
+  if (session.sessionExpiresAt <= Date.now()) {
     await clearStoredSession();
-    return;
+    return false;
   }
 
-  setApiSession(session.cookie, session.token);
+  // Prefer the rotated access token from SecureStore over a stale persisted copy.
+  const { tokenManager } = await import('@/store/tokenManager');
+  const accessToken = (await tokenManager.getAccessToken()) ?? session.token;
+  if (!(session.cookie || accessToken)) {
+    await clearStoredSession();
+    return false;
+  }
+
+  setApiSession(session.cookie, accessToken);
   useAuthStore.setState({
     user: session.user,
     isAuthenticated: true,
     sessionExpiresAt: session.sessionExpiresAt,
   });
-  // Initialize chat connection when restoring session (non-blocking)
-  // Commented out: socket connection not required for now
-  // try {
-  //   initChat();
-  // } catch (error) {
-  //   console.warn('[Auth] Chat init optional, proceeding without it');
-  // }
+  return true;
 }

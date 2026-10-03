@@ -24,21 +24,17 @@ type RequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   skipAuth?: boolean;
   /** Override the default 20s abort. File uploads need longer. */
   timeoutMs?: number;
+  /** Internal: prevent infinite refresh→retry loops. */
+  _authRetry?: boolean;
 };
 
 let sessionCookie: string | null = null;
 let sessionToken: string | null = null;
 let unauthorizedHandler: (() => void) | null = null;
-let tokenRefreshHandler: (() => Promise<void>) | null = null;
 
 /** Called once per 401 on an authenticated call — the auth store signs out here. */
 export function setUnauthorizedHandler(handler: (() => void) | null) {
   unauthorizedHandler = handler;
-}
-
-/** Called to refresh tokens when TOKEN_EXPIRED. */
-export function setTokenRefreshHandler(handler: (() => Promise<void>) | null) {
-  tokenRefreshHandler = handler;
 }
 
 /**
@@ -212,23 +208,30 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (response.status === 401 && !skipAuth && (sessionCookie || sessionToken)) {
     // Document: Handle TOKEN_EXPIRED vs TOKEN_INVALID differently
     const code = (parsed as any)?.code;
+    const message =
+      typeof (parsed as { message?: unknown })?.message === 'string'
+        ? String((parsed as { message: string }).message).toLowerCase()
+        : '';
+    const looksExpired =
+      code === 'TOKEN_EXPIRED' ||
+      message.includes('expired') ||
+      message.includes('jwt expired');
 
-    if (code === 'TOKEN_EXPIRED' && tokenRefreshHandler) {
+    if (looksExpired && !options._authRetry) {
       console.log('[API] Token expired, attempting refresh...');
-      try {
-        await tokenRefreshHandler();
-        // Retry the request with new token
-        return request<T>(path, options);
-      } catch (refreshError) {
-        console.error('[API] Token refresh failed, logging out');
-        unauthorizedHandler?.();
-        throw new ApiError(
-          'Session expired. Please login again.',
-          401,
-          parsed,
-          'SESSION_EXPIRED',
-        );
+      const { refreshAccessToken } = await import('@/services/tokenRefresh');
+      const ok = await refreshAccessToken();
+      if (ok) {
+        return request<T>(path, { ...options, skipAuth: false, _authRetry: true });
       }
+      console.error('[API] Token refresh failed, logging out');
+      unauthorizedHandler?.();
+      throw new ApiError(
+        'Session expired. Please login again.',
+        401,
+        parsed,
+        'SESSION_EXPIRED',
+      );
     }
 
     // TOKEN_INVALID, REFRESH_TOKEN_EXPIRED, or ACCOUNT_INACTIVE

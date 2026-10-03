@@ -54,6 +54,11 @@ import { ShiftEditorScreen } from '@/pages/staff/ShiftEditorScreen';
 import { setUnauthorizedHandler } from '@/api/client';
 import { useAuthStore } from '@/store/useAuthStore';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import {
+  clearProactiveRefresh,
+  scheduleProactiveRefreshFromStorage,
+  setRefreshFailureHandler,
+} from '@/services/tokenRefresh';
 import { MainTabNavigator } from './MainTabNavigator';
 import type { RootStackParamList } from './types';
 
@@ -75,17 +80,38 @@ export function RootNavigator({ appConfig }: RootNavigatorProps) {
   // CRM rejects an expired/revoked token with 401 — drop the local session too.
   useEffect(() => {
     setUnauthorizedHandler(signOut);
-    return () => setUnauthorizedHandler(null);
+    setRefreshFailureHandler(() => {
+      clearProactiveRefresh();
+      signOut();
+    });
+    return () => {
+      setUnauthorizedHandler(null);
+      setRefreshFailureHandler(null);
+    };
   }, [signOut]);
 
+  // Keep access token fresh while the 7-day app session is active.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      clearProactiveRefresh();
+      return;
+    }
+    void scheduleProactiveRefreshFromStorage();
+  }, [isAuthenticated]);
+
+  // Hard stop only when the persisted app session (7 days) ends — not access-token TTL.
   useEffect(() => {
     if (!isAuthenticated || !sessionExpiresAt) return;
     const remaining = sessionExpiresAt - Date.now();
     if (remaining <= 0) {
+      clearProactiveRefresh();
       signOut();
       return;
     }
-    const timer = setTimeout(signOut, remaining);
+    const timer = setTimeout(() => {
+      clearProactiveRefresh();
+      signOut();
+    }, remaining);
     return () => clearTimeout(timer);
   }, [isAuthenticated, sessionExpiresAt, signOut]);
 

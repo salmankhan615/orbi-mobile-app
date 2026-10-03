@@ -117,6 +117,8 @@ export function useLogout() {
           await mobileAuthApi.logout({ refreshToken });
         }
 
+        const { clearProactiveRefresh } = await import('@/services/tokenRefresh');
+        clearProactiveRefresh();
         await tokenManager.clear();
       } finally {
         signOut();
