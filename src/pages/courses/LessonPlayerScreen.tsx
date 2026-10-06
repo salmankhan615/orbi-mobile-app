@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Image, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { setStatusBarStyle } from 'expo-status-bar';
@@ -120,29 +120,17 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
   const files = media.filter((item) => item.type !== 'VIDEO' && item.type !== 'IMAGE');
   const doneInModule = lessons.filter((item) => item.status === 'done').length;
 
-  async function openMedia(item: LessonMedia) {
+  function openMedia(item: LessonMedia) {
     if (item.type === 'VIDEO') {
       showToast('Video is playing above.', 'neutral');
       return;
     }
-    if (item.type === 'IMAGE') {
-      navigation.navigate('CourseworkFile', {
-        url: item.url,
-        filename: item.filename,
-        type: item.type,
-      });
-      return;
-    }
-    try {
-      const supported = await Linking.canOpenURL(item.url);
-      if (!supported) {
-        showToast('Unable to open this file on this device.', 'danger');
-        return;
-      }
-      await Linking.openURL(item.url);
-    } catch {
-      showToast('Unable to open this file on this device.', 'danger');
-    }
+    // Open PDFs / docs / images in-app (CourseworkFile WebView) — never hand off to the browser.
+    navigation.navigate('CourseworkFile', {
+      url: item.url,
+      filename: item.filename,
+      type: item.type,
+    });
   }
 
   function markComplete() {
@@ -266,7 +254,7 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
                     {item.type === 'VIDEO' ? ' · Playing above' : ' · Tap to open'}
                   </Text>
                 </View>
-                <Ionicons name="open-outline" size={16} color={tokens.colors.textMuted} />
+                <Ionicons name="chevron-forward" size={16} color={tokens.colors.textMuted} />
               </ScalePressable>
             ))}
           </View>
