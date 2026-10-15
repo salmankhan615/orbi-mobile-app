@@ -1,4 +1,5 @@
 import { API_BASE_URL, APP_VERSION } from '@/api/config';
+import { getScreenTrackingHeaders } from '@/api/screenTracking';
 import type { AuthUser } from '@/store/useAuthStore';
 
 export interface DeviceInfo {
@@ -54,6 +55,7 @@ export const mobileAuthApi = {
         headers: {
           'Content-Type': 'application/json',
           'X-App-Version': APP_VERSION,
+          ...getScreenTrackingHeaders(),
         },
         body: JSON.stringify(request),
       });
@@ -89,6 +91,7 @@ export const mobileAuthApi = {
         headers: {
           'Content-Type': 'application/json',
           'X-App-Version': APP_VERSION,
+          ...getScreenTrackingHeaders(),
         },
         body: JSON.stringify(request),
       });
@@ -131,6 +134,7 @@ export const mobileAuthApi = {
         headers: {
           'Content-Type': 'application/json',
           'X-App-Version': APP_VERSION,
+          ...getScreenTrackingHeaders(),
         },
         body: JSON.stringify(request),
       });

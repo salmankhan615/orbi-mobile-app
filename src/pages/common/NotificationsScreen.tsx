@@ -43,6 +43,7 @@ export function NotificationsScreen() {
               acknowledgeAnnouncement.mutate(openAnnouncement.id);
               setOpenId(null);
             }}
+            onDismiss={() => setOpenId(null)}
           />
         ) : null
       }

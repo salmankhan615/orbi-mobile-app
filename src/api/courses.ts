@@ -37,6 +37,18 @@ export interface CourseModule {
   lessons: Lesson[];
 }
 
+/** CRM `courseSection.trainingSequence` rows — web Training Sequence tab. */
+export interface TrainingSequenceStep {
+  id: string;
+  sectionId: string;
+  sectionTitle: string;
+  task: string;
+  /** Web column: Business Nature */
+  industry: string;
+  software: string;
+  hours: string;
+}
+
 export interface Course {
   id: string;
   title: string;
@@ -47,6 +59,8 @@ export interface Course {
   moduleCount: number;
   level: CourseLevel;
   modules: CourseModule[];
+  /** From CRM section.trainingSequence — empty when the course has none. */
+  trainingSequence: TrainingSequenceStep[];
   /** Set for CRM allocated courses — matches web Active / Access Expired. */
   accessExpired?: boolean;
   /** Formatted allocation end date, e.g. "06 Sep 2026". */
@@ -90,6 +104,7 @@ const courses: Course[] = [
     progress: 45,
     moduleCount: 12,
     level: 'Beginner',
+    trainingSequence: [],
     modules: [
       {
         id: 'm1',
@@ -182,6 +197,7 @@ const courses: Course[] = [
     progress: 72,
     moduleCount: 18,
     level: 'Intermediate',
+    trainingSequence: [],
     modules: [
       {
         id: 'm1',
@@ -227,6 +243,7 @@ const courses: Course[] = [
     progress: 0,
     moduleCount: 15,
     level: 'Advanced',
+    trainingSequence: [],
     modules: [
       {
         id: 'm1',
@@ -252,6 +269,7 @@ const courses: Course[] = [
     progress: 13,
     moduleCount: 10,
     level: 'Beginner',
+    trainingSequence: [],
     modules: [
       {
         id: 'm1',

@@ -12,6 +12,7 @@ import type {
   Lesson,
   LessonMedia,
   LessonMediaType,
+  TrainingSequenceStep,
 } from '@/api/courses';
 import { crmCourseMediaUrl } from '@/api/crmMedia';
 import { stripHtml } from '@/utils/stripHtml';
@@ -237,6 +238,50 @@ function statusFromProgress(progress: number, expired: boolean): CourseStatus {
   return 'not_started';
 }
 
+/**
+ * Web Training Sequence tab: published `courseSection` rows with `trainingSequence[]`
+ * (task, industry / business nature, software) + section hours.
+ */
+export function mapTrainingSequence(
+  course: UnknownRecord,
+  courseRow: UnknownRecord | null = null,
+): TrainingSequenceStep[] {
+  const sections = asArray(course.courseSection)
+    .map((section) => asRecord(section))
+    .filter((row): row is UnknownRecord => Boolean(row))
+    .filter((row) => sectionIsAccessible(row, courseRow))
+    .sort((a, b) => num(a.order) - num(b.order));
+
+  const steps: TrainingSequenceStep[] = [];
+  for (const section of sections) {
+    const sectionId = idOf(section._id) ?? '';
+    const sectionTitle = str(section.title, section.sectionTitle, 'Section');
+    const hours = str(section.hours, section.sectionHours) || String(num(section.hours) || '');
+    const sequences = asArray(section.trainingSequence);
+    if (sequences.length === 0) continue;
+
+    sequences.forEach((raw, index) => {
+      const row = asRecord(raw);
+      if (!row) return;
+      const task = str(row.task);
+      const industry = str(row.industry, row.businessNature);
+      const software = str(row.software);
+      // Skip empty CRM stubs.
+      if (!task && !industry && !software) return;
+      steps.push({
+        id: idOf(row._id) ?? `${sectionId}-seq-${index}`,
+        sectionId,
+        sectionTitle,
+        task: task || '—',
+        industry: industry || '—',
+        software: software || '—',
+        hours: hours || '—',
+      });
+    });
+  }
+  return steps;
+}
+
 function mapModules(course: UnknownRecord, courseRow: UnknownRecord | null = null): CourseModule[] {
   const completed = completedLessonIds(courseRow);
   const sections = asArray(course.courseSection)
@@ -386,6 +431,7 @@ export function mapAllocatedCoursesToApp(packs: unknown[]): Course[] {
     const expired = isAccessExpired(courseRow);
     const end = effectiveAccessEndDate(courseRow);
     const modules = mapModules(course, courseRow);
+    const trainingSequence = mapTrainingSequence(course, courseRow);
     const title = titleWithCountry(course);
 
     return {
@@ -401,6 +447,7 @@ export function mapAllocatedCoursesToApp(packs: unknown[]): Course[] {
       moduleCount: modules.length || Number(course.moduleCount) || 0,
       level: mapLevel(course),
       modules,
+      trainingSequence,
       accessExpired: expired,
       accessEndLabel: end ? formatAccessEndLabel(end) : undefined,
     };
@@ -418,6 +465,7 @@ export function mapCourseDetailToApp(
   const id = idOf(course._id) ?? fallbackId;
   const row = courseRow ?? asRecord(root?.courseRow);
   const modules = mapModules(course, row);
+  const trainingSequence = mapTrainingSequence(course, row);
   const title = titleWithCountry(course);
   const progress = crmCourseProgress(course, row);
 
@@ -434,5 +482,6 @@ export function mapCourseDetailToApp(
     moduleCount: modules.length || Number(course.moduleCount) || 0,
     level: mapLevel(course),
     modules,
+    trainingSequence,
   };
 }

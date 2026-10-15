@@ -36,6 +36,7 @@ export function HomeScreen({ navigation }: Props) {
   });
   const acknowledgeAnnouncement = useAcknowledgeAnnouncement();
   const [query, setQuery] = useState('');
+  const [dismissedAnnouncementIds, setDismissedAnnouncementIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (bootstrap?.user) updateUser(bootstrap.user);
@@ -63,7 +64,9 @@ export function HomeScreen({ navigation }: Props) {
     () => (courses ?? []).filter((course) => courseMatchesQuery(course, needle)),
     [courses, needle],
   );
-  const pendingAnnouncement = (announcements ?? []).find((item) => !item.isAcknowledged);
+  const pendingAnnouncement = (announcements ?? []).find(
+    (item) => !item.isAcknowledged && !dismissedAnnouncementIds.includes(item.id),
+  );
   const showHomeSkeleton =
     (bootstrapLoading && !bootstrap) ||
     (coursesLoading && !courses) ||
@@ -238,6 +241,11 @@ export function HomeScreen({ navigation }: Props) {
           visible={showAnnouncementModal}
           announcement={pendingAnnouncement}
           onAcknowledge={() => acknowledgeAnnouncement.mutate(pendingAnnouncement.id)}
+          onDismiss={() =>
+            setDismissedAnnouncementIds((ids) =>
+              ids.includes(pendingAnnouncement.id) ? ids : [...ids, pendingAnnouncement.id],
+            )
+          }
         />
       ) : null}
     </Screen>

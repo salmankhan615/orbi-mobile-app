@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
@@ -31,8 +31,11 @@ export function StaffHomeScreen({ navigation }: Props) {
     pollMs: ANNOUNCEMENT_POLL_MS,
   });
   const acknowledgeAnnouncement = useAcknowledgeAnnouncement();
+  const [dismissedAnnouncementIds, setDismissedAnnouncementIds] = useState<string[]>([]);
 
-  const pendingAnnouncement = (announcements ?? []).find((item) => !item.isAcknowledged);
+  const pendingAnnouncement = (announcements ?? []).find(
+    (item) => !item.isAcknowledged && !dismissedAnnouncementIds.includes(item.id),
+  );
 
   function openTool(tool: StaffTool) {
     openStaffTool(navigation, tool);
@@ -96,6 +99,11 @@ export function StaffHomeScreen({ navigation }: Props) {
           visible
           announcement={pendingAnnouncement}
           onAcknowledge={() => acknowledgeAnnouncement.mutate(pendingAnnouncement.id)}
+          onDismiss={() =>
+            setDismissedAnnouncementIds((ids) =>
+              ids.includes(pendingAnnouncement.id) ? ids : [...ids, pendingAnnouncement.id],
+            )
+          }
         />
       ) : null}
     </Screen>

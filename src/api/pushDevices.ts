@@ -1,4 +1,5 @@
 import { API_BASE_URL, APP_VERSION } from '@/api/config';
+import { getScreenTrackingHeaders } from '@/api/screenTracking';
 
 export interface PushDeviceRegister {
   expoPushToken: string;
@@ -36,6 +37,7 @@ export const pushDevicesApi = {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
           'X-App-Version': APP_VERSION,
+          ...getScreenTrackingHeaders(),
         },
         body: JSON.stringify({
           ...device,
@@ -68,6 +70,7 @@ export const pushDevicesApi = {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'X-App-Version': APP_VERSION,
+          ...getScreenTrackingHeaders(),
         },
       });
 
@@ -94,6 +97,7 @@ export const pushDevicesApi = {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'X-App-Version': APP_VERSION,
+          ...getScreenTrackingHeaders(),
         },
       });
 
@@ -125,6 +129,7 @@ export const pushDevicesApi = {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
           'X-App-Version': APP_VERSION,
+          ...getScreenTrackingHeaders(),
         },
         body: JSON.stringify({ pushEnabled }),
       });

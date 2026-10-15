@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { setStatusBarStyle } from 'expo-status-bar';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
@@ -12,7 +11,6 @@ import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
-import { ScalePressable } from '@/components/custom/ScalePressable';
 import { useCourse, useMarkLessonComplete } from '@/queries/useCourses';
 import { findLessonInModule } from '@/features/courses/lessonHelpers';
 import { CourseAccessLocked } from '@/features/courses/components/CourseAccessLocked';
@@ -23,23 +21,6 @@ import type { LessonMedia } from '@/api/courses';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'LessonPlayer'>;
-
-function LessonVideo({ uri }: { uri: string }) {
-  const player = useVideoPlayer(uri, (instance) => {
-    instance.loop = false;
-    instance.play();
-  });
-
-  return (
-    <VideoView
-      style={styles.video}
-      player={player}
-      allowsPictureInPicture
-      contentFit="contain"
-      nativeControls
-    />
-  );
-}
 
 function mediaIcon(type: LessonMedia['type']): keyof typeof Ionicons.glyphMap {
   if (type === 'VIDEO') return 'videocam-outline';
@@ -115,23 +96,7 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
           },
         ]
       : [];
-  const primaryVideo = media.find((item) => item.type === 'VIDEO');
-  const images = media.filter((item) => item.type === 'IMAGE');
-  const files = media.filter((item) => item.type !== 'VIDEO' && item.type !== 'IMAGE');
   const doneInModule = lessons.filter((item) => item.status === 'done').length;
-
-  function openMedia(item: LessonMedia) {
-    if (item.type === 'VIDEO') {
-      showToast('Video is playing above.', 'neutral');
-      return;
-    }
-    // Open PDFs / docs / images in-app (CourseworkFile WebView) — never hand off to the browser.
-    navigation.navigate('CourseworkFile', {
-      url: item.url,
-      filename: item.filename,
-      type: item.type,
-    });
-  }
 
   function markComplete() {
     if (lesson.status === 'done') return;
@@ -152,7 +117,7 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.playerChrome, { paddingTop: insets.top }]}>
+      <View style={[styles.headerChrome, { paddingTop: insets.top }]}>
         <View style={styles.topBar}>
           <IconButton
             name="arrow-back"
@@ -173,21 +138,6 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
               {lesson.title}
             </Text>
           </View>
-        </View>
-
-        <View style={styles.videoWrap}>
-          {primaryVideo ? (
-            <LessonVideo key={`${lesson.id}-${primaryVideo.id}`} uri={primaryVideo.url} />
-          ) : images[0] ? (
-            <Image source={{ uri: images[0].url }} style={styles.heroImage} resizeMode="contain" />
-          ) : (
-            <View style={styles.mediaPlaceholder}>
-              <Ionicons name="document-text-outline" size={40} color={tokens.colors.onPrimary} />
-              <Text variant="bodySmall" color="onPrimary" style={styles.mediaPlaceholderText}>
-                {files.length ? 'Open materials below' : 'No media for this lesson'}
-              </Text>
-            </View>
-          )}
         </View>
       </View>
 
@@ -239,11 +189,7 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
               Materials
             </Text>
             {media.map((item) => (
-              <ScalePressable
-                key={item.id}
-                onPress={() => openMedia(item)}
-                style={styles.materialRow}
-              >
+              <View key={item.id} style={styles.materialRow}>
                 <Ionicons name={mediaIcon(item.type)} size={18} color={tokens.colors.primary} />
                 <View style={styles.materialCopy}>
                   <Text variant="bodySmall" numberOfLines={2}>
@@ -251,11 +197,9 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
                   </Text>
                   <Text variant="caption" color="textMuted">
                     {item.type}
-                    {item.type === 'VIDEO' ? ' · Playing above' : ' · Tap to open'}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={tokens.colors.textMuted} />
-              </ScalePressable>
+              </View>
             ))}
           </View>
         ) : null}
@@ -331,8 +275,9 @@ const styles = StyleSheet.create({
     marginTop: tokens.spacing.xl,
     paddingHorizontal: tokens.spacing.screen,
   },
-  playerChrome: {
+  headerChrome: {
     backgroundColor: tokens.colors.primary,
+    paddingBottom: tokens.spacing.md,
   },
   topBar: {
     flexDirection: 'row',
@@ -350,30 +295,6 @@ const styles = StyleSheet.create({
   },
   lessonLabel: {
     fontFamily: tokens.fontFamily.semibold,
-  },
-  videoWrap: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    backgroundColor: tokens.colors.primary,
-  },
-  video: {
-    width: '100%',
-    height: '100%',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  mediaPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: tokens.spacing.sm,
-    padding: tokens.spacing.lg,
-  },
-  mediaPlaceholderText: {
-    textAlign: 'center',
-    opacity: 0.9,
   },
   body: {
     flex: 1,

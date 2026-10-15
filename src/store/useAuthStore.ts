@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { clearApiSession, getApiSession, setApiSession } from '@/api/client';
+import { setScreenTrackingClient } from '@/api/screenTracking';
 // import { initChat, closeChat } from '@/api/chat';
 // import { closeChat } from '@/api/chat';
 import type { StaffPermission, UserRole } from '@/features/auth/permissions';
@@ -73,6 +74,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (session) {
       setApiSession(session.cookie ?? null, session.token ?? null, { clearJar: true });
     }
+    setScreenTrackingClient(user.role);
     set({ user, isAuthenticated: true, sessionExpiresAt });
     const creds = getApiSession();
     saveStoredSession({
@@ -109,6 +111,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // closeChat();
     clearApiSession();
     void clearStoredSession();
+    setScreenTrackingClient(null);
     set({ user: null, isAuthenticated: false, sessionExpiresAt: null });
   },
 }));
@@ -132,6 +135,7 @@ export async function restoreAuthSession() {
   }
 
   setApiSession(session.cookie, accessToken);
+  setScreenTrackingClient(session.user.role);
   useAuthStore.setState({
     user: session.user,
     isAuthenticated: true,

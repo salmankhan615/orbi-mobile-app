@@ -96,13 +96,22 @@ export function useCourse(id: string) {
       }
       return coursesApi.getById(id);
     },
-    // Allocate packs already contain curriculum — only hit detail when packs miss this course.
-    enabled: Boolean(id) && (role !== 'student' || (packsQuery.isSuccess && !fromAlloc)),
+    // Always load course-detail for students so Training Sequence (section.trainingSequence) is accurate.
+    // Allocate packs still drive modules / progress when present.
+    enabled: Boolean(id) && (role !== 'student' || packsQuery.isSuccess),
   });
 
   if (role !== 'student') return query;
 
-  const data = fromAlloc ?? query.data;
+  const data = fromAlloc
+    ? {
+        ...fromAlloc,
+        trainingSequence:
+          query.data?.trainingSequence?.length
+            ? query.data.trainingSequence
+            : (fromAlloc.trainingSequence ?? []),
+      }
+    : query.data;
   return {
     ...query,
     data,

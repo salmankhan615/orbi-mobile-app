@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { API_BASE_URL, APP_VERSION } from '@/api/config';
+import { getScreenTrackingHeaders } from '@/api/screenTracking';
 import { clearStoredSession, patchStoredSession } from '@/store/sessionPersistence';
 import { tokenManager } from '@/store/tokenManager';
 
@@ -149,6 +150,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const { body, headers, skipAuth, signal, timeoutMs, ...rest } = options;
   const authHeaders: Record<string, string> = {
     'X-App-Version': APP_VERSION,
+    ...getScreenTrackingHeaders(),
   };
 
   if (!skipAuth) {

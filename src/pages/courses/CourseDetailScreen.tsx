@@ -23,8 +23,8 @@ import { smoothScrollProps } from '@/utils/scroll';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'CourseDetail'>;
-type Tab = 'Modules' | 'About' | 'Resources' | 'Announcements';
-const TABS: Tab[] = ['Modules', 'About', 'Resources', 'Announcements'];
+type Tab = 'Modules' | 'Training Sequence' | 'About' | 'Resources' | 'Announcements';
+const TABS: Tab[] = ['Modules', 'Training Sequence', 'About', 'Resources', 'Announcements'];
 const HIDDEN_TABS: Tab[] = ['Resources', 'Announcements'];
 const VISIBLE_TABS = TABS.filter((tab) => !HIDDEN_TABS.includes(tab));
 
@@ -220,6 +220,41 @@ export function CourseDetailScreen({ route, navigation }: Props) {
               ))}
             </View>
           ))}
+        {activeTab === 'Training Sequence' &&
+          (course.accessExpired ? (
+            <CourseAccessLocked endLabel={course.accessEndLabel} variant="panel" />
+          ) : (
+            <View style={styles.sequence}>
+              {(course.trainingSequence ?? []).length === 0 ? (
+                <Text variant="body" color="textMuted" style={styles.emptyTab}>
+                  No training sequence available for this course.
+                </Text>
+              ) : (
+                (course.trainingSequence ?? []).map((step, stepIndex) => (
+                  <View key={step.id} style={styles.sequenceRow}>
+                    <View style={styles.sequenceStep}>
+                      <Text variant="caption" color="secondary" style={styles.sequenceStepLabel}>
+                        {stepIndex + 1}
+                      </Text>
+                    </View>
+                    <View style={styles.sequenceCopy}>
+                      <Text variant="bodySmall" style={styles.sequenceTitle} numberOfLines={3}>
+                        {step.task}
+                      </Text>
+                      <Text variant="caption" color="textMuted">
+                        {step.sectionTitle}
+                        {step.industry !== '—' ? ` · ${step.industry}` : ''}
+                      </Text>
+                      <Text variant="caption" color="textMuted">
+                        {step.software !== '—' ? step.software : 'No software'}
+                        {step.hours !== '—' ? ` · ${step.hours} hrs` : ''}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          ))}
         {activeTab === 'About' && (
           <Text variant="body" color="textSecondary" style={styles.about}>
             {course.description}
@@ -335,6 +370,41 @@ const styles = StyleSheet.create({
   },
   modules: {
     marginHorizontal: tokens.spacing.screen,
+  },
+  sequence: {
+    marginHorizontal: tokens.spacing.screen,
+    gap: tokens.spacing.sm,
+    paddingTop: tokens.spacing.sm,
+  },
+  sequenceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.md,
+    borderRadius: tokens.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
+    backgroundColor: tokens.colors.surface,
+    ...tokens.shadows.sm,
+  },
+  sequenceStep: {
+    width: 28,
+    height: 28,
+    borderRadius: tokens.radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tokens.colors.secondaryMuted,
+    marginTop: 2,
+  },
+  sequenceStepLabel: {
+    fontFamily: tokens.fontFamily.semibold,
+  },
+  sequenceCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  sequenceTitle: {
+    fontFamily: tokens.fontFamily.medium,
   },
   emptyModules: {
     marginHorizontal: tokens.spacing.screen,

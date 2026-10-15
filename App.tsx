@@ -15,6 +15,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import { queryClient } from '@/queries/queryClient';
+import { navigationRef } from '@/api/screenTracking';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { rootStyles } from '@/theme/rootStyles';
 import { Toast } from '@/components/custom/Toast';
@@ -124,7 +125,7 @@ export default function App() {
     <GestureHandlerRootView style={rootStyles.flexFill} onLayout={onLayoutRootView}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <NavigationContainer theme={navTheme}>
+          <NavigationContainer ref={navigationRef} theme={navTheme}>
             <RootNavigator appConfig={appConfig} />
             <Toast />
             <StatusBar style="dark" />
