@@ -116,14 +116,14 @@ async function resolveProfileName(user: Record<string, unknown>): Promise<string
   return '';
 }
 
+/** Keys must be normalizeKey()'d (lowercase, no `_`/`-`) — e.g. `__v` → `v`. */
 const SKIP_EXTRA = new Set([
-  '_id',
   'id',
   'password',
   'token',
   'photo',
   'permissions',
-  '__v',
+  'v',
   'roleid',
   'companyid',
   'profileid',
