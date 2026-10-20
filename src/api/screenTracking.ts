@@ -31,25 +31,23 @@ const SCREEN_MAP: Record<string, { key: string; refParam?: string }> = {
   CourseDetail: { key: 'course_detail', refParam: 'courseId' },
   LessonPlayer: { key: 'course_content', refParam: 'courseId' },
 
-  // Coursework (student + staff list/editor)
+  // Coursework (student + staff list — view only; no create/edit)
   Coursework: { key: 'coursework' },
   CourseworkDetail: { key: 'coursework' },
   StaffCoursework: { key: 'coursework' },
-  CourseworkEditor: { key: 'coursework' },
-  CourseworkSubmissions: { key: 'coursework_grading' },
+  // Submissions list (staff "Submissions" button) vs grading a single submission
+  CourseworkSubmissions: { key: 'coursework_submissions' },
   CourseworkSubmissionDetail: { key: 'coursework_grading' },
 
-  // Bookings / calendar extras
+  // Bookings / calendar extras (BookTraining omitted — booking flow, not a bookings list view)
   BookClass: { key: 'bookings' },
-  BookTraining: { key: 'bookings' },
   MyBookings: { key: 'bookings' },
   StaffBookingDetail: { key: 'bookings' },
   ClassBookings: { key: 'bookings' },
   TrainingLocationBookings: { key: 'bookings' },
   BookingShifts: { key: 'bookings' },
   BookingShiftDetail: { key: 'bookings' },
-  DayAgenda: { key: 'calendar' },
-  SessionDetails: { key: 'calendar' },
+  // DayAgenda / SessionDetails omitted — booking detail flows, not the Calendar tab
   CloseCalendar: { key: 'closures' },
   PracticalShifts: { key: 'pt_shifts' },
   ShiftEditor: { key: 'pt_shifts' },
@@ -63,8 +61,7 @@ const SCREEN_MAP: Record<string, { key: string; refParam?: string }> = {
   AnnouncementDetail: { key: 'announcements' },
   AnnouncementEditor: { key: 'announcements' },
 
-  // Staff allocations for a student
-  UserDetail: { key: 'allocations', refParam: 'userId' },
+  // UserDetail omitted — opening a user profile is not an allocations view
 };
 
 function currentScreen(): { screen: string; ref?: string } | null {

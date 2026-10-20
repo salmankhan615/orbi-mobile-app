@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
@@ -10,10 +9,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { FilterSelectRow } from '@/features/bookings/components/BookingFilters';
 import { courseworkTabForKind, type CourseworkTab } from '@/api/coursework';
-import { useDeleteCoursework, useStaffCoursework } from '@/queries/useStaff';
+import { useStaffCoursework } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
-import { useToastStore } from '@/store/useToastStore';
-import { haptics } from '@/utils/haptics';
 import type { CourseworkItem } from '@/api/staff';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { tokens } from '@/theme';
@@ -29,35 +26,8 @@ export function StaffCourseworkScreen({ navigation }: Props) {
   const allowed = useHasPermission('view_coursework');
   const canSubs = useHasPermission('view_submissions');
   const { data, isLoading } = useStaffCoursework();
-  const remove = useDeleteCoursework();
-  const showToast = useToastStore((state) => state.show);
   const [tab, setTab] = useState<CourseworkTab>('assignment');
   const [groupId, setGroupId] = useState('');
-
-  function confirmDelete(item: CourseworkItem) {
-    Alert.alert('Delete coursework', `Delete “${item.title}”?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          remove.mutate(item.id, {
-            onSuccess: () => {
-              haptics.success();
-              showToast('Coursework deleted', 'success');
-            },
-            onError: (error) => {
-              haptics.warning();
-              showToast(
-                error instanceof Error ? error.message : 'Could not delete coursework',
-                'danger',
-              );
-            },
-          });
-        },
-      },
-    ]);
-  }
 
   const items = data ?? [];
   const assignments = useMemo(
@@ -104,23 +74,7 @@ export function StaffCourseworkScreen({ navigation }: Props) {
   }
 
   return (
-    <StackScreen
-      title="Coursework"
-      scroll={false}
-      right={
-        <ScalePressable
-          onPress={() =>
-            navigation.navigate('CourseworkEditor', {
-              groupId: groupId || undefined,
-              kind: tab,
-            })
-          }
-          style={styles.headerAction}
-        >
-          <Ionicons name="add" size={22} color={tokens.colors.primary} />
-        </ScalePressable>
-      }
-    >
+    <StackScreen title="Coursework" scroll={false}>
       <View style={styles.tabs}>
         {TABS.map((item) => {
           const count = item.key === 'assignment' ? assignments.length : resources.length;
@@ -153,11 +107,7 @@ export function StaffCourseworkScreen({ navigation }: Props) {
       ) : visible.length === 0 ? (
         <EmptyState
           icon="document-text-outline"
-          message={
-            tab === 'assignment'
-              ? 'No assignments yet. Tap + to add one.'
-              : 'No resources yet. Tap + to add one.'
-          }
+          message={tab === 'assignment' ? 'No assignments yet.' : 'No resources yet.'}
         />
       ) : (
         <FlatList
@@ -174,8 +124,6 @@ export function StaffCourseworkScreen({ navigation }: Props) {
               onSubmissions={() =>
                 navigation.navigate('CourseworkSubmissions', { assignmentId: item.id })
               }
-              onEdit={() => navigation.navigate('CourseworkEditor', { courseworkId: item.id })}
-              onDelete={() => confirmDelete(item)}
             />
           )}
         />
@@ -190,16 +138,12 @@ function CourseworkRow({
   showGrading,
   canOpenSubmissions,
   onSubmissions,
-  onEdit,
-  onDelete,
 }: {
   item: CourseworkItem;
   index: number;
   showGrading: boolean;
   canOpenSubmissions: boolean;
   onSubmissions: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
 }) {
   const graded = item.gradedCount ?? 0;
   const submitted = item.submissionCount ?? 0;
@@ -240,24 +184,16 @@ function CourseworkRow({
         </Text>
       ) : null}
 
-      <View style={styles.actions}>
-        {canOpenSubmissions ? (
+      {canOpenSubmissions ? (
+        <View style={styles.actions}>
           <Button
             label="Submissions"
             variant="primary"
             onPress={onSubmissions}
             style={styles.submissionsBtn}
           />
-        ) : (
-          <View style={styles.submissionsBtn} />
-        )}
-        <ScalePressable onPress={onEdit} style={styles.iconAction}>
-          <Ionicons name="create-outline" size={18} color={tokens.colors.primary} />
-        </ScalePressable>
-        <ScalePressable onPress={onDelete} style={styles.iconAction}>
-          <Ionicons name="trash-outline" size={18} color={tokens.colors.danger} />
-        </ScalePressable>
-      </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -324,12 +260,6 @@ const styles = StyleSheet.create({
   ratio: {
     fontFamily: tokens.fontFamily.medium,
   },
-  headerAction: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -339,15 +269,5 @@ const styles = StyleSheet.create({
   submissionsBtn: {
     flex: 1,
     minHeight: 40,
-  },
-  iconAction: {
-    width: 40,
-    height: 40,
-    borderRadius: tokens.radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: tokens.colors.surfaceAlt,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.border,
   },
 });

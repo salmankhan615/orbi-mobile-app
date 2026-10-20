@@ -132,41 +132,6 @@ export function useStaffCoursework() {
   });
 }
 
-function invalidateCoursework(client: ReturnType<typeof useQueryClient>) {
-  client.invalidateQueries({ queryKey: staffKeys.coursework });
-  client.invalidateQueries({ queryKey: ['coursework'] });
-}
-
-export function useCreateCoursework() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: staffApi.createCoursework,
-    onSuccess: () => invalidateCoursework(client),
-  });
-}
-
-export function useUpdateCoursework() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      courseworkId,
-      payload,
-    }: {
-      courseworkId: string;
-      payload: Parameters<typeof staffApi.updateCoursework>[1];
-    }) => staffApi.updateCoursework(courseworkId, payload),
-    onSuccess: () => invalidateCoursework(client),
-  });
-}
-
-export function useDeleteCoursework() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: staffApi.deleteCoursework,
-    onSuccess: () => invalidateCoursework(client),
-  });
-}
-
 export function useSubmissions(assignmentId?: string) {
   const ready = useAfterInteractions();
   return useQuery({

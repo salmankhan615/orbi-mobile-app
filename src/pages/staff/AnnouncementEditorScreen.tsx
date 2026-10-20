@@ -7,6 +7,7 @@ import { TextField } from '@/components/ui/TextField';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { Spinner } from '@/components/ui/Spinner';
 import { FilterSelectRow } from '@/features/bookings/components/BookingFilters';
+import { DateTimePicker } from '@/features/announcements/components/DateTimePicker';
 import {
   useAnnouncement,
   useCreateAnnouncement,
@@ -261,19 +262,15 @@ export function AnnouncementEditorScreen({ route, navigation }: Props) {
       <Text variant="caption" color="textMuted" style={styles.section}>
         Scheduling
       </Text>
-      <TextField
+      <DateTimePicker
         label="Publish Date & Time"
         value={publishAt}
-        onChangeText={setPublishAt}
-        placeholder="YYYY-MM-DDTHH:mm (optional)"
-        autoCapitalize="none"
+        onChange={setPublishAt}
       />
-      <TextField
+      <DateTimePicker
         label="Expiry / Archive Date & Time"
         value={expiresAt}
-        onChangeText={setExpiresAt}
-        placeholder="YYYY-MM-DDTHH:mm (optional)"
-        autoCapitalize="none"
+        onChange={setExpiresAt}
       />
 
       <View style={styles.switchRow}>
