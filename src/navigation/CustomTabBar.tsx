@@ -5,6 +5,7 @@ import {
   type BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { trackRoute } from '@/api/screenTracking';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { haptics } from '@/utils/haptics';
@@ -44,6 +45,7 @@ export function CustomTabBar({ state, descriptors, navigation, insets }: BottomT
             });
             if (!focused && !event.defaultPrevented) {
               haptics.select();
+              trackRoute(route.name);
               navigation.navigate(route.name);
             }
           }

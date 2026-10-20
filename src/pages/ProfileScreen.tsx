@@ -8,6 +8,8 @@ import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Screen } from '@/components/custom/Screen';
 import { MenuRow } from '@/features/profile/components/MenuRow';
+import { APP_VERSION } from '@/api/config';
+import { trackRoute } from '@/api/screenTracking';
 import { pushDevicesApi } from '@/api/pushDevices';
 import { getApiSession } from '@/api/client';
 import { useCrmUser, useLogout } from '@/queries/useAuth';
@@ -247,29 +249,44 @@ export function ProfileScreen({ navigation }: Props) {
             icon="person-outline"
             label="Edit Profile"
             isFirst
-            onPress={() => navigation.navigate('EditProfile')}
+            onPress={() => {
+              trackRoute('EditProfile');
+              navigation.navigate('EditProfile');
+            }}
           />
           <MenuRow
             icon="key-outline"
             label="Change Password"
-            onPress={() => navigation.navigate('ChangePassword')}
+            onPress={() => {
+              trackRoute('ChangePassword');
+              navigation.navigate('ChangePassword');
+            }}
           />
           <MenuRow
             icon="lock-closed-outline"
             label="Privacy & Security"
-            onPress={() => navigation.navigate('PrivacySecurity')}
+            onPress={() => {
+              trackRoute('PrivacySecurity');
+              navigation.navigate('PrivacySecurity');
+            }}
           />
           <MenuRow
             icon="help-circle-outline"
             label="Help & Support"
-            onPress={() => navigation.navigate('HelpSupport')}
+            onPress={() => {
+              trackRoute('HelpSupport');
+              navigation.navigate('HelpSupport');
+            }}
           />
           <MenuRow
             icon="information-circle-outline"
             label="About KBM"
-            trailingLabel="v1.0.0"
+            trailingLabel={`v${APP_VERSION}`}
             isLast
-            onPress={() => navigation.navigate('AboutKbm')}
+            onPress={() => {
+              trackRoute('AboutKbm');
+              navigation.navigate('AboutKbm');
+            }}
           />
         </View>
 

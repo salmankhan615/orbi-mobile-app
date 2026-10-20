@@ -10,6 +10,7 @@ import { ScalePressable } from '@/components/custom/ScalePressable';
 import { AnnouncementModal } from '@/features/announcements/components/AnnouncementModal';
 import { HomePulseCard } from '@/features/home/components/HomePulseCard';
 import { buildStudentDashboard, EMPTY_DASHBOARD } from '@/features/home/dashboardStats';
+import { trackRoute } from '@/api/screenTracking';
 import { useAllocatedCoursePacks, useCourses } from '@/queries/useCourses';
 import { useAnnouncements, useAcknowledgeAnnouncement, ANNOUNCEMENT_POLL_MS } from '@/queries/useAnnouncements';
 import { useStudentBootstrap } from '@/queries/useBootstrap';
@@ -95,7 +96,13 @@ export function HomeScreen({ navigation }: Props) {
           <HomeSkeleton />
         ) : (
           <>
-            <HomePulseCard data={dashboard} onPress={() => navigation.navigate('Dashboard')} />
+            <HomePulseCard
+              data={dashboard}
+              onPress={() => {
+                trackRoute('Dashboard');
+                navigation.navigate('Dashboard');
+              }}
+            />
             {(missingCompanyId || allocateError) && (
               <Text variant="caption" color="danger" style={styles.subtitle}>
                 {missingCompanyId
@@ -110,18 +117,30 @@ export function HomeScreen({ navigation }: Props) {
           <Shortcut
             icon="clipboard-outline"
             label="Bookings"
-            onPress={() => navigation.navigate('MyBookings')}
+            onPress={() => {
+              trackRoute('MyBookings');
+              navigation.navigate('MyBookings');
+            }}
           />
           <Shortcut
             icon="document-text-outline"
             label="Coursework"
-            onPress={() => navigation.navigate('Coursework')}
+            onPress={() => {
+              trackRoute('Coursework');
+              navigation.navigate('Coursework');
+            }}
           />
         </View>
 
         <View style={styles.sectionHeader}>
           <Text variant="title">My Courses</Text>
-          <ScalePressable onPress={() => navigation.navigate('Courses')} haptic={false}>
+          <ScalePressable
+            onPress={() => {
+              trackRoute('Courses');
+              navigation.navigate('Courses');
+            }}
+            haptic={false}
+          >
             <Text variant="bodySmall" color="secondary" style={styles.link}>
               See all
             </Text>
@@ -167,7 +186,10 @@ export function HomeScreen({ navigation }: Props) {
                 key={course.id}
                 course={course}
                 index={index}
-                onPress={() => navigation.navigate('CourseDetail', { courseId: course.id })}
+                onPress={() => {
+                  trackRoute('CourseDetail', { courseId: course.id });
+                  navigation.navigate('CourseDetail', { courseId: course.id });
+                }}
               />
             ))}
           </View>
@@ -183,13 +205,22 @@ export function HomeScreen({ navigation }: Props) {
                 key={course.id}
                 course={course}
                 index={index}
-                onPress={() => navigation.navigate('CourseDetail', { courseId: course.id })}
+                onPress={() => {
+                  trackRoute('CourseDetail', { courseId: course.id });
+                  navigation.navigate('CourseDetail', { courseId: course.id });
+                }}
               />
             ))}
           </ScrollView>
         )}
 
-        <ScalePressable onPress={() => navigation.navigate('Calendar')} style={styles.banner}>
+        <ScalePressable
+          onPress={() => {
+            trackRoute('Calendar');
+            navigation.navigate('Calendar');
+          }}
+          style={styles.banner}
+        >
           <View style={styles.bannerIcon}>
             <Ionicons name="calendar" size={22} color={tokens.colors.secondary} />
           </View>

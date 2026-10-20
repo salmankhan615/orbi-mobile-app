@@ -11,6 +11,7 @@ import { EntityRow } from '@/components/custom/EntityRow';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { FilterSelectRow } from '@/features/bookings/components/BookingFilters';
+import { trackRoute } from '@/api/screenTracking';
 import {
   useAnnouncements,
   useDeleteAnnouncement,
@@ -124,9 +125,10 @@ export function AnnouncementsScreen({ navigation }: Props) {
               subtitle={item.body}
               meta={item.author}
               badge={item.pinned ? { label: 'Pinned', tone: 'warning' } : undefined}
-              onPress={() =>
-                navigation.navigate('AnnouncementDetail', { announcementId: item.id })
-              }
+              onPress={() => {
+                trackRoute('AnnouncementDetail', { announcementId: item.id });
+                navigation.navigate('AnnouncementDetail', { announcementId: item.id });
+              }}
             />
           ))
         )}
@@ -154,7 +156,10 @@ export function AnnouncementsScreen({ navigation }: Props) {
         <Button
           label="Create Announcement"
           icon="add"
-          onPress={() => navigation.navigate('AnnouncementEditor', {})}
+          onPress={() => {
+            trackRoute('AnnouncementEditor', {});
+            navigation.navigate('AnnouncementEditor', {});
+          }}
           style={styles.create}
         />
       ) : null}
@@ -205,12 +210,14 @@ export function AnnouncementsScreen({ navigation }: Props) {
             <AnnouncementCard
               item={item}
               canManage={canManage}
-              onView={() =>
-                navigation.navigate('AnnouncementDetail', { announcementId: item.id })
-              }
-              onEdit={() =>
-                navigation.navigate('AnnouncementEditor', { announcementId: item.id })
-              }
+              onView={() => {
+                trackRoute('AnnouncementDetail', { announcementId: item.id });
+                navigation.navigate('AnnouncementDetail', { announcementId: item.id });
+              }}
+              onEdit={() => {
+                trackRoute('AnnouncementEditor', { announcementId: item.id });
+                navigation.navigate('AnnouncementEditor', { announcementId: item.id });
+              }}
               onDelete={() => confirmDelete(item)}
             />
           )}

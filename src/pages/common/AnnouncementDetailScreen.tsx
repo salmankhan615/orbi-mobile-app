@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
+import { trackRoute } from '@/api/screenTracking';
 import { useAnnouncement } from '@/queries/useAnnouncements';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -58,7 +59,10 @@ export function AnnouncementDetailScreen({ route, navigation }: Props) {
           label="Edit"
           variant="secondary"
           icon="create-outline"
-          onPress={() => navigation.navigate('AnnouncementEditor', { announcementId: data.id })}
+          onPress={() => {
+            trackRoute('AnnouncementEditor', { announcementId: data.id });
+            navigation.navigate('AnnouncementEditor', { announcementId: data.id });
+          }}
           style={styles.edit}
         />
       ) : null}

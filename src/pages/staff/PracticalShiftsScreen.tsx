@@ -16,6 +16,7 @@ import {
   type PracticalShiftDefinition,
 } from '@/api/staff';
 import { useTrainingLocations } from '@/queries/useBookings';
+import { trackRoute } from '@/api/screenTracking';
 import {
   useDeletePracticalShift,
   usePracticalShifts,
@@ -93,7 +94,10 @@ export function PracticalShiftsScreen({ navigation }: Props) {
       scroll={false}
       right={
         <ScalePressable
-          onPress={() => navigation.navigate('ShiftEditor', {})}
+          onPress={() => {
+            trackRoute('ShiftEditor', {});
+            navigation.navigate('ShiftEditor', {});
+          }}
           style={styles.headerAction}
         >
           <Ionicons name="add" size={22} color={tokens.colors.primary} />
@@ -169,7 +173,10 @@ export function PracticalShiftsScreen({ navigation }: Props) {
               </View>
               <View style={styles.actions}>
                 <ScalePressable
-                  onPress={() => navigation.navigate('ShiftEditor', { shiftId: item.id })}
+                  onPress={() => {
+                    trackRoute('ShiftEditor', { shiftId: item.id });
+                    navigation.navigate('ShiftEditor', { shiftId: item.id });
+                  }}
                   style={styles.actionBtn}
                 >
                   <Ionicons name="create-outline" size={18} color={tokens.colors.primary} />

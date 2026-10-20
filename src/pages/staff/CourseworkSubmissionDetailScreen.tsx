@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { TextField } from '@/components/ui/TextField';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { CourseworkFileChip } from '@/features/coursework/components/CourseworkFileChip';
+import { trackRoute } from '@/api/screenTracking';
 import {
   useAddCourseworkFeedback,
   useGradeCourseworkSubmission,
@@ -43,11 +44,13 @@ export function CourseworkSubmissionDetailScreen({ route, navigation }: Props) {
   const feedbackMutation = useAddCourseworkFeedback(assignmentId);
 
   function openFile(file: CourseworkFile) {
-    navigation.navigate('CourseworkFile', {
+    const params = {
       url: file.url,
       filename: file.filename,
       type: file.type,
-    });
+    };
+    trackRoute('CourseworkFile', params);
+    navigation.navigate('CourseworkFile', params);
   }
 
   function saveGrade() {

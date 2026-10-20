@@ -6,6 +6,7 @@ import { Text } from '@/components/ui/Text';
 import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
 import { ScalePressable } from '@/components/custom/ScalePressable';
+import { trackRoute } from '@/api/screenTracking';
 import { useCourses } from '@/queries/useCourses';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 import { smoothListProps } from '@/utils/scroll';
@@ -131,7 +132,10 @@ export function CoursesListScreen({ navigation }: Props) {
           <CourseCard
             course={item}
             index={index}
-            onPress={() => navigation.navigate('CourseDetail', { courseId: item.id })}
+            onPress={() => {
+              trackRoute('CourseDetail', { courseId: item.id });
+              navigation.navigate('CourseDetail', { courseId: item.id });
+            }}
           />
         )}
       />

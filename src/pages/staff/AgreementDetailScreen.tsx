@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { trackRoute } from '@/api/screenTracking';
 import { CourseworkFileChip } from '@/features/coursework/components/CourseworkFileChip';
 import type { AgreementArtifact } from '@/api/staff';
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -66,13 +67,15 @@ export function AgreementDetailScreen({ route, navigation }: Props) {
             <CourseworkFileChip
               key={file.id}
               file={file}
-              onPress={() =>
-                navigation.navigate('CourseworkFile', {
+              onPress={() => {
+                const params = {
                   url: file.url,
                   filename: file.filename,
                   type: file.type,
-                })
-              }
+                };
+                trackRoute('CourseworkFile', params);
+                navigation.navigate('CourseworkFile', params);
+              }}
             />
           ))}
         </View>

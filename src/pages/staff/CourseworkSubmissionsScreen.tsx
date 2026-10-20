@@ -6,6 +6,7 @@ import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { Text } from '@/components/ui/Text';
 import { SubmissionGradeCard } from '@/features/coursework/components/SubmissionGradeCard';
+import { trackRoute } from '@/api/screenTracking';
 import {
   useAddCourseworkFeedback,
   useGradeCourseworkSubmission,
@@ -50,11 +51,13 @@ export function CourseworkSubmissionsScreen({ route, navigation }: Props) {
   );
 
   function openFile(file: CourseworkFile) {
-    navigation.navigate('CourseworkFile', {
+    const params = {
       url: file.url,
       filename: file.filename,
       type: file.type,
-    });
+    };
+    trackRoute('CourseworkFile', params);
+    navigation.navigate('CourseworkFile', params);
   }
 
   function saveScore(submissionId: string, score: number | null) {
@@ -182,8 +185,8 @@ export function CourseworkSubmissionsScreen({ route, navigation }: Props) {
               savingScore={savingScoreId === item.id}
               savingFeedback={savingFeedbackId === item.id}
               onOpenFile={openFile}
-              onOpenStudent={() =>
-                navigation.navigate('CourseworkSubmissionDetail', {
+              onOpenStudent={() => {
+                const params = {
                   assignmentId,
                   submissionId: item.id,
                   studentName: item.studentName,
@@ -192,8 +195,10 @@ export function CourseworkSubmissionsScreen({ route, navigation }: Props) {
                   grade: item.grade,
                   files: item.files,
                   comments: item.comments,
-                })
-              }
+                };
+                trackRoute('CourseworkSubmissionDetail', params);
+                navigation.navigate('CourseworkSubmissionDetail', params);
+              }}
               onSaveScore={(score) => saveScore(item.id, score)}
               onSaveFeedback={(text) => saveFeedback(item.id, text)}
             />

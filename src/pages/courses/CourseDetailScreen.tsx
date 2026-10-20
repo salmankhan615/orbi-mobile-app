@@ -12,6 +12,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScalePressable } from '@/components/custom/ScalePressable';
+import { trackRoute } from '@/api/screenTracking';
 import { useCourse } from '@/queries/useCourses';
 import { ModuleAccordionItem } from '@/features/courses/components/ModuleAccordionItem';
 import { CourseAccessLocked } from '@/features/courses/components/CourseAccessLocked';
@@ -54,7 +55,9 @@ export function CourseDetailScreen({ route, navigation }: Props) {
       showToast('This lesson is locked.', 'neutral');
       return;
     }
-    navigation.navigate('LessonPlayer', { courseId: course.id, lessonId: lesson.id });
+    const params = { courseId: course.id, lessonId: lesson.id };
+    trackRoute('LessonPlayer', params);
+    navigation.navigate('LessonPlayer', params);
   }
 
   if (isLoading || !course) {

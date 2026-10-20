@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/custom/EmptyState';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { CourseworkFileChip } from '@/features/coursework/components/CourseworkFileChip';
 import { CardListSkeleton } from '@/components/custom/Skeletons';
+import { trackRoute } from '@/api/screenTracking';
 import { courseworkTabForKind, type CourseworkTab } from '@/api/coursework';
 import { useCoursework } from '@/queries/useCoursework';
 import type { BadgeTone } from '@/components/ui/Badge';
@@ -52,11 +53,13 @@ export function StudentCourseworkScreen({ navigation, route }: Props) {
     loadError ?? (error instanceof Error ? error.message : 'Could not load coursework.');
 
   function openFile(file: CourseworkFile) {
-    navigation.navigate('CourseworkFile', {
+    const params = {
       url: file.url,
       filename: file.filename,
       type: file.type,
-    });
+    };
+    trackRoute('CourseworkFile', params);
+    navigation.navigate('CourseworkFile', params);
   }
 
   return (
@@ -101,7 +104,10 @@ export function StudentCourseworkScreen({ navigation, route }: Props) {
         visible.map((item, index) => (
           <ScalePressable
             key={item.id}
-            onPress={() => navigation.navigate('CourseworkDetail', { courseworkId: item.id })}
+            onPress={() => {
+              trackRoute('CourseworkDetail', { courseworkId: item.id });
+              navigation.navigate('CourseworkDetail', { courseworkId: item.id });
+            }}
             style={styles.card}
           >
             <View style={styles.cardTop}>

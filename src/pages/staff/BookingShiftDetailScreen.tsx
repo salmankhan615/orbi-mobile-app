@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { StackScreen } from '@/components/custom/StackScreen';
 import { AttendanceActions } from '@/features/bookings/components/AttendanceActions';
 import { EntityRow } from '@/components/custom/EntityRow';
+import { trackRoute } from '@/api/screenTracking';
 import { cancelPracticalBooking, markPracticalAttendance } from '@/api/crm';
 import { staffKeys } from '@/queries/useStaff';
 import { bookingKeys } from '@/queries/useBookings';
@@ -117,14 +118,16 @@ export function BookingShiftDetailScreen({ route, navigation }: Props) {
         <Button
           label="View student"
           variant="outline"
-          onPress={() =>
-            navigation.navigate('UserDetail', {
+          onPress={() => {
+            const params = {
               userId: studentId,
               name: studentName,
               email: studentEmail ?? '',
               role: 'student',
-            })
-          }
+            };
+            trackRoute('UserDetail', params);
+            navigation.navigate('UserDetail', params);
+          }}
           style={styles.studentBtn}
         />
       ) : null}

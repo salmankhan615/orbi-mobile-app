@@ -11,6 +11,7 @@ import {
   DateRangePicker,
   type DateRange,
 } from '@/features/bookings/components/DateRangePicker';
+import { trackRoute } from '@/api/screenTracking';
 import { useStaffBookings } from '@/queries/useBookings';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
@@ -41,16 +42,18 @@ export function StaffBookingsScreen({ navigation }: Props) {
 
   function openSession(session: StaffBookingSession) {
     if (session.kind === 'training') {
-      navigation.navigate('TrainingLocationBookings', {
+      const params = {
         date: session.date || range.startDate,
         locationName: session.locationName || session.locationLabel || 'Location',
         locationId: session.locationId,
         dayId: session.dayId,
-      });
+      };
+      trackRoute('TrainingLocationBookings', params);
+      navigation.navigate('TrainingLocationBookings', params);
       return;
     }
     if (session.classId) {
-      navigation.navigate('ClassBookings', {
+      const params = {
         classId: session.classId,
         title: session.title,
         date: session.date,
@@ -58,7 +61,9 @@ export function StaffBookingsScreen({ navigation }: Props) {
         startTime: session.startTime,
         endTime: session.endTime,
         location: session.locationLabel,
-      });
+      };
+      trackRoute('ClassBookings', params);
+      navigation.navigate('ClassBookings', params);
     }
   }
 

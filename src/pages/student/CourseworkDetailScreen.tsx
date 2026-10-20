@@ -12,6 +12,7 @@ import {
   isCourseworkOverdue,
   courseworkTabForKind,
 } from '@/api/coursework';
+import { trackRoute } from '@/api/screenTracking';
 import { useCoursework } from '@/queries/useCoursework';
 import type { BadgeTone } from '@/components/ui/Badge';
 import type { CourseworkFile, CourseworkItem } from '@/api/staff';
@@ -35,11 +36,13 @@ export function CourseworkDetailScreen({ navigation, route }: Props) {
   );
 
   function openFile(file: CourseworkFile) {
-    navigation.navigate('CourseworkFile', {
+    const params = {
       url: file.url,
       filename: file.filename,
       type: file.type,
-    });
+    };
+    trackRoute('CourseworkFile', params);
+    navigation.navigate('CourseworkFile', params);
   }
 
   if (isPending) {

@@ -12,6 +12,7 @@ import { DayActionsMenu } from '@/features/calendar/components/DayActionsMenu';
 import { SESSION_TYPE_COLOR } from '@/features/calendar/sessionStyle';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { EmptyState } from '@/components/custom/EmptyState';
+import { trackRoute } from '@/api/screenTracking';
 import { formatPortalDate, getMonthDateRange } from '@/utils/date';
 import { useDayClosure } from '@/hooks/useDayClosure';
 import { useIsStaff, useHasPermission } from '@/hooks/useHasPermission';
@@ -59,15 +60,17 @@ export function DayAgendaScreen({ route, navigation }: Props) {
       return;
     }
     if (session.kind === 'training') {
-      navigation.navigate('TrainingLocationBookings', {
+      const params = {
         date: session.date,
         locationName: session.location || session.code || 'Location',
         locationId: session.locationId,
         dayId: session.dayId,
-      });
+      };
+      trackRoute('TrainingLocationBookings', params);
+      navigation.navigate('TrainingLocationBookings', params);
       return;
     }
-    navigation.navigate('ClassBookings', {
+    const params = {
       classId: session.id,
       title: session.title,
       date: session.date,
@@ -75,7 +78,9 @@ export function DayAgendaScreen({ route, navigation }: Props) {
       startTime: session.startTime,
       endTime: session.endTime,
       location: session.location || session.code || '—',
-    });
+    };
+    trackRoute('ClassBookings', params);
+    navigation.navigate('ClassBookings', params);
   }
 
   const daySessions = (sessions ?? [])
@@ -113,22 +118,27 @@ export function DayAgendaScreen({ route, navigation }: Props) {
             }
             onCloseDay={
               isStaff && canClose
-                ? () =>
-                    navigation.navigate('CloseCalendar', {
+                ? () => {
+                    const params = {
                       date: dayDate,
                       calendarId: calendarId && calendarId !== 'all' ? calendarId : undefined,
-                    })
+                    };
+                    trackRoute('CloseCalendar', params);
+                    navigation.navigate('CloseCalendar', params);
+                  }
                 : undefined
             }
           />
         ) : isStaff && canClose ? (
           <DayActionsMenu
-            onCloseDay={() =>
-              navigation.navigate('CloseCalendar', {
+            onCloseDay={() => {
+              const params = {
                 date: dayDate,
                 calendarId: calendarId && calendarId !== 'all' ? calendarId : undefined,
-              })
-            }
+              };
+              trackRoute('CloseCalendar', params);
+              navigation.navigate('CloseCalendar', params);
+            }}
           />
         ) : null}
         {isLoading ? (

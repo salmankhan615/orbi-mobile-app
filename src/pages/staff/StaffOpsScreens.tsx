@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { ScalePressable } from '@/components/custom/ScalePressable';
+import { trackRoute } from '@/api/screenTracking';
 import { useInvoices, useAgreements, useShifts } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { toISODate } from '@/utils/date';
@@ -104,8 +105,8 @@ export function InvoicesScreen({ navigation }: RootStackScreenProps<'Invoices'>)
                       ? 'danger'
                       : 'warning',
               }}
-              onPress={() =>
-                navigation.navigate('InvoiceDetail', {
+              onPress={() => {
+                const params = {
                   invoiceId: item.id,
                   studentName: item.studentName,
                   studentEmail: item.studentEmail,
@@ -118,8 +119,10 @@ export function InvoicesScreen({ navigation }: RootStackScreenProps<'Invoices'>)
                   paidOn: item.paidOn,
                   notes: item.notes,
                   installments: item.installments,
-                })
-              }
+                };
+                trackRoute('InvoiceDetail', params);
+                navigation.navigate('InvoiceDetail', params);
+              }}
             />
           )}
         />
@@ -203,8 +206,8 @@ export function AgreementsScreen({ navigation }: RootStackScreenProps<'Agreement
                       ? 'warning'
                       : 'danger',
               }}
-              onPress={() =>
-                navigation.navigate('AgreementDetail', {
+              onPress={() => {
+                const params = {
                   agreementId: item.id,
                   title: item.title,
                   studentName: item.studentName,
@@ -218,8 +221,10 @@ export function AgreementsScreen({ navigation }: RootStackScreenProps<'Agreement
                   deliveryMethod: item.deliveryMethod,
                   agreementType: item.agreementType,
                   artifacts: item.artifacts,
-                })
-              }
+                };
+                trackRoute('AgreementDetail', params);
+                navigation.navigate('AgreementDetail', params);
+              }}
             />
           )}
         />
@@ -331,8 +336,8 @@ export function BookingShiftsScreen({ navigation }: RootStackScreenProps<'Bookin
                         : 'success'
                       : 'warning',
               }}
-              onPress={() =>
-                navigation.navigate('BookingShiftDetail', {
+              onPress={() => {
+                const params = {
                   dayId: item.dayId,
                   bookingId: item.bookingId,
                   studentId: item.studentId,
@@ -351,8 +356,10 @@ export function BookingShiftsScreen({ navigation }: RootStackScreenProps<'Bookin
                   bookedByName: item.bookedByName,
                   cancelledAt: item.cancelledAt,
                   isOverridden: item.isOverridden,
-                })
-              }
+                };
+                trackRoute('BookingShiftDetail', params);
+                navigation.navigate('BookingShiftDetail', params);
+              }}
             />
           )}
         />

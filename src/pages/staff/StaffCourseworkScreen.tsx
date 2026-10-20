@@ -8,6 +8,7 @@ import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { FilterSelectRow } from '@/features/bookings/components/BookingFilters';
+import { trackRoute } from '@/api/screenTracking';
 import { courseworkTabForKind, type CourseworkTab } from '@/api/coursework';
 import { useStaffCoursework } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
@@ -121,9 +122,10 @@ export function StaffCourseworkScreen({ navigation }: Props) {
               index={index}
               showGrading={tab === 'assignment'}
               canOpenSubmissions={canSubs && tab === 'assignment'}
-              onSubmissions={() =>
-                navigation.navigate('CourseworkSubmissions', { assignmentId: item.id })
-              }
+              onSubmissions={() => {
+                trackRoute('CourseworkSubmissions', { assignmentId: item.id });
+                navigation.navigate('CourseworkSubmissions', { assignmentId: item.id });
+              }}
             />
           )}
         />

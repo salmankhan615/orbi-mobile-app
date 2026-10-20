@@ -7,6 +7,7 @@ import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
+import { trackRoute } from '@/api/screenTracking';
 import { useDirectory } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import type { DirectoryUser } from '@/api/staff';
@@ -146,15 +147,17 @@ export function UserDirectoryScreen({ navigation }: Props) {
                 label: user.role === 'staff' ? 'Staff' : 'Student',
                 tone: user.role === 'staff' ? 'primary' : 'info',
               }}
-              onPress={() =>
-                navigation.navigate('UserDetail', {
+              onPress={() => {
+                const params = {
                   userId: user.id,
                   name: user.name,
                   email: user.email,
                   role: user.role,
                   status: user.status,
-                })
-              }
+                };
+                trackRoute('UserDetail', params);
+                navigation.navigate('UserDetail', params);
+              }}
             />
           )}
         />

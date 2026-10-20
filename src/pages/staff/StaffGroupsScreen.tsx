@@ -17,6 +17,7 @@ import {
   type GroupListFilters,
   type GroupStatusTab,
 } from '@/features/staff/groupFilters';
+import { trackRoute } from '@/api/screenTracking';
 import { useCrmCourseOptions, useGroupStaffOptions, useStaffGroups } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
@@ -139,7 +140,10 @@ export function StaffGroupsScreen({ navigation }: Props) {
                 : undefined;
             return (
               <ScalePressable
-                onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
+                onPress={() => {
+                  trackRoute('GroupDetail', { groupId: group.id });
+                  navigation.navigate('GroupDetail', { groupId: group.id });
+                }}
                 style={styles.card}
               >
                 <View style={styles.cardTop}>

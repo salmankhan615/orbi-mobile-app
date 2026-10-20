@@ -13,6 +13,7 @@ import { ScalePressable } from '@/components/custom/ScalePressable';
 import { Spinner } from '@/components/ui/Spinner';
 import { FilterSelectRow } from '@/features/bookings/components/BookingFilters';
 import { statusBadgeTone } from '@/features/staff/groupFilters';
+import { trackRoute } from '@/api/screenTracking';
 import {
   useAssignGroupStaff,
   useGroupDetail,
@@ -218,14 +219,16 @@ export function GroupDetailScreen({ route, navigation }: Props) {
                       icon="person-outline"
                       title={student.name}
                       subtitle={student.email}
-                      onPress={() =>
-                        navigation.navigate('UserDetail', {
+                      onPress={() => {
+                        const params = {
                           userId: student.id,
                           name: student.name,
                           email: student.email,
                           role: 'student',
-                        })
-                      }
+                        };
+                        trackRoute('UserDetail', params);
+                        navigation.navigate('UserDetail', params);
+                      }}
                     />
                   )}
                 />
@@ -303,8 +306,8 @@ export function GroupDetailScreen({ route, navigation }: Props) {
                       title={session.title}
                       subtitle={`${session.date} · ${session.startTime}–${session.endTime}`}
                       meta={session.location}
-                      onPress={() =>
-                        navigation.navigate('GroupSessionDetail', {
+                      onPress={() => {
+                        const params = {
                           groupId,
                           classId: session.id,
                           title: session.title,
@@ -312,8 +315,10 @@ export function GroupDetailScreen({ route, navigation }: Props) {
                           startTime: session.startTime,
                           endTime: session.endTime,
                           location: session.location,
-                        })
-                      }
+                        };
+                        trackRoute('GroupSessionDetail', params);
+                        navigation.navigate('GroupSessionDetail', params);
+                      }}
                     />
                   )}
                 />

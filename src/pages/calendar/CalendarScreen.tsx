@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
 import { ScalePressable } from '@/components/custom/ScalePressable';
+import { trackRoute } from '@/api/screenTracking';
 import { useSessions } from '@/queries/useSessions';
 import { useCalendars } from '@/queries/useCalendars';
 import { useClosures } from '@/queries/useStaff';
@@ -165,10 +166,12 @@ export function CalendarScreen({ navigation }: Props) {
 
   function openCloseDay(iso: string) {
     setSheetOpen(false);
-    navigation.navigate('CloseCalendar', {
+    const params = {
       date: iso,
       calendarId: selectedCalendarId !== 'all' ? selectedCalendarId : undefined,
-    });
+    };
+    trackRoute('CloseCalendar', params);
+    navigation.navigate('CloseCalendar', params);
   }
 
   function handleViewMode(mode: ViewMode) {
@@ -192,15 +195,17 @@ export function CalendarScreen({ navigation }: Props) {
         return;
       }
       if (session.kind === 'training') {
-        navigation.navigate('TrainingLocationBookings', {
+        const params = {
           date: session.date,
           locationName: session.location || session.code || 'Location',
           locationId: session.locationId,
           dayId: session.dayId,
-        });
+        };
+        trackRoute('TrainingLocationBookings', params);
+        navigation.navigate('TrainingLocationBookings', params);
         return;
       }
-      navigation.navigate('ClassBookings', {
+      const params = {
         classId: session.id,
         title: session.title,
         date: session.date,
@@ -208,7 +213,9 @@ export function CalendarScreen({ navigation }: Props) {
         startTime: session.startTime,
         endTime: session.endTime,
         location: session.location || session.code || '—',
-      });
+      };
+      trackRoute('ClassBookings', params);
+      navigation.navigate('ClassBookings', params);
     },
     [canViewBookings, isStaff, navigation, showToast],
   );
@@ -227,7 +234,10 @@ export function CalendarScreen({ navigation }: Props) {
               label="Shifts"
               icon="time-outline"
               variant="primary"
-              onPress={() => navigation.navigate('PracticalShifts')}
+              onPress={() => {
+                trackRoute('PracticalShifts');
+                navigation.navigate('PracticalShifts');
+              }}
               style={styles.staffActionBtn}
             />
           ) : null}
@@ -236,7 +246,10 @@ export function CalendarScreen({ navigation }: Props) {
               label="Closures"
               icon="close-circle-outline"
               variant="primary"
-              onPress={() => navigation.navigate('CloseCalendar')}
+              onPress={() => {
+                trackRoute('CloseCalendar');
+                navigation.navigate('CloseCalendar');
+              }}
               style={styles.staffActionBtn}
             />
           ) : null}
@@ -445,12 +458,14 @@ export function CalendarScreen({ navigation }: Props) {
           {sessionsForSelectedDate.length > 0 && (
             <Button
               label="View Full Day  →"
-              onPress={() =>
-                navigation.navigate('DayAgenda', {
+              onPress={() => {
+                const params = {
                   date: selectedDate,
                   calendarId: selectedCalendarId,
-                })
-              }
+                };
+                trackRoute('DayAgenda', params);
+                navigation.navigate('DayAgenda', params);
+              }}
               style={styles.viewFullDay}
             />
           )}
@@ -519,10 +534,12 @@ export function CalendarScreen({ navigation }: Props) {
               icon="calendar-outline"
               onPress={() => {
                 setSheetOpen(false);
-                navigation.navigate('DayAgenda', {
+                const params = {
                   date: selectedDate,
                   calendarId: selectedCalendarId,
-                });
+                };
+                trackRoute('DayAgenda', params);
+                navigation.navigate('DayAgenda', params);
               }}
             />
           </View>
