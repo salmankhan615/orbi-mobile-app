@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
@@ -16,7 +16,7 @@ import {
   type PracticalShiftDefinition,
 } from '@/api/staff';
 import { useTrainingLocations } from '@/queries/useBookings';
-import { trackRoute } from '@/api/screenTracking';
+import { trackRoute, trackScreen } from '@/api/screenTracking';
 import {
   useDeletePracticalShift,
   usePracticalShifts,
@@ -44,6 +44,11 @@ export function PracticalShiftsScreen({ navigation }: Props) {
   const remove = useDeletePracticalShift();
   const showToast = useToastStore((state) => state.show);
   const shifts = data ?? [];
+
+  useEffect(() => {
+    if (!allowed) return;
+    trackScreen('pt_shifts', locationId || undefined);
+  }, [allowed, locationId]);
 
   const locationOptions = useMemo(
     () => [{ id: '', label: 'All locations' }, ...locations.map((item) => ({ id: item.id, label: item.title }))],

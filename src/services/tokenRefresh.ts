@@ -108,6 +108,27 @@ export async function ensureFreshAccessToken(): Promise<boolean> {
 }
 
 /**
+ * When SecureStore has tokens but the on-disk user session is missing/corrupt,
+ * rebuild AuthUser from CRM getUser so staff/student stay signed in.
+ */
+async function rebuildSessionFromApi(): Promise<boolean> {
+  try {
+    const { authApi } = await import('@/api/auth');
+    const { SESSION_DURATION_MS } = await import('@/features/auth/permissions');
+    const { useAuthStore } = await import('@/store/useAuthStore');
+    const user = await authApi.getUser();
+    await useAuthStore.getState().signIn(user, Date.now() + SESSION_DURATION_MS, {
+      token: (await tokenManager.getAccessToken()) ?? null,
+    });
+    console.log('[Auth] Splash: ✓ session rebuilt from getUser', { role: user.role });
+    return true;
+  } catch (error) {
+    console.warn('[Auth] Splash: could not rebuild session from getUser', error);
+    return false;
+  }
+}
+
+/**
  * Cold-start path used by the splash screen: always rotate tokens when a
  * refresh token exists, then restore the persisted user session.
  */
@@ -122,7 +143,11 @@ export async function bootstrapSessionOnSplash(): Promise<boolean> {
   const refreshed = await refreshAccessToken({ signOutOnFailure: false });
   if (refreshed) {
     const { restoreAuthSession } = await import('@/store/useAuthStore');
-    const restored = await restoreAuthSession();
+    let restored = await restoreAuthSession();
+    if (!restored) {
+      console.warn('[Auth] Splash: tokens OK but stored user missing — rebuilding');
+      restored = await rebuildSessionFromApi();
+    }
     if (restored) {
       await scheduleProactiveRefreshFromStorage();
       console.log('[Auth] Splash: ✓ session restored after refresh');
@@ -135,7 +160,10 @@ export async function bootstrapSessionOnSplash(): Promise<boolean> {
     console.warn('[Auth] Splash: refresh failed, using existing access token');
     setApiSession(null, tokens.accessToken);
     const { restoreAuthSession } = await import('@/store/useAuthStore');
-    const restored = await restoreAuthSession();
+    let restored = await restoreAuthSession();
+    if (!restored) {
+      restored = await rebuildSessionFromApi();
+    }
     if (restored) {
       await scheduleProactiveRefreshFromStorage();
     }

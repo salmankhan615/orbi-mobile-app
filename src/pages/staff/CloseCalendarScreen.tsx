@@ -9,6 +9,7 @@ import { StackScreen } from '@/components/custom/StackScreen';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { ScalePressable } from '@/components/custom/ScalePressable';
 import { DueDatePicker } from '@/features/coursework/components/DueDatePicker';
+import { trackScreen } from '@/api/screenTracking';
 import { formatClosureDetails, type CalendarClosure, type ClosureScope } from '@/api/staff';
 import { useCalendars } from '@/queries/useCalendars';
 import { useAddClosure, useClosures, useDeleteClosure } from '@/queries/useStaff';
@@ -251,7 +252,14 @@ export function CloseCalendarScreen({ route, navigation }: Props) {
           onChange={setWeekday}
         />
       ) : (
-        <DueDatePicker label="Date" value={date} onChange={setDate} />
+        <DueDatePicker
+          label="Date"
+          value={date}
+          onChange={(next) => {
+            setDate(next);
+            trackScreen('closures', next);
+          }}
+        />
       )}
       <Text variant="caption" color="textMuted" style={styles.fieldLabel}>
         Reason

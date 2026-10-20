@@ -52,7 +52,9 @@ export function DayAgendaScreen({ route, navigation }: Props) {
 
   function openSession(session: Session) {
     if (!isStaff) {
-      navigation.navigate('SessionDetails', { sessionId: session.id });
+      const params = { sessionId: session.id };
+      trackRoute('SessionDetails', params);
+      navigation.navigate('SessionDetails', params);
       return;
     }
     if (!canViewBookings) {

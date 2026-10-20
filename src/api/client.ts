@@ -207,36 +207,29 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const parsed = await parseBody(response);
 
-  if (response.status === 401 && !skipAuth && (sessionCookie || sessionToken)) {
-    // Document: Handle TOKEN_EXPIRED vs TOKEN_INVALID differently
-    const code = (parsed as any)?.code;
-    const message =
-      typeof (parsed as { message?: unknown })?.message === 'string'
-        ? String((parsed as { message: string }).message).toLowerCase()
-        : '';
-    const looksExpired =
-      code === 'TOKEN_EXPIRED' ||
-      message.includes('expired') ||
-      message.includes('jwt expired');
-
-    if (looksExpired && !options._authRetry) {
-      console.log('[API] Token expired, attempting refresh...');
-      const { refreshAccessToken } = await import('@/services/tokenRefresh');
-      const ok = await refreshAccessToken();
-      if (ok) {
-        return request<T>(path, { ...options, skipAuth: false, _authRetry: true });
-      }
-      console.error('[API] Token refresh failed, logging out');
-      unauthorizedHandler?.();
-      throw new ApiError(
-        'Session expired. Please login again.',
-        401,
-        parsed,
-        'SESSION_EXPIRED',
-      );
+  if (response.status === 401 && !skipAuth && (sessionCookie || sessionToken) && !options._authRetry) {
+    // Prefer refresh whenever we still have a refresh token — CRM often returns a bare
+    // 401 without TOKEN_EXPIRED, which used to sign staff out mid-session.
+    console.log('[API] 401 — attempting token refresh before sign-out...');
+    const { refreshAccessToken } = await import('@/services/tokenRefresh');
+    const ok = await refreshAccessToken({ signOutOnFailure: false });
+    if (ok) {
+      return request<T>(path, { ...options, skipAuth: false, _authRetry: true });
     }
 
-    // TOKEN_INVALID, REFRESH_TOKEN_EXPIRED, or ACCOUNT_INACTIVE
+    const code = (parsed as any)?.code;
+    console.error('[API] Token refresh failed after 401, logging out', code);
+    unauthorizedHandler?.();
+    throw new ApiError(
+      'Session expired. Please login again.',
+      401,
+      parsed,
+      code || 'SESSION_EXPIRED',
+    );
+  }
+
+  if (response.status === 401 && !skipAuth && (sessionCookie || sessionToken) && options._authRetry) {
+    // Already retried once — session is dead.
     unauthorizedHandler?.();
   }
 

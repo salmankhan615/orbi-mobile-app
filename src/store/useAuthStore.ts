@@ -61,7 +61,7 @@ interface AuthState {
     user: AuthUser,
     sessionExpiresAt: number,
     session?: { cookie?: string | null; token?: string | null },
-  ) => void;
+  ) => Promise<void>;
   updateUser: (patch: Partial<AuthUser>) => void;
   signOut: () => void;
 }
@@ -70,21 +70,24 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
   sessionExpiresAt: null,
-  signIn: (user, sessionExpiresAt, session) => {
+  signIn: async (user, sessionExpiresAt, session) => {
     if (session) {
       setApiSession(session.cookie ?? null, session.token ?? null, { clearJar: true });
     }
     setScreenTrackingClient(user.role);
     set({ user, isAuthenticated: true, sessionExpiresAt });
     const creds = getApiSession();
-    saveStoredSession({
-      user,
-      sessionExpiresAt,
-      cookie: creds.cookie,
-      token: creds.token,
-    }).catch((error) => {
+    try {
+      await saveStoredSession({
+        user,
+        sessionExpiresAt,
+        cookie: creds.cookie,
+        token: creds.token,
+      });
+      console.log('[Auth] Session persisted', { role: user.role, id: user.id });
+    } catch (error) {
       console.error('[Auth] Failed to save session:', error);
-    });
+    }
   },
   updateUser: (patch) => {
     set((state) => {

@@ -54,7 +54,10 @@ export function CoursesListScreen({ navigation }: Props) {
               <IconButton
                 name="menu"
                 background="surfaceAlt"
-                onPress={() => navigation.navigate('Profile')}
+                onPress={() => {
+                  trackRoute('Profile');
+                  navigation.navigate('Profile');
+                }}
               />
               <Text variant="heading">My Courses</Text>
               <IconButton

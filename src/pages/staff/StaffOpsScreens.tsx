@@ -1,5 +1,5 @@
 import { FlatList, StyleSheet, View } from 'react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { StackScreen } from '@/components/custom/StackScreen';
@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/custom/EmptyState';
 import { EntityRow } from '@/components/custom/EntityRow';
 import { EntityListSkeleton } from '@/components/custom/Skeletons';
 import { ScalePressable } from '@/components/custom/ScalePressable';
-import { trackRoute } from '@/api/screenTracking';
+import { trackRoute, trackScreen } from '@/api/screenTracking';
 import { useInvoices, useAgreements, useShifts } from '@/queries/useStaff';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { toISODate } from '@/utils/date';
@@ -244,6 +244,11 @@ export function BookingShiftsScreen({ navigation }: RootStackScreenProps<'Bookin
     () => (filter === 'all' ? shifts : shifts.filter((item) => item.status === filter)),
     [shifts, filter],
   );
+
+  useEffect(() => {
+    if (!allowed) return;
+    trackScreen('pt_shifts', iso);
+  }, [allowed, iso]);
 
   if (!allowed) {
     return (

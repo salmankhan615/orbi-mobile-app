@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
 import { ScalePressable } from '@/components/custom/ScalePressable';
-import { trackRoute } from '@/api/screenTracking';
+import { trackRoute, trackScreen } from '@/api/screenTracking';
 import { useSessions } from '@/queries/useSessions';
 import { useCalendars } from '@/queries/useCalendars';
 import { useClosures } from '@/queries/useStaff';
@@ -149,13 +149,16 @@ export function CalendarScreen({ navigation }: Props) {
 
   function goToday() {
     const today = new Date();
+    const iso = toISODate(today);
     setCursor(today);
-    setSelectedDate(toISODate(today));
+    setSelectedDate(iso);
+    trackScreen('calendar', iso);
   }
 
   const handleSelectDate = useCallback(
     (iso: string) => {
       setSelectedDate(iso);
+      trackScreen('calendar', iso);
       const hasSessions = (sessionsByDate.get(iso) ?? []).length > 0;
       if (hasSessions || closedDateSet.has(iso) || (isStaff && canClose)) {
         setSheetOpen(true);
@@ -187,7 +190,9 @@ export function CalendarScreen({ navigation }: Props) {
   const openSession = useCallback(
     (session: Session) => {
       if (!isStaff) {
-        navigation.navigate('SessionDetails', { sessionId: session.id });
+        const params = { sessionId: session.id };
+        trackRoute('SessionDetails', params);
+        navigation.navigate('SessionDetails', params);
         return;
       }
       if (!canViewBookings) {
@@ -419,7 +424,11 @@ export function CalendarScreen({ navigation }: Props) {
                 label="Book Practical Training"
                 icon="people-outline"
                 variant="accent"
-                onPress={() => navigation.navigate('BookTraining', { date: selectedDate })}
+                onPress={() => {
+                  const params = { date: selectedDate };
+                  trackRoute('BookTraining', params);
+                  navigation.navigate('BookTraining', params);
+                }}
                 style={styles.bookTrainingBtn}
               />
             )
@@ -504,7 +513,9 @@ export function CalendarScreen({ navigation }: Props) {
                   variant="accent"
                   onPress={() => {
                     setSheetOpen(false);
-                    navigation.navigate('BookTraining', { date: selectedDate });
+                    const params = { date: selectedDate };
+                    trackRoute('BookTraining', params);
+                    navigation.navigate('BookTraining', params);
                   }}
                   style={styles.sheetBookTraining}
                 />

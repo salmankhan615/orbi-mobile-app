@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { Screen } from '@/components/custom/Screen';
@@ -11,7 +11,7 @@ import {
   DateRangePicker,
   type DateRange,
 } from '@/features/bookings/components/DateRangePicker';
-import { trackRoute } from '@/api/screenTracking';
+import { trackRoute, trackScreen } from '@/api/screenTracking';
 import { useStaffBookings } from '@/queries/useBookings';
 import { useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
@@ -39,6 +39,11 @@ export function StaffBookingsScreen({ navigation }: Props) {
   const classes = useMemo(() => sessions.filter((item) => item.kind === 'class'), [sessions]);
   const training = useMemo(() => sessions.filter((item) => item.kind === 'training'), [sessions]);
   const visible = tab === 'class' ? classes : training;
+
+  useEffect(() => {
+    if (!allowed) return;
+    trackScreen('bookings', range.startDate);
+  }, [allowed, range.startDate, range.endDate]);
 
   function openSession(session: StaffBookingSession) {
     if (session.kind === 'training') {

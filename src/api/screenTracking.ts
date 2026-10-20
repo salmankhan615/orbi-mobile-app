@@ -23,14 +23,16 @@ const CLIENT_INSTANCE = Crypto.randomUUID();
 let pendingScreen: { screen: string; ref?: string } | null = null;
 let lastLoggedScreen: string | null = null;
 
+type ScreenMapEntry = { key: string; refParam?: string; refParams?: string[] };
+
 /**
  * Route name → server screen key (+ optional record id param).
  *
- * Intentionally untracked (auth / chat / booking flow / containers):
+ * Intentionally untracked (auth / chat / containers):
  * Login, Signup, ForgotPassword, ResetPassword, Notifications,
- * Chat, ChatThread, BookTraining, SessionDetails, MainTabs.
+ * Chat, ChatThread, MainTabs.
  */
-const SCREEN_MAP: Record<string, { key: string; refParam?: string }> = {
+const SCREEN_MAP: Record<string, ScreenMapEntry> = {
   // Tabs / home
   Home: { key: 'dashboard' },
   Dashboard: { key: 'dashboard' },
@@ -59,21 +61,25 @@ const SCREEN_MAP: Record<string, { key: string; refParam?: string }> = {
   CourseworkSubmissionDetail: { key: 'coursework_grading', refParam: 'assignmentId' },
   CourseworkFile: { key: 'coursework' },
 
-  // Bookings (+ class / training / shift detail sub-screens)
+  // Bookings (class / student booking detail — not practical training)
   BookClass: { key: 'bookings' },
   MyBookings: { key: 'bookings' },
   StaffBookingDetail: { key: 'bookings', refParam: 'bookingId' },
   ClassBookings: { key: 'bookings', refParam: 'classId' },
-  TrainingLocationBookings: { key: 'bookings', refParam: 'dayId' },
-  BookingShifts: { key: 'bookings' },
-  BookingShiftDetail: { key: 'bookings', refParam: 'bookingId' },
+  SessionDetails: { key: 'bookings', refParam: 'sessionId' },
 
-  // Calendar (+ day agenda / closures / timetable / PT shifts)
+  // Practical training (book / location day / seats) — never use bookings
+  BookTraining: { key: 'pt_shifts', refParam: 'date' },
+  TrainingLocationBookings: { key: 'pt_shifts', refParams: ['dayId', 'date'] },
+  BookingShifts: { key: 'pt_shifts' },
+  BookingShiftDetail: { key: 'pt_shifts', refParam: 'bookingId' },
+  PracticalShifts: { key: 'pt_shifts' },
+  ShiftEditor: { key: 'pt_shifts', refParam: 'shiftId' },
+
+  // Calendar (+ day agenda / closures / timetable)
   DayAgenda: { key: 'calendar', refParam: 'date' },
   EditTimetable: { key: 'calendar', refParam: 'classId' },
   CloseCalendar: { key: 'closures' },
-  PracticalShifts: { key: 'pt_shifts' },
-  ShiftEditor: { key: 'pt_shifts', refParam: 'shiftId' },
 
   // Groups (+ group / session detail)
   GroupDetail: { key: 'group_detail', refParam: 'groupId' },
@@ -95,14 +101,25 @@ const SCREEN_MAP: Record<string, { key: string; refParam?: string }> = {
   AgreementDetail: { key: 'agreements', refParam: 'agreementId' },
 };
 
+function resolveRef(
+  entry: ScreenMapEntry,
+  params?: Record<string, unknown> | undefined,
+): string | undefined {
+  const keys = entry.refParams ?? (entry.refParam ? [entry.refParam] : []);
+  for (const key of keys) {
+    const raw = params?.[key];
+    if (typeof raw === 'string' && raw.trim()) return raw;
+  }
+  return undefined;
+}
+
 function resolveFromRoute(
   routeName: string,
   params?: Record<string, unknown> | undefined,
 ): { screen: string; ref?: string } | null {
   const entry = SCREEN_MAP[routeName];
   if (!entry) return null;
-  const raw = entry.refParam ? params?.[entry.refParam] : undefined;
-  return { screen: entry.key, ref: typeof raw === 'string' ? raw : undefined };
+  return { screen: entry.key, ref: resolveRef(entry, params) };
 }
 
 function logAccess(screen: string, ref: string | undefined, extra?: Record<string, unknown>) {
@@ -110,10 +127,6 @@ function logAccess(screen: string, ref: string | undefined, extra?: Record<strin
   console.log('[screenTracking]', message, extra ?? {});
 }
 
-/**
- * Call immediately before `navigation.navigate(routeName, params)`.
- * Tags X-Screen from SCREEN_MAP for that route only — no guessed keys.
- */
 /** Routes we expect to have no X-Screen — don't spam the console. */
 const SILENT_UNTRACKED = new Set([
   'Login',
@@ -123,11 +136,22 @@ const SILENT_UNTRACKED = new Set([
   'Notifications',
   'Chat',
   'ChatThread',
-  'BookTraining',
-  'SessionDetails',
   'MainTabs',
 ]);
 
+/**
+ * In-screen event (e.g. calendar date tap) — no navigation, but still tags X-Screen.
+ * `screen` must be a known server key (calendar, bookings, …).
+ */
+export function trackScreen(screen: string, ref?: string) {
+  pendingScreen = { screen, ref: ref || undefined };
+  logAccess(screen, ref, { pending: true, inScreen: true });
+}
+
+/**
+ * Call immediately before `navigation.navigate(routeName, params)`.
+ * Tags X-Screen from SCREEN_MAP for that route only — no guessed keys.
+ */
 export function trackRoute(routeName: string, params?: Record<string, unknown>) {
   const resolved = resolveFromRoute(routeName, params);
   if (!resolved) {
@@ -151,14 +175,44 @@ export function screenKeyForRoute(routeName: string): string | undefined {
 
 /** Call from NavigationContainer `onStateChange`. */
 export function onNavigationStateChange() {
-  pendingScreen = null;
   const route = navigationRef.isReady() ? navigationRef.getCurrentRoute() : undefined;
+
+  // Booking / auth / chat flows must not inherit a prior screen (e.g. calendar date).
+  if (route?.name && SILENT_UNTRACKED.has(route.name)) {
+    pendingScreen = null;
+    return;
+  }
+
   const current = route
     ? resolveFromRoute(route.name, route.params as Record<string, unknown> | undefined)
     : null;
+
+  // Prefer pending until the focused route matches it — avoids wiping a booking
+  // tag when state change still reports Calendar mid-navigate.
+  if (pendingScreen) {
+    const matched =
+      current != null &&
+      current.screen === pendingScreen.screen &&
+      (pendingScreen.ref == null || current.ref === pendingScreen.ref);
+    if (matched) {
+      pendingScreen = null;
+      logAccess(current.screen, current.ref, { route: route?.name, client: CLIENT });
+      return;
+    }
+    logAccess(pendingScreen.screen, pendingScreen.ref, {
+      pending: true,
+      route: route?.name,
+      client: CLIENT,
+    });
+    return;
+  }
+
   if (current) {
     logAccess(current.screen, current.ref, { route: route?.name, client: CLIENT });
-  } else if (route?.name && !SILENT_UNTRACKED.has(route.name)) {
+    return;
+  }
+
+  if (route?.name) {
     console.log('[screenTracking] nav (untracked)', { route: route.name, client: CLIENT });
   }
 }

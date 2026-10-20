@@ -61,7 +61,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: authApi.login,
     onSuccess: async ({ user, sessionExpiresAt, cookie, token }) => {
-      signIn(user, sessionExpiresAt, { cookie, token });
+      await signIn(user, sessionExpiresAt, { cookie, token });
       queryClient.setQueryData(authKeys.user, user);
       await hydrateAfterSignIn(queryClient, user);
     },
@@ -75,7 +75,7 @@ export function useSignup() {
   return useMutation({
     mutationFn: authApi.signup,
     onSuccess: async ({ user, sessionExpiresAt, cookie, token }) => {
-      signIn(user, sessionExpiresAt, { cookie, token });
+      await signIn(user, sessionExpiresAt, { cookie, token });
       queryClient.setQueryData(authKeys.user, user);
       await hydrateAfterSignIn(queryClient, user);
     },
