@@ -24,6 +24,7 @@ import {
   formatWeekRange,
   getVisibleCalendarRange,
   getWeekRange,
+  isPastIsoDate,
   MONTH_NAMES,
   toISODate,
 } from '@/utils/date';
@@ -400,13 +401,15 @@ export function CalendarScreen({ navigation }: Props) {
               }
             />
           ) : !isStaff ? (
-            <Button
-              label="Book Practical Training"
-              icon="people-outline"
-              variant="accent"
-              onPress={() => navigation.navigate('BookTraining', { date: selectedDate })}
-              style={styles.bookTrainingBtn}
-            />
+            isPastIsoDate(selectedDate) ? null : (
+              <Button
+                label="Book Practical Training"
+                icon="people-outline"
+                variant="accent"
+                onPress={() => navigation.navigate('BookTraining', { date: selectedDate })}
+                style={styles.bookTrainingBtn}
+              />
+            )
           ) : (
             <DayActionsMenu
               onCloseDay={canClose ? () => openCloseDay(selectedDate) : undefined}
@@ -479,16 +482,18 @@ export function CalendarScreen({ navigation }: Props) {
                 }
               />
             ) : !isStaff ? (
-              <Button
-                label="Book Practical Training"
-                icon="people-outline"
-                variant="accent"
-                onPress={() => {
-                  setSheetOpen(false);
-                  navigation.navigate('BookTraining', { date: selectedDate });
-                }}
-                style={styles.sheetBookTraining}
-              />
+              isPastIsoDate(selectedDate) ? null : (
+                <Button
+                  label="Book Practical Training"
+                  icon="people-outline"
+                  variant="accent"
+                  onPress={() => {
+                    setSheetOpen(false);
+                    navigation.navigate('BookTraining', { date: selectedDate });
+                  }}
+                  style={styles.sheetBookTraining}
+                />
+              )
             ) : (
               <DayActionsMenu
                 onCloseDay={canClose ? () => openCloseDay(selectedDate) : undefined}

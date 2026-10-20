@@ -10,6 +10,12 @@ export function isSameDay(isoDate: string, date: Date): boolean {
   return isoDate === toISODate(date);
 }
 
+/** True when `iso` (`YYYY-MM-DD`) is before today's local calendar day. */
+export function isPastIsoDate(iso: string, now: Date = new Date()): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  return iso < toISODate(now);
+}
+
 export interface MonthDay {
   date: Date;
   iso: string;

@@ -5,7 +5,7 @@ import {
   isSettingsActive,
   type TrainingShiftRaw,
 } from '@/api/crm';
-import { formatClock } from '@/utils/date';
+import { formatClock, isPastIsoDate } from '@/utils/date';
 
 export type TrainingLocation = {
   id: string;
@@ -86,6 +86,9 @@ export const trainingApi = {
     date: string;
     seat: number;
   }) {
+    if (isPastIsoDate(params.date)) {
+      throw new Error('Practical training cannot be booked on a past date.');
+    }
     return bookPracticalTraining({
       location: params.locationId,
       shift: params.shiftId,

@@ -20,7 +20,7 @@ import { DayActionsMenu } from '@/features/calendar/components/DayActionsMenu';
 import { useDayClosure } from '@/hooks/useDayClosure';
 import { useToastStore } from '@/store/useToastStore';
 import { haptics } from '@/utils/haptics';
-import { formatHeroDate, toISODate } from '@/utils/date';
+import { formatHeroDate, isPastIsoDate, toISODate } from '@/utils/date';
 import { smoothScrollProps } from '@/utils/scroll';
 import type { RootStackScreenProps } from '@/navigation/types';
 
@@ -43,14 +43,19 @@ export function BookTrainingScreen({ route, navigation }: Props) {
   const date = route.params?.date ?? toISODate(new Date());
   const showToast = useToastStore((state) => state.show);
   const heroDate = formatHeroDate(date);
+  const isPastDate = isPastIsoDate(date);
   const dayClosure = useDayClosure(date);
+  const bookingBlocked = Boolean(dayClosure) || isPastDate;
 
   const { data: locations = [], isLoading: loadingLocations } = useTrainingLocations();
   const [locationId, setLocationId] = useState<string | null>(null);
   const [shiftId, setShiftId] = useState<string | null>(null);
   const [seat, setSeat] = useState<number | null>(null);
 
-  const shiftsQuery = useAvailableTrainingShifts(date, dayClosure ? '' : (locationId ?? ''));
+  const shiftsQuery = useAvailableTrainingShifts(
+    date,
+    bookingBlocked ? '' : (locationId ?? ''),
+  );
   const book = useBookTrainingShift();
 
   const shifts = shiftsQuery.data ?? [];
@@ -100,12 +105,16 @@ export function BookTrainingScreen({ route, navigation }: Props) {
 
   const step = !locationId ? 1 : !shiftId ? 2 : 3;
   const canConfirm =
-    !dayClosure &&
+    !bookingBlocked &&
     Boolean(locationId && shiftId && seat != null && freeSeats.includes(seat)) &&
     !book.isPending;
 
   function handleConfirm() {
-    if (dayClosure || !locationId || !shiftId || seat == null) return;
+    if (bookingBlocked || !locationId || !shiftId || seat == null) return;
+    if (isPastIsoDate(date)) {
+      showToast('Practical training cannot be booked on a past date.', 'danger');
+      return;
+    }
     book.mutate(
       { locationId, shiftId, date, seat },
       {
@@ -142,14 +151,25 @@ export function BookTrainingScreen({ route, navigation }: Props) {
             kicker={heroDate.weekday}
             title={heroDate.rest}
             subtitle={
-              dayClosure
-                ? 'This date is closed for new bookings.'
-                : 'Pick a location, shift, and seat to confirm.'
+              isPastDate
+                ? 'Past dates cannot be booked for practical training.'
+                : dayClosure
+                  ? 'This date is closed for new bookings.'
+                  : 'Pick a location, shift, and seat to confirm.'
             }
-            icon={dayClosure ? 'lock-closed-outline' : 'people-outline'}
+            icon={
+              isPastDate || dayClosure ? 'lock-closed-outline' : 'people-outline'
+            }
           />
 
-          {dayClosure ? (
+          {isPastDate ? (
+            <View style={styles.warningBox}>
+              <Ionicons name="calendar-outline" size={20} color={tokens.colors.warning} />
+              <Text variant="caption" color="textSecondary" style={styles.warningText}>
+                Practical training can only be booked for today or a future date.
+              </Text>
+            </View>
+          ) : dayClosure ? (
             <DayActionsMenu closure={dayClosure} />
           ) : (
             <>
@@ -260,7 +280,7 @@ export function BookTrainingScreen({ route, navigation }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        {dayClosure ? (
+        {bookingBlocked ? (
           <Button
             label="Go Back"
             icon="arrow-back"

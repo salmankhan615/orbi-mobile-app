@@ -1049,6 +1049,9 @@ export const bookingsApi = {
     if (slotId.startsWith('training:')) {
       const [, locationId, shiftId, date] = slotId.split(':');
       if (!locationId || !shiftId || !date) throw new Error('Invalid training slot');
+      if (date < localDayFromDate(new Date())) {
+        throw new Error('Practical training cannot be booked on a past date.');
+      }
       const seat = options?.seat ?? 1;
       await bookPracticalTraining({
         location: locationId,
