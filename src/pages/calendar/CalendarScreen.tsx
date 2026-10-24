@@ -31,7 +31,6 @@ import {
 } from '@/utils/date';
 import { useIsStaff, useHasPermission } from '@/hooks/useHasPermission';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
-import { useToastStore } from '@/store/useToastStore';
 import { smoothListProps, smoothScrollProps } from '@/utils/scroll';
 import type { MainTabScreenProps } from '@/navigation/types';
 
@@ -62,7 +61,6 @@ export function CalendarScreen({ navigation }: Props) {
   const canClose = useHasPermission('close_calendar');
   const canShifts = useHasPermission('view_shifts');
   const canViewBookings = useHasPermission('view_bookings');
-  const showToast = useToastStore((state) => state.show);
   const [, startViewTransition] = useTransition();
   const [viewMode, setViewMode] = useState<ViewMode>('Month');
   const [cursor, setCursor] = useState(() => new Date());
@@ -187,6 +185,9 @@ export function CalendarScreen({ navigation }: Props) {
     setSheetOpen(false);
   }
 
+  /** Staff without view_bookings can see the schedule but not open booking screens. */
+  const canOpenBooking = !isStaff || canViewBookings;
+
   const openSession = useCallback(
     (session: Session) => {
       if (!isStaff) {
@@ -195,10 +196,7 @@ export function CalendarScreen({ navigation }: Props) {
         navigation.navigate('SessionDetails', params);
         return;
       }
-      if (!canViewBookings) {
-        showToast("You don't have permission to view bookings.", 'danger');
-        return;
-      }
+      if (!canViewBookings) return;
       if (session.kind === 'training') {
         const params = {
           date: session.date,
@@ -222,7 +220,7 @@ export function CalendarScreen({ navigation }: Props) {
       trackRoute('ClassBookings', params);
       navigation.navigate('ClassBookings', params);
     },
-    [canViewBookings, isStaff, navigation, showToast],
+    [canViewBookings, isStaff, navigation],
   );
 
   return (
@@ -330,8 +328,8 @@ export function CalendarScreen({ navigation }: Props) {
             <SessionListItem
               session={item}
               hideDate
-              showChevron
-              onPress={() => openSession(item)}
+              showChevron={canOpenBooking}
+              onPress={canOpenBooking ? () => openSession(item) : undefined}
             />
           )}
           ListEmptyComponent={
@@ -446,7 +444,7 @@ export function CalendarScreen({ navigation }: Props) {
                 <SessionListItem
                   key={session.id}
                   session={session}
-                  onPress={() => openSession(session)}
+                  onPress={canOpenBooking ? () => openSession(session) : undefined}
                 />
               ))}
 
@@ -532,11 +530,15 @@ export function CalendarScreen({ navigation }: Props) {
                   session={session}
                   index={index}
                   hideDate
-                  showChevron
-                  onPress={() => {
-                    setSheetOpen(false);
-                    openSession(session);
-                  }}
+                  showChevron={canOpenBooking}
+                  onPress={
+                    canOpenBooking
+                      ? () => {
+                          setSheetOpen(false);
+                          openSession(session);
+                        }
+                      : undefined
+                  }
                 />
               ))}
             </ScrollView>

@@ -32,9 +32,15 @@ export function TextField({ label, icon, error, secure, ...rest }: TextFieldProp
           style={styles.input}
           placeholderTextColor={tokens.colors.textMuted}
           secureTextEntry={isSecure}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
           {...rest}
+          onFocus={(event) => {
+            setIsFocused(true);
+            rest.onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setIsFocused(false);
+            rest.onBlur?.(event);
+          }}
         />
         {secure && (
           <Ionicons

@@ -129,6 +129,26 @@ async function rebuildSessionFromApi(): Promise<boolean> {
 }
 
 /**
+ * Re-resolve EMS/CRM permissions onto the existing session (no re-login).
+ * Used after splash restore so disk-cached permissions do not go stale.
+ */
+async function refreshPermissionsFromApi(): Promise<void> {
+  try {
+    const { authApi } = await import('@/api/auth');
+    const { useAuthStore } = await import('@/store/useAuthStore');
+    if (!useAuthStore.getState().isAuthenticated) return;
+    const user = await authApi.getUser();
+    useAuthStore.getState().updateUser(user);
+    console.log('[Auth] Splash: ✓ permissions refreshed', {
+      role: user.role,
+      permissions: user.permissions.length,
+    });
+  } catch (error) {
+    console.warn('[Auth] Splash: permission refresh skipped', error);
+  }
+}
+
+/**
  * Cold-start path used by the splash screen: always rotate tokens when a
  * refresh token exists, then restore the persisted user session.
  */
@@ -149,6 +169,7 @@ export async function bootstrapSessionOnSplash(): Promise<boolean> {
       restored = await rebuildSessionFromApi();
     }
     if (restored) {
+      await refreshPermissionsFromApi();
       await scheduleProactiveRefreshFromStorage();
       console.log('[Auth] Splash: ✓ session restored after refresh');
     }
@@ -165,6 +186,7 @@ export async function bootstrapSessionOnSplash(): Promise<boolean> {
       restored = await rebuildSessionFromApi();
     }
     if (restored) {
+      await refreshPermissionsFromApi();
       await scheduleProactiveRefreshFromStorage();
     }
     return restored;

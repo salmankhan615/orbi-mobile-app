@@ -143,8 +143,9 @@ type DetailField = {
 
 export function UserDetailScreen({ route }: Props) {
   const { userId, name: fallbackName, email: fallbackEmail, role, status } = route.params;
+
   const { data, isLoading } = useQuery({
-    queryKey: ['staff', 'user', userId],
+    queryKey: ['staff', 'user', userId, 'detail'],
     queryFn: async () => {
       const raw = await getCrmUserById(userId);
       const user = unwrapUser(raw);

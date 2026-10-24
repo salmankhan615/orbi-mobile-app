@@ -4,7 +4,10 @@ import { crmCourseMediaUrl } from '@/api/crmMedia';
 import { Platform } from 'react-native';
 import { SESSION_DURATION_MS } from '@/features/auth/permissions';
 import { formatRoleLabel, mapCrmRole, permissionsForRole } from '@/features/auth/mapCrmRole';
-import { mapStaffPermissions } from '@/features/auth/mapStaffPermissions';
+import {
+  hasUsableEmsPermissions,
+  mapStaffPermissions,
+} from '@/features/auth/mapStaffPermissions';
 import { getCrmModulePermissions, getEmsProfile } from '@/api/crm';
 import type { AuthUser } from '@/store/useAuthStore';
 import type { StaffPermission } from '@/features/auth/permissions';
@@ -222,7 +225,12 @@ function mapCrmUser(
   };
 }
 
-/** Load EMS + CRM module permissions and map onto staff tool flags. */
+/**
+ * Staff tools from both permission APIs (EMS wins for EMS modules):
+ * - High priority: `GET /api/ems/profiles/:emsProfileId`
+ * - Secondary: `GET /api/module-permissions/crm/:profileId` (adminPermissions)
+ * CRM-only fallback when EMS profile is missing / has no permissions block.
+ */
 async function resolveStaffPermissions(raw: CrmUser): Promise<StaffPermission[]> {
   const role = mapCrmRole({
     role: raw.role,
@@ -242,13 +250,14 @@ async function resolveStaffPermissions(raw: CrmUser): Promise<StaffPermission[]>
 
   const emsProfile = emsResult.status === 'fulfilled' ? emsResult.value : null;
   const crmModulePermissions = crmResult.status === 'fulfilled' ? crmResult.value : null;
+  const hasEmsProfile = Boolean(emsProfileId && emsProfile && hasUsableEmsPermissions(emsProfile));
 
   return mapStaffPermissions({
     role: raw.role,
     type: raw.type,
-    emsProfile,
+    emsProfile: hasEmsProfile ? emsProfile : null,
     crmModulePermissions,
-    hasEmsProfile: Boolean(emsProfileId && emsProfile),
+    hasEmsProfile,
   });
 }
 

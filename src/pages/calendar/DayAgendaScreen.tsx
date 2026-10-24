@@ -16,7 +16,6 @@ import { trackRoute } from '@/api/screenTracking';
 import { formatPortalDate, getMonthDateRange } from '@/utils/date';
 import { useDayClosure } from '@/hooks/useDayClosure';
 import { useIsStaff, useHasPermission } from '@/hooks/useHasPermission';
-import { useToastStore } from '@/store/useToastStore';
 import { smoothScrollProps } from '@/utils/scroll';
 import type { RootStackScreenProps } from '@/navigation/types';
 
@@ -37,7 +36,6 @@ export function DayAgendaScreen({ route, navigation }: Props) {
   const isStaff = useIsStaff();
   const canViewBookings = useHasPermission('view_bookings');
   const canClose = useHasPermission('close_calendar');
-  const showToast = useToastStore((state) => state.show);
   const range = getMonthDateRange(new Date(`${dayDate}T12:00:00`));
   const { data: sessions, isLoading } = useSessions({
     calendarId,
@@ -50,6 +48,8 @@ export function DayAgendaScreen({ route, navigation }: Props) {
     calendarId && calendarId !== 'all' ? calendarId : undefined,
   );
 
+  const canOpenBooking = !isStaff || canViewBookings;
+
   function openSession(session: Session) {
     if (!isStaff) {
       const params = { sessionId: session.id };
@@ -57,10 +57,7 @@ export function DayAgendaScreen({ route, navigation }: Props) {
       navigation.navigate('SessionDetails', params);
       return;
     }
-    if (!canViewBookings) {
-      showToast("You don't have permission to view bookings.", 'danger');
-      return;
-    }
+    if (!canViewBookings) return;
     if (session.kind === 'training') {
       const params = {
         date: session.date,
@@ -167,20 +164,37 @@ export function DayAgendaScreen({ route, navigation }: Props) {
                     {index < daySessions.length - 1 && <View style={styles.line} />}
                   </View>
 
-                  <ScalePressable style={styles.card} onPress={() => openSession(session)}>
-                    <Text variant="caption" color="textSecondary">
-                      {session.startTime} - {session.endTime}
-                    </Text>
-                    <Text variant="body" style={styles.title}>
-                      {session.title}
-                    </Text>
-                    <View style={styles.footer}>
-                      <Text variant="caption" color="textMuted">
-                        {session.code}
+                  {canOpenBooking ? (
+                    <ScalePressable style={styles.card} onPress={() => openSession(session)}>
+                      <Text variant="caption" color="textSecondary">
+                        {session.startTime} - {session.endTime}
                       </Text>
-                      <Badge label={statusBadge.label} tone={statusBadge.tone} />
+                      <Text variant="body" style={styles.title}>
+                        {session.title}
+                      </Text>
+                      <View style={styles.footer}>
+                        <Text variant="caption" color="textMuted">
+                          {session.code}
+                        </Text>
+                        <Badge label={statusBadge.label} tone={statusBadge.tone} />
+                      </View>
+                    </ScalePressable>
+                  ) : (
+                    <View style={styles.card}>
+                      <Text variant="caption" color="textSecondary">
+                        {session.startTime} - {session.endTime}
+                      </Text>
+                      <Text variant="body" style={styles.title}>
+                        {session.title}
+                      </Text>
+                      <View style={styles.footer}>
+                        <Text variant="caption" color="textMuted">
+                          {session.code}
+                        </Text>
+                        <Badge label={statusBadge.label} tone={statusBadge.tone} />
+                      </View>
                     </View>
-                  </ScalePressable>
+                  )}
                 </View>
               );
             })}

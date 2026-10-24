@@ -246,11 +246,11 @@ export function mapTrainingSequence(
   course: UnknownRecord,
   courseRow: UnknownRecord | null = null,
 ): TrainingSequenceStep[] {
+  // Match web: iterate courseSection in payload order (do not re-sort by `order`).
   const sections = asArray(course.courseSection)
     .map((section) => asRecord(section))
     .filter((row): row is UnknownRecord => Boolean(row))
-    .filter((row) => sectionIsAccessible(row, courseRow))
-    .sort((a, b) => num(a.order) - num(b.order));
+    .filter((row) => sectionIsAccessible(row, courseRow));
 
   const steps: TrainingSequenceStep[] = [];
   for (const section of sections) {
@@ -284,11 +284,11 @@ export function mapTrainingSequence(
 
 function mapModules(course: UnknownRecord, courseRow: UnknownRecord | null = null): CourseModule[] {
   const completed = completedLessonIds(courseRow);
+  // Match web Modules / Training Sequence: keep courseSection (+ panels) array order.
   const sections = asArray(course.courseSection)
     .map((section) => asRecord(section))
     .filter((row): row is UnknownRecord => Boolean(row))
-    .filter((row) => sectionIsAccessible(row, courseRow))
-    .sort((a, b) => num(a.order) - num(b.order));
+    .filter((row) => sectionIsAccessible(row, courseRow));
 
   if (sections.length === 0) return [];
 
@@ -306,8 +306,7 @@ function mapModules(course: UnknownRecord, courseRow: UnknownRecord | null = nul
       str(section.sectionTitle, section.title, section.name) || `Module ${sectionIndex + 1}`;
     const panels = asArray(section.panels)
       .map((panel) => asRecord(panel))
-      .filter((row): row is UnknownRecord => Boolean(row))
-      .sort((a, b) => num(a.order) - num(b.order));
+      .filter((row): row is UnknownRecord => Boolean(row));
 
     panels.forEach((item, panelIndex) => {
       const media = mapPanelMedia(item);

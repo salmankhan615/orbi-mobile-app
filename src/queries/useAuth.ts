@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/api/auth';
 import { ApiError } from '@/api/client';
@@ -9,11 +11,15 @@ export const authKeys = {
   user: ['auth', 'user'] as const,
 };
 
+/**
+ * Keep AuthUser (including EMS staff permissions) in sync without re-login.
+ * Refetches on mount, focus, reconnect, and when the app returns to foreground.
+ */
 export function useCrmUser() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const updateUser = useAuthStore((state) => state.updateUser);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: authKeys.user,
     queryFn: async () => {
       const user = await authApi.getUser();
@@ -21,8 +27,22 @@ export function useCrmUser() {
       return user;
     },
     enabled: isAuthenticated,
-    staleTime: 60_000,
+    staleTime: 0,
+    gcTime: 5 * 60_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void query.refetch();
+    });
+    return () => sub.remove();
+  }, [isAuthenticated, query.refetch]);
+
+  return query;
 }
 
 async function hydrateAfterSignIn(
@@ -135,10 +155,13 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: authApi.updateProfile,
     onSuccess: (next) => {
+      // Keep profile fields; re-fetch getUser so EMS permissions stay authoritative.
       const current = useAuthStore.getState().user;
       updateUser({
         ...next,
-        permissions: current?.permissions?.length ? current.permissions : next.permissions,
+        permissions: next.permissions?.length
+          ? next.permissions
+          : (current?.permissions ?? next.permissions),
       });
       queryClient.setQueryData(authKeys.user, next);
       void queryClient.invalidateQueries({ queryKey: authKeys.user });

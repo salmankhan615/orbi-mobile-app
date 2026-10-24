@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { Screen } from '@/components/custom/Screen';
+import { KeyboardAvoid } from '@/components/custom/KeyboardAvoid';
 import { AuthHero } from '@/features/auth/components/AuthHero';
 import { useToastStore } from '@/store/useToastStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,11 +43,13 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <Screen edges={['top', 'bottom']} style={styles.flex}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoid>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
           <AuthHero title="Welcome back" subtitle="Sign in as a student or staff member." />
 
           <View style={styles.card}>
@@ -87,7 +90,7 @@ export function LoginScreen({ navigation }: Props) {
             />
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </Screen>
   );
 }
@@ -99,7 +102,8 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingVertical: tokens.spacing.xxxl,
+    paddingTop: tokens.spacing.xl,
+    paddingBottom: tokens.spacing.xxxl,
   },
   card: {
     paddingHorizontal: tokens.spacing.xl,

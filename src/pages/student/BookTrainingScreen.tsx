@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { SelectDropdown } from '@/components/ui/SelectDropdown';
 import { Screen } from '@/components/custom/Screen';
+import { KeyboardAvoid } from '@/components/custom/KeyboardAvoid';
 import { HeroBanner } from '@/components/custom/HeroBanner';
 import { FadeInView } from '@/components/custom/FadeInView';
 import { ScalePressable } from '@/components/custom/ScalePressable';
@@ -140,6 +141,7 @@ export function BookTrainingScreen({ route, navigation }: Props) {
         <View style={styles.headerSpacer} />
       </View>
 
+      <KeyboardAvoid offset={56} style={styles.flex}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -308,6 +310,7 @@ export function BookTrainingScreen({ route, navigation }: Props) {
           </>
         )}
       </View>
+      </KeyboardAvoid>
     </Screen>
   );
 }
@@ -343,6 +346,9 @@ function Step({ n, label, active, done }: { n: number; label: string; active: bo
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  flex: {
     flex: 1,
   },
   header: {

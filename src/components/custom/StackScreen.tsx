@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
+import { KeyboardAvoid } from '@/components/custom/KeyboardAvoid';
 import { smoothScrollProps } from '@/utils/scroll';
 
 interface StackScreenProps {
@@ -49,12 +50,7 @@ export function StackScreen({
         {right ?? <View style={styles.headerSpacer} />}
       </View>
       {keyboardAvoiding ? (
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          {body}
-        </KeyboardAvoidingView>
+        <KeyboardAvoid offset={56}>{body}</KeyboardAvoid>
       ) : (
         body
       )}

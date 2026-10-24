@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAllocatedCourses, getCourseDetail, markLessonComplete } from '@/api/crm';
-import { coursesApi, type Course } from '@/api/courses';
+import { coursesApi, type Course, type CourseModule, type Lesson } from '@/api/courses';
 import { unwrapList } from '@/api/unwrap';
 import {
   applyLessonProgressToPacks,
@@ -15,6 +15,44 @@ export const coursesKeys = {
     ['courses', 'allocated-packs', userId, companyId] as const,
   detail: (id: string) => ['courses', id] as const,
 };
+
+/** Reorder allocate-course modules/lessons to match course-detail (web) sequence. */
+function orderModulesLikeWeb(
+  allocated: CourseModule[],
+  webOrder: CourseModule[] | undefined,
+): CourseModule[] {
+  if (!webOrder?.length) return allocated;
+
+  const byId = new Map(allocated.map((module) => [module.id, module]));
+  const ordered: CourseModule[] = [];
+
+  for (const pref of webOrder) {
+    const hit = byId.get(pref.id);
+    if (!hit) continue;
+    byId.delete(pref.id);
+    ordered.push({
+      ...hit,
+      lessons: orderLessonsLikeWeb(hit.lessons, pref.lessons),
+    });
+  }
+
+  for (const leftover of byId.values()) ordered.push(leftover);
+  return ordered;
+}
+
+function orderLessonsLikeWeb(allocated: Lesson[], webOrder: Lesson[]): Lesson[] {
+  if (!webOrder.length) return allocated;
+  const byId = new Map(allocated.map((lesson) => [lesson.id, lesson]));
+  const ordered: Lesson[] = [];
+  for (const pref of webOrder) {
+    const hit = byId.get(pref.id);
+    if (!hit) continue;
+    byId.delete(pref.id);
+    ordered.push(hit);
+  }
+  for (const leftover of byId.values()) ordered.push(leftover);
+  return ordered;
+}
 
 /** Raw CRM allocate-course packs — shared by My Courses + Dashboard. */
 export function useAllocatedCoursePacks() {
@@ -103,9 +141,11 @@ export function useCourse(id: string) {
 
   if (role !== 'student') return query;
 
+  // Prefer course-detail section/lesson order (matches web); keep allocate packs for progress.
   const data = fromAlloc
     ? {
         ...fromAlloc,
+        modules: orderModulesLikeWeb(fromAlloc.modules, query.data?.modules),
         trainingSequence:
           query.data?.trainingSequence?.length
             ? query.data.trainingSequence

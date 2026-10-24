@@ -533,21 +533,37 @@ export async function markPracticalAttendance(
   );
 }
 
+/**
+ * High-priority staff permissions.
+ * `GET /api/ems/profiles/:emsProfileId` → `data.permissions.{modules,actions}`.
+ */
 export async function getEmsProfile(emsProfileId: string) {
   return apiClient.get<{
     success?: boolean;
     data?: {
       name?: string;
       dataFilters?: { countries?: string[]; categories?: string[] };
-      permissions?: { modules?: unknown; actions?: unknown[] };
+      permissions?: {
+        modules?: Record<string, { enabled?: boolean }>;
+        actions?: { moduleKey?: string; actions?: Record<string, unknown> }[];
+      };
       features?: unknown;
     };
   }>(`/api/ems/profiles/${encodeURIComponent(emsProfileId)}`);
 }
 
+/**
+ * Secondary CRM permissions (admin flags + module access by id).
+ * `GET /api/module-permissions/crm/:profileId`
+ */
 export async function getCrmModulePermissions(profileId: string) {
   return apiClient.get<{
-    modules?: unknown[];
+    modules?: {
+      moduleId?: string;
+      access?: boolean;
+      permissions?: { view?: boolean; create?: boolean; edit?: boolean; delete?: boolean };
+      _id?: string;
+    }[];
     features?: unknown;
     adminPermissions?: {
       userManagement?: { enabled?: boolean; types?: string[] };
@@ -555,6 +571,7 @@ export async function getCrmModulePermissions(profileId: string) {
       complianceSettings?: { enabled?: boolean };
       modulesCustomisation?: { enabled?: boolean };
       rolesAndProfiles?: { enabled?: boolean; types?: string[] };
+      email?: { enabled?: boolean };
     };
   }>(`/api/module-permissions/crm/${encodeURIComponent(profileId)}`);
 }
@@ -668,7 +685,10 @@ export async function cancelPracticalBooking(dayId: string, bookingId: string) {
   );
 }
 
-/** Hours / theory-practical cards. */
+/**
+ * Allocations for a user — student home hours cards + staff Users directory.
+ * `GET /api/allocation/crm/getAllocationsByUser/:userId`
+ */
 export async function getAllocationsByUser(userId: string) {
   return apiClient.get<{ success?: boolean; data?: unknown[] }>(
     `/api/allocation/crm/getAllocationsByUser/${encodeURIComponent(userId)}`,

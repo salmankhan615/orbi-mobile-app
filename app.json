@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kbmgroup.training",
-      "buildNumber": "11",
+      "buildNumber": "13",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -26,8 +26,8 @@
     },
     "android": {
       "package": "com.kbmgroups.kbmtrainingrecruitment",
-      "versionCode": 9,
-      "softwareKeyboardLayoutMode": "resize",
+      "versionCode": 11,
+      "softwareKeyboardLayoutMode": "pan",
       "permissions": [
         "android.permission.VIBRATE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
@@ -37,7 +37,7 @@
         "android.permission.WRITE_CALENDAR"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#161532",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -63,7 +63,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#E31C25",
+          "color": "#161532",
           "defaultChannel": "default",
           "sounds": []
         }

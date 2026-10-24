@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
@@ -112,6 +112,8 @@ export function SubmissionGradeCard({
           keyboardType="decimal-pad"
           placeholder="—"
           placeholderTextColor={tokens.colors.textMuted}
+          textAlignVertical="center"
+          underlineColorAndroid="transparent"
           style={styles.scoreInput}
         />
         <Text variant="bodySmall" color="textSecondary">
@@ -218,16 +220,19 @@ const styles = StyleSheet.create({
   },
   scoreInput: {
     width: 64,
-    height: 40,
+    minHeight: 44,
     borderWidth: 1.5,
     borderColor: tokens.colors.border,
     borderRadius: tokens.radius.md,
     paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: Platform.OS === 'android' ? 0 : tokens.spacing.sm,
     textAlign: 'center',
     color: tokens.colors.textPrimary,
     fontFamily: tokens.fontFamily.medium,
     fontSize: tokens.fontSize.md,
+    lineHeight: tokens.lineHeight.md,
     backgroundColor: tokens.colors.surfaceAlt,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
   },
   checkBtn: {
     marginLeft: 'auto',

@@ -1,18 +1,11 @@
 import { useRef, useState } from 'react';
-import {
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/custom/Screen';
+import { KeyboardAvoid } from '@/components/custom/KeyboardAvoid';
 import { Avatar } from '@/features/chat/components/Avatar';
 import { MessageBubble } from '@/features/chat/components/MessageBubble';
 import { Spinner } from '@/components/ui/Spinner';
@@ -65,11 +58,7 @@ export function ChatThreadScreen({ route, navigation }: Props) {
         <View style={styles.headerSpacer} />
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={8}
-      >
+      <KeyboardAvoid offset={8} style={styles.flex}>
         <FlatList
           ref={listRef}
           data={messages ?? []}
@@ -78,6 +67,7 @@ export function ChatThreadScreen({ route, navigation }: Props) {
           ListEmptyComponent={isLoading ? <Spinner label="Loading messages…" /> : null}
           renderItem={({ item }) => <MessageBubble message={item} />}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+          keyboardShouldPersistTaps="handled"
         />
 
         <View style={styles.inputBar}>
@@ -104,7 +94,7 @@ export function ChatThreadScreen({ route, navigation }: Props) {
             )}
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </Screen>
   );
 }

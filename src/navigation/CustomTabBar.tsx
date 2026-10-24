@@ -9,6 +9,7 @@ import { trackRoute } from '@/api/screenTracking';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { haptics } from '@/utils/haptics';
+import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { systemNavInset } from '@/navigation/tabBarMetrics';
 
 const TAB_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -24,6 +25,11 @@ const TAB_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
 export function CustomTabBar({ state, descriptors, navigation, insets }: BottomTabBarProps) {
   const onHeightChange = useContext(BottomTabBarHeightCallbackContext);
   const bottomInset = systemNavInset(insets.bottom);
+  const keyboardVisible = useKeyboardVisible();
+
+  if (keyboardVisible) {
+    return <View onLayout={() => onHeightChange?.(0)} />;
+  }
 
   return (
     <View

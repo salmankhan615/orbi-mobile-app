@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { tokens } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { Screen } from '@/components/custom/Screen';
+import { KeyboardAvoid } from '@/components/custom/KeyboardAvoid';
 import { AuthHero } from '@/features/auth/components/AuthHero';
 import { useSignup } from '@/queries/useAuth';
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -22,11 +23,13 @@ export function SignupScreen({ navigation }: Props) {
 
   return (
     <Screen edges={['top', 'bottom']} style={styles.flex}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoid>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
           <AuthHero
             title="Create your account"
             subtitle="Join KBM as a student to start learning."
@@ -88,7 +91,7 @@ export function SignupScreen({ navigation }: Props) {
             </View>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </Screen>
   );
 }
@@ -100,7 +103,8 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingVertical: tokens.spacing.xxxl,
+    paddingTop: tokens.spacing.xl,
+    paddingBottom: tokens.spacing.xxxl,
   },
   card: {
     paddingHorizontal: tokens.spacing.xl,

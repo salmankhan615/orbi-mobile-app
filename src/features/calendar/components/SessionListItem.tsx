@@ -43,51 +43,62 @@ export function SessionListItem({
   const { day, month } = formatDateParts(session.date);
   const statusBadge = sessionStatusBadge(session);
 
+  const clickable = Boolean(onPress);
+  const cardBody = (
+    <>
+      <View style={[styles.accent, { backgroundColor: tokens.colors[sessionAccentColor(session)] }]} />
+      {!hideDate && (
+        <>
+          <View style={styles.dateCol}>
+            <Text variant="caption" color="textMuted" style={styles.month}>
+              {month}
+            </Text>
+            <Text variant="title" style={styles.day}>
+              {day}
+            </Text>
+          </View>
+          <View style={styles.divider} />
+        </>
+      )}
+
+      <View style={[styles.iconChip, { backgroundColor: tokens.colors[tint.bg] }]}>
+        <Ionicons
+          name={SESSION_TYPE_ICON[session.type]}
+          size={18}
+          color={tokens.colors[tint.fg]}
+        />
+      </View>
+
+      <View style={styles.body}>
+        <Text variant="bodySmall" style={styles.title} numberOfLines={2}>
+          {session.title}
+        </Text>
+        <Text variant="caption" color="textMuted" numberOfLines={1}>
+          {session.startTime} – {session.endTime}
+        </Text>
+        <Text variant="caption" color="textMuted" numberOfLines={1}>
+          {session.code}
+        </Text>
+      </View>
+
+      <View style={styles.trailing}>
+        <Badge label={statusBadge.label} tone={statusBadge.tone} />
+        {showChevron && clickable ? (
+          <Ionicons name="chevron-forward" size={16} color={tokens.colors.textMuted} />
+        ) : null}
+      </View>
+    </>
+  );
+
   const row = (
     <View style={styles.wrapper}>
-      <ScalePressable onPress={onPress} style={styles.card}>
-        <View style={[styles.accent, { backgroundColor: tokens.colors[sessionAccentColor(session)] }]} />
-        {!hideDate && (
-          <>
-            <View style={styles.dateCol}>
-              <Text variant="caption" color="textMuted" style={styles.month}>
-                {month}
-              </Text>
-              <Text variant="title" style={styles.day}>
-                {day}
-              </Text>
-            </View>
-            <View style={styles.divider} />
-          </>
-        )}
-
-        <View style={[styles.iconChip, { backgroundColor: tokens.colors[tint.bg] }]}>
-          <Ionicons
-            name={SESSION_TYPE_ICON[session.type]}
-            size={18}
-            color={tokens.colors[tint.fg]}
-          />
-        </View>
-
-        <View style={styles.body}>
-          <Text variant="bodySmall" style={styles.title} numberOfLines={2}>
-            {session.title}
-          </Text>
-          <Text variant="caption" color="textMuted" numberOfLines={1}>
-            {session.startTime} – {session.endTime}
-          </Text>
-          <Text variant="caption" color="textMuted" numberOfLines={1}>
-            {session.code}
-          </Text>
-        </View>
-
-        <View style={styles.trailing}>
-          <Badge label={statusBadge.label} tone={statusBadge.tone} />
-          {showChevron ? (
-            <Ionicons name="chevron-forward" size={16} color={tokens.colors.textMuted} />
-          ) : null}
-        </View>
-      </ScalePressable>
+      {clickable ? (
+        <ScalePressable onPress={onPress} style={styles.card}>
+          {cardBody}
+        </ScalePressable>
+      ) : (
+        <View style={styles.card}>{cardBody}</View>
+      )}
     </View>
   );
 
