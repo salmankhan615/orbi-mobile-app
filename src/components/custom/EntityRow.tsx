@@ -13,6 +13,8 @@ interface EntityRowProps {
   badge?: { label: string; tone?: BadgeTone };
   icon?: keyof typeof Ionicons.glyphMap;
   onPress?: () => void;
+  /** Omit or pass `0` to show the full title (no ellipsis). Default: 1. */
+  titleNumberOfLines?: number;
 }
 
 export function EntityRow({
@@ -22,18 +24,26 @@ export function EntityRow({
   badge,
   icon = 'ellipse',
   onPress,
+  titleNumberOfLines = 1,
 }: EntityRowProps) {
+  const multilineTitle = titleNumberOfLines === 0 || titleNumberOfLines > 1;
+  const rowStyle = [styles.row, multilineTitle ? styles.rowMultiline : null];
+
   const content = (
     <>
       <View style={styles.iconChip}>
         <Ionicons name={icon} size={18} color={tokens.colors.secondary} />
       </View>
       <View style={styles.body}>
-        <Text variant="bodySmall" style={styles.title} numberOfLines={1}>
+        <Text
+          variant="bodySmall"
+          style={styles.title}
+          numberOfLines={titleNumberOfLines === 0 ? undefined : titleNumberOfLines}
+        >
           {title}
         </Text>
         {subtitle ? (
-          <Text variant="caption" color="textMuted" numberOfLines={1}>
+          <Text variant="caption" color="textMuted" numberOfLines={2}>
             {subtitle}
           </Text>
         ) : null}
@@ -51,11 +61,11 @@ export function EntityRow({
   );
 
   if (!onPress) {
-    return <View style={styles.row}>{content}</View>;
+    return <View style={rowStyle}>{content}</View>;
   }
 
   return (
-    <ScalePressable onPress={onPress} style={styles.row}>
+    <ScalePressable onPress={onPress} style={rowStyle}>
       {content}
     </ScalePressable>
   );
@@ -73,6 +83,9 @@ const styles = StyleSheet.create({
     padding: tokens.spacing.md,
     marginBottom: tokens.spacing.sm,
     ...tokens.shadows.sm,
+  },
+  rowMultiline: {
+    alignItems: 'flex-start',
   },
   iconChip: {
     width: 40,
