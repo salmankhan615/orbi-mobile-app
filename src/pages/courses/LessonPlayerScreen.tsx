@@ -29,6 +29,13 @@ function mediaIcon(type: LessonMedia['type']): keyof typeof Ionicons.glyphMap {
   return 'attach-outline';
 }
 
+function mediaTypeLabel(type: LessonMedia['type']): string {
+  if (type === 'VIDEO') return 'Video';
+  if (type === 'PDF') return 'PDF';
+  if (type === 'IMAGE') return 'Image';
+  return 'File';
+}
+
 export function LessonPlayerScreen({ route, navigation }: Props) {
   const { courseId, lessonId: initialLessonId } = route.params;
   const { data: course, isLoading } = useCourse(courseId);
@@ -97,9 +104,18 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
         ]
       : [];
   const doneInModule = lessons.filter((item) => item.status === 'done').length;
+  const sectionRestricted = Boolean(
+    module.restricted ||
+      course.modules.find((item) => item.id === lesson.sectionId)?.restricted,
+  );
 
   function markComplete() {
     if (lesson.status === 'done') return;
+    if (sectionRestricted) {
+      haptics.warning();
+      showToast('Restricted: Only Accessible in office', 'neutral');
+      return;
+    }
     markCompleteMutation.mutate(
       { sectionId: lesson.sectionId, lessonId: lesson.id },
       {
@@ -112,6 +128,25 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
           showToast('Could not mark lesson complete', 'danger');
         },
       },
+    );
+  }
+
+  if (sectionRestricted) {
+    return (
+      <Screen edges={['top', 'bottom']} style={styles.lockedScreen}>
+        <View style={styles.lockedHeader}>
+          <IconButton name="arrow-back" onPress={() => navigation.goBack()} />
+        </View>
+        <View style={styles.restrictedPanel}>
+          <Ionicons name="lock-closed" size={28} color={tokens.colors.warning} />
+          <Text variant="title" style={styles.restrictedTitle}>
+            Restricted: Only Accessible in office
+          </Text>
+        </View>
+        <View style={styles.lockedFooter}>
+          <Button label="Back to course" variant="outline" onPress={() => navigation.goBack()} />
+        </View>
+      </Screen>
     );
   }
 
@@ -193,10 +228,10 @@ export function LessonPlayerScreen({ route, navigation }: Props) {
                 <Ionicons name={mediaIcon(item.type)} size={18} color={tokens.colors.primary} />
                 <View style={styles.materialCopy}>
                   <Text variant="bodySmall" numberOfLines={2}>
-                    {item.filename}
+                    {lesson.title}
                   </Text>
                   <Text variant="caption" color="textMuted">
-                    {item.type}
+                    {mediaTypeLabel(item.type)}
                   </Text>
                 </View>
               </View>
@@ -274,6 +309,20 @@ const styles = StyleSheet.create({
   lockedFooter: {
     marginTop: tokens.spacing.xl,
     paddingHorizontal: tokens.spacing.screen,
+  },
+  restrictedPanel: {
+    marginHorizontal: tokens.spacing.screen,
+    padding: tokens.spacing.xl,
+    borderRadius: tokens.radius.lg,
+    backgroundColor: tokens.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.border,
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+    ...tokens.shadows.sm,
+  },
+  restrictedTitle: {
+    textAlign: 'center',
   },
   headerChrome: {
     backgroundColor: tokens.colors.primary,

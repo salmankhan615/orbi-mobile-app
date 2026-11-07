@@ -103,13 +103,28 @@ function isQuizOnlyPanel(panel: UnknownRecord, media: LessonMedia[]): boolean {
   return isPlaceholderContent(content);
 }
 
-function sectionIsAccessible(section: UnknownRecord, courseRow: UnknownRecord | null): boolean {
+/** CRM `courseSection.isLocationRestricted` — IP allowlist on web; locked on mobile. */
+function isLocationRestricted(section: UnknownRecord): boolean {
+  const flag = section.isLocationRestricted;
+  return flag === true || flag === 'true' || flag === 1 || flag === '1';
+}
+
+/** Published + allocation accessControl (ignores IP / location restriction). */
+function sectionInAllocationScope(
+  section: UnknownRecord,
+  courseRow: UnknownRecord | null,
+): boolean {
   if (!section.isPublished) return false;
   const access = asRecord(courseRow?.accessControl);
   if (!access || access.fullAccess) return true;
   const allowed = asArray(access.allowedSections);
   const sectionId = idOf(section._id);
   return allowed.some((item) => idOf(item) === sectionId);
+}
+
+/** Sections with open materials (excludes IP/location-restricted). */
+function sectionIsAccessible(section: UnknownRecord, courseRow: UnknownRecord | null): boolean {
+  return sectionInAllocationScope(section, courseRow) && !isLocationRestricted(section);
 }
 
 function completedLessonIds(courseRow: UnknownRecord | null): Set<string> {
@@ -284,11 +299,11 @@ export function mapTrainingSequence(
 
 function mapModules(course: UnknownRecord, courseRow: UnknownRecord | null = null): CourseModule[] {
   const completed = completedLessonIds(courseRow);
-  // Match web Modules / Training Sequence: keep courseSection (+ panels) array order.
+  // Match web Modules order; keep location-restricted sections as locked shells (no lessons).
   const sections = asArray(course.courseSection)
     .map((section) => asRecord(section))
     .filter((row): row is UnknownRecord => Boolean(row))
-    .filter((row) => sectionIsAccessible(row, courseRow));
+    .filter((row) => sectionInAllocationScope(row, courseRow));
 
   if (sections.length === 0) return [];
 
@@ -299,11 +314,26 @@ function mapModules(course: UnknownRecord, courseRow: UnknownRecord | null = nul
     isDone: boolean;
   };
   const drafts: Draft[] = [];
+  const restrictedModules: CourseModule[] = [];
+  /** Preserve section order when merging restricted shells + lesson modules. */
+  const sectionOrder: string[] = [];
 
   sections.forEach((section, sectionIndex) => {
     const sectionId = idOf(section._id) ?? `section-${sectionIndex}`;
     const sectionTitle =
       str(section.sectionTitle, section.title, section.name) || `Module ${sectionIndex + 1}`;
+    sectionOrder.push(sectionId);
+
+    if (isLocationRestricted(section)) {
+      restrictedModules.push({
+        id: sectionId,
+        title: sectionTitle,
+        lessons: [],
+        restricted: true,
+      });
+      return;
+    }
+
     const panels = asArray(section.panels)
       .map((panel) => asRecord(panel))
       .filter((row): row is UnknownRecord => Boolean(row));
@@ -345,18 +375,30 @@ function mapModules(course: UnknownRecord, courseRow: UnknownRecord | null = nul
     }),
   );
 
-  const modules: CourseModule[] = [];
+  const lessonModules = new Map<string, CourseModule>();
   for (const row of withStatus) {
-    const existing = modules.find((module) => module.id === row.sectionId);
+    const existing = lessonModules.get(row.sectionId);
     if (existing) {
       existing.lessons.push(row.lesson);
     } else {
-      modules.push({
+      lessonModules.set(row.sectionId, {
         id: row.sectionId,
         title: row.sectionTitle,
         lessons: [row.lesson],
       });
     }
+  }
+
+  const restrictedById = new Map(restrictedModules.map((module) => [module.id, module]));
+  const modules: CourseModule[] = [];
+  for (const sectionId of sectionOrder) {
+    const restricted = restrictedById.get(sectionId);
+    if (restricted) {
+      modules.push(restricted);
+      continue;
+    }
+    const open = lessonModules.get(sectionId);
+    if (open) modules.push(open);
   }
   return modules;
 }

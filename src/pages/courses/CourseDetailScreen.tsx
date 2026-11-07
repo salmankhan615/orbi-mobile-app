@@ -50,6 +50,14 @@ export function CourseDetailScreen({ route, navigation }: Props) {
       showToast(`Course access expired${ended}. Contact administration for an extension.`, 'danger');
       return;
     }
+    const parentModule = course.modules.find((module) =>
+      module.lessons.some((item) => item.id === lesson.id) || module.id === lesson.sectionId,
+    );
+    if (parentModule?.restricted) {
+      haptics.warning();
+      showToast('Restricted: Only Accessible in office', 'neutral');
+      return;
+    }
     if (lesson.status === 'locked') {
       haptics.warning();
       showToast('This lesson is locked.', 'neutral');

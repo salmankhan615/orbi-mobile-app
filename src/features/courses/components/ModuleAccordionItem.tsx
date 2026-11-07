@@ -41,10 +41,11 @@ export function ModuleAccordionItem({
   defaultExpanded = false,
   onLessonPress,
 }: ModuleAccordionItemProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [expanded, setExpanded] = useState(defaultExpanded && !module.restricted);
   const doneCount = module.lessons.filter((lesson) => lesson.status === 'done').length;
   const total = module.lessons.length;
   const moduleDone = total > 0 && doneCount === total;
+  const restricted = Boolean(module.restricted);
 
   function toggle() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -59,10 +60,16 @@ export function ModuleAccordionItem({
             {module.title}
           </Text>
           <Text variant="caption" color="textMuted">
-            {doneCount}/{total} completed
+            {restricted
+              ? 'Restricted: Only Accessible in office'
+              : `${doneCount}/${total} completed`}
           </Text>
         </View>
-        {moduleDone ? <Badge label="Done" tone="success" /> : null}
+        {restricted ? (
+          <Badge label="Restricted" tone="warning" />
+        ) : moduleDone ? (
+          <Badge label="Done" tone="success" />
+        ) : null}
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
           size={18}
@@ -72,45 +79,54 @@ export function ModuleAccordionItem({
 
       {expanded && (
         <View style={styles.lessons}>
-          {module.lessons.map((lesson) => {
-            const isDone = lesson.status === 'done';
-            return (
-              <ScalePressable
-                key={lesson.id}
-                haptic={false}
-                onPress={() => onLessonPress?.(lesson)}
-                style={isDone ? [styles.lessonRow, styles.lessonRowDone] : styles.lessonRow}
-              >
-                <Ionicons
-                  name={lessonIcon(lesson)}
-                  size={18}
-                  color={isDone ? tokens.colors.success : tokens.colors.secondary}
-                />
-                <View style={styles.lessonCopy}>
-                  <Text
-                    variant="bodySmall"
-                    color={lesson.status === 'locked' ? 'textMuted' : 'textPrimary'}
-                    style={styles.lessonTitle}
-                  >
-                    {lesson.title}
-                  </Text>
-                  <Text variant="caption" color={isDone ? 'success' : 'textMuted'}>
-                    {isDone
-                      ? 'Completed'
-                      : lesson.durationLabel !== '—'
-                        ? lesson.durationLabel
-                        : 'Not completed'}
-                    {lesson.hasQuiz && !isDone ? ' · Quiz on web' : ''}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={14}
-                  color={tokens.colors.textMuted}
-                />
-              </ScalePressable>
-            );
-          })}
+          {restricted ? (
+            <View style={styles.restrictedBox}>
+              <Ionicons name="lock-closed-outline" size={18} color={tokens.colors.warning} />
+              <Text variant="caption" color="textMuted" style={styles.restrictedCopy}>
+                Restricted: Only Accessible in office
+              </Text>
+            </View>
+          ) : (
+            module.lessons.map((lesson) => {
+              const isDone = lesson.status === 'done';
+              return (
+                <ScalePressable
+                  key={lesson.id}
+                  haptic={false}
+                  onPress={() => onLessonPress?.(lesson)}
+                  style={isDone ? [styles.lessonRow, styles.lessonRowDone] : styles.lessonRow}
+                >
+                  <Ionicons
+                    name={lessonIcon(lesson)}
+                    size={18}
+                    color={isDone ? tokens.colors.success : tokens.colors.secondary}
+                  />
+                  <View style={styles.lessonCopy}>
+                    <Text
+                      variant="bodySmall"
+                      color={lesson.status === 'locked' ? 'textMuted' : 'textPrimary'}
+                      style={styles.lessonTitle}
+                    >
+                      {lesson.title}
+                    </Text>
+                    <Text variant="caption" color={isDone ? 'success' : 'textMuted'}>
+                      {isDone
+                        ? 'Completed'
+                        : lesson.durationLabel !== '—'
+                          ? lesson.durationLabel
+                          : 'Not completed'}
+                      {lesson.hasQuiz && !isDone ? ' · Quiz on web' : ''}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={14}
+                    color={tokens.colors.textMuted}
+                  />
+                </ScalePressable>
+              );
+            })
+          )}
         </View>
       )}
     </View>
@@ -157,5 +173,17 @@ const styles = StyleSheet.create({
   },
   lessonTitle: {
     fontFamily: tokens.fontFamily.medium,
+  },
+  restrictedBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.sm,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.colors.warningMuted,
+  },
+  restrictedCopy: {
+    flex: 1,
   },
 });

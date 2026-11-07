@@ -30,10 +30,15 @@ function orderModulesLikeWeb(
     const hit = byId.get(pref.id);
     if (!hit) continue;
     byId.delete(pref.id);
-    ordered.push({
-      ...hit,
-      lessons: orderLessonsLikeWeb(hit.lessons, pref.lessons),
-    });
+    // Keep location-restricted shells empty — never pull lessons from course-detail.
+    ordered.push(
+      hit.restricted
+        ? hit
+        : {
+            ...hit,
+            lessons: orderLessonsLikeWeb(hit.lessons, pref.lessons),
+          },
+    );
   }
 
   for (const leftover of byId.values()) ordered.push(leftover);

@@ -35,6 +35,11 @@ export interface CourseModule {
   id: string;
   title: string;
   lessons: Lesson[];
+  /**
+   * CRM `courseSection.isLocationRestricted` — materials only on allowed IPs (web).
+   * Mobile hides lessons and blocks mark-complete for these modules.
+   */
+  restricted?: boolean;
 }
 
 /** CRM `courseSection.trainingSequence` rows — web Training Sequence tab. */
