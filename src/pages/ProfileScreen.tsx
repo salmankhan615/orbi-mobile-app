@@ -280,7 +280,7 @@ export function ProfileScreen({ navigation }: Props) {
           />
           <MenuRow
             icon="information-circle-outline"
-            label="About KBM"
+            label="About Orbi"
             trailingLabel={`v${APP_VERSION}`}
             isLast
             onPress={() => {

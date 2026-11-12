@@ -72,10 +72,10 @@ export function HelpSupportScreen() {
 
 export function AboutKbmScreen() {
   return (
-    <StackScreen title="About KBM">
+    <StackScreen title="About Orbi">
       <Logo variant="mark" size="lg" />
       <Text variant="heading" style={styles.h}>
-        KBM Training & Recruitment
+        Orbi
       </Text>
       <Text variant="body" color="textSecondary" style={styles.p}>
         Professional training for accounting, customer care, and digital accounts. This app is for

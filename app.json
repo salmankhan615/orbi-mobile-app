@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "KBM Training & Recruitment",
+    "name": "Orbi",
     "slug": "kbm-training-recruitment",
     "owner": "kbm-groups",
     "version": "1.0.4",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kbmgroup.training",
-      "buildNumber": "18",
+      "buildNumber": "20",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -26,7 +26,7 @@
     },
     "android": {
       "package": "com.kbmgroups.kbmtrainingrecruitment",
-      "versionCode": 16,
+      "versionCode": 20,
       "softwareKeyboardLayoutMode": "pan",
       "permissions": [
         "android.permission.VIBRATE",

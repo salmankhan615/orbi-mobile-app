@@ -11,7 +11,7 @@ interface AuthHeroProps {
 export function AuthHero({ title, subtitle }: AuthHeroProps) {
   return (
     <View style={styles.hero}>
-      <View style={styles.logoCard}>
+      <View style={styles.logoWrap}>
         <Logo variant="mark" size="lg" />
       </View>
       <Text variant="heading" style={styles.title}>
@@ -31,13 +31,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.screen,
     alignItems: 'center',
   },
-  logoCard: {
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radius.lg,
-    paddingHorizontal: tokens.spacing.lg,
-    paddingVertical: tokens.spacing.md,
+  logoWrap: {
     marginBottom: tokens.spacing.xxl,
-    ...tokens.shadows.sm,
   },
   title: {
     textAlign: 'center',

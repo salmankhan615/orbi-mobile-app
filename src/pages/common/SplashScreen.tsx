@@ -38,7 +38,7 @@ export function SplashScreen({ onReady }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Image source={LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="KBM" />
+        <Image source={LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="Orbi" />
 
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={tokens.colors.primary} />

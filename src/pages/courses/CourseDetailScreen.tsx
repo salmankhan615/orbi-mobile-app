@@ -78,7 +78,7 @@ export function CourseDetailScreen({ route, navigation }: Props) {
 
   function handleShare() {
     Share.share({
-      message: `${course!.title} — ${course!.progress}% complete on KBM Training & Recruitment.`,
+      message: `${course!.title} — ${course!.progress}% complete on Orbi.`,
     });
   }
 
