@@ -11,7 +11,8 @@ import { MenuRow } from '@/features/profile/components/MenuRow';
 import { APP_VERSION } from '@/api/config';
 import { trackRoute } from '@/api/screenTracking';
 import { pushDevicesApi } from '@/api/pushDevices';
-import { getApiSession } from '@/api/client';
+import { ApiError, getApiSession } from '@/api/client';
+import { deleteMobileAccount, getMobileFeatures } from '@/api/mobileAccount';
 import { useCrmUser, useLogout } from '@/queries/useAuth';
 import { useAuthStore, displayName, displayPhone } from '@/store/useAuthStore';
 import { tokenManager } from '@/store/tokenManager';
@@ -33,6 +34,9 @@ const DETAIL_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Role: 'ribbon-outline',
 };
 
+const DELETE_CONFIRM_MESSAGE =
+  "Deleting your account closes it and signs you out on all your devices. This can't be undone from the app.";
+
 async function resolveAccessToken() {
   return getApiSession().token ?? (await tokenManager.getAccessToken());
 }
@@ -45,10 +49,26 @@ export function ProfileScreen({ navigation }: Props) {
   const showToast = useToastStore((state) => state.show);
   const [notificationsOn, setNotificationsOn] = useState(true);
   const [prefsLoading, setPrefsLoading] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       void refetch();
+
+      let cancelled = false;
+      void (async () => {
+        try {
+          const features = await getMobileFeatures();
+          if (!cancelled) setShowDelete(Boolean(features.showAppAccountDelete));
+        } catch {
+          if (!cancelled) setShowDelete(false);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
     }, [refetch]),
   );
 
@@ -120,6 +140,58 @@ export function ProfileScreen({ navigation }: Props) {
         onPress: () => {
           haptics.warning();
           logout.mutate();
+        },
+      },
+    ]);
+  }
+
+  async function clearSessionLocally() {
+    try {
+      await logout.mutateAsync();
+    } catch {
+      // Local cleanup still runs inside useLogout.
+    }
+  }
+
+  async function performDelete() {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      const result = await deleteMobileAccount();
+      haptics.success();
+      showToast(result.message?.trim() || 'Your account has been deleted.', 'success');
+      await clearSessionLocally();
+    } catch (error) {
+      haptics.warning();
+      if (error instanceof ApiError) {
+        const code = error.code ?? '';
+        if (code === 'ACCOUNT_INACTIVE' || code === 'TOKEN_INVALID' || error.status === 401) {
+          showToast(error.message || 'Your account is no longer active.', 'danger');
+          await clearSessionLocally();
+          return;
+        }
+        if (code === 'ACCOUNT_DELETE_NOT_ALLOWED' || code === 'ACCOUNT_DELETE_DISABLED') {
+          showToast(error.message || 'Account deletion is not available.', 'danger');
+          setShowDelete(false);
+          return;
+        }
+        showToast(error.message || 'Could not delete account.', 'danger');
+        return;
+      }
+      showToast('Could not delete account.', 'danger');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert('Delete account', DELETE_CONFIRM_MESSAGE, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete account',
+        style: 'destructive',
+        onPress: () => {
+          void performDelete();
         },
       },
     ]);
@@ -271,6 +343,14 @@ export function ProfileScreen({ navigation }: Props) {
             }}
           />
           <MenuRow
+            icon="document-text-outline"
+            label="Privacy Policy"
+            onPress={() => {
+              trackRoute('PrivacyPolicy');
+              navigation.navigate('PrivacyPolicy');
+            }}
+          />
+          <MenuRow
             icon="help-circle-outline"
             label="Help & Support"
             onPress={() => {
@@ -296,9 +376,18 @@ export function ProfileScreen({ navigation }: Props) {
             label="Sign Out"
             tone="danger"
             isFirst
-            isLast
+            isLast={!showDelete}
             onPress={handleSignOut}
           />
+          {showDelete ? (
+            <MenuRow
+              icon="trash-outline"
+              label={deleting ? 'Deleting…' : 'Delete account'}
+              tone="danger"
+              isLast
+              onPress={deleting ? undefined : handleDeleteAccount}
+            />
+          ) : null}
         </View>
       </ScrollView>
     </Screen>

@@ -27,6 +27,7 @@ export type RootStackParamList = {
   EditProfile: undefined;
   ChangePassword: undefined;
   PrivacySecurity: undefined;
+  PrivacyPolicy: undefined;
   HelpSupport: undefined;
   AboutKbm: undefined;
   StaffBookingDetail: { bookingId: string };

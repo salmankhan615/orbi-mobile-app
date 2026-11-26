@@ -25,6 +25,7 @@ import { EditProfileScreen } from '@/pages/common/EditProfileScreen';
 import { ChangePasswordScreen } from '@/pages/common/ChangePasswordScreen';
 import {
   PrivacySecurityScreen,
+  PrivacyPolicyScreen,
   HelpSupportScreen,
   AboutKbmScreen,
 } from '@/pages/common/InfoScreens';
@@ -132,6 +133,7 @@ export function RootNavigator({ appConfig }: RootNavigatorProps) {
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
           <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
+          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
           <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
           <Stack.Screen name="AboutKbm" component={AboutKbmScreen} />
 

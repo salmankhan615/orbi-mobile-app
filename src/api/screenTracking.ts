@@ -46,6 +46,7 @@ const SCREEN_MAP: Record<string, ScreenMapEntry> = {
   EditProfile: { key: 'profile' },
   ChangePassword: { key: 'profile' },
   PrivacySecurity: { key: 'profile' },
+  PrivacyPolicy: { key: 'profile' },
   HelpSupport: { key: 'profile' },
   AboutKbm: { key: 'profile' },
 

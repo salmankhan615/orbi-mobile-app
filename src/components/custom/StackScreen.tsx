@@ -14,6 +14,8 @@ interface StackScreenProps {
   right?: ReactNode;
   footer?: ReactNode;
   scroll?: boolean;
+  /** When false, body has no horizontal/top padding (for full-bleed WebViews). */
+  padded?: boolean;
   keyboardAvoiding?: boolean;
 }
 
@@ -23,6 +25,7 @@ export function StackScreen({
   right,
   footer,
   scroll = true,
+  padded = true,
   keyboardAvoiding = false,
 }: StackScreenProps) {
   const navigation = useNavigation();
@@ -30,14 +33,14 @@ export function StackScreen({
   const body = scroll ? (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={padded ? styles.content : styles.contentFlush}
       keyboardShouldPersistTaps="handled"
       {...smoothScrollProps}
     >
       {children}
     </ScrollView>
   ) : (
-    <View style={styles.body}>{children}</View>
+    <View style={padded ? styles.body : styles.bodyFlush}>{children}</View>
   );
 
   return (
@@ -87,9 +90,15 @@ const styles = StyleSheet.create({
     paddingTop: tokens.spacing.lg,
     paddingBottom: tokens.spacing.xxxl,
   },
+  contentFlush: {
+    flexGrow: 1,
+  },
   body: {
     flex: 1,
     paddingHorizontal: tokens.spacing.screen,
     paddingTop: tokens.spacing.lg,
+  },
+  bodyFlush: {
+    flex: 1,
   },
 });
